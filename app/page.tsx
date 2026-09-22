@@ -16,7 +16,7 @@ export default function Home() {
   const buscarProducto = async (qrId: string) => {
     setCode(qrId);
     // 1. Guarda el escaneo
-    await supabase.from("Escaneos").insert({ codigo: qrId }).catch(()=>{});
+    await supabase.from("Escaneos").insert({ "Código": qrId, "Dispositivo": "web-alpha" }).catch(()=>{});
     // 2. Busca en dpp_test
     const { data } = await supabase.from("dpp_test").select("*").eq("qr_id", qrId).limit(1).single();
     if(data) setProduct(data);

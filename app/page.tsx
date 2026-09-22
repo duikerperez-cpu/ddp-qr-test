@@ -1,71 +1,112 @@
-"use client";
-import { useEffect, useState, useRef } from "react";
-import { createClient } from "@supabase/supabase-js";
+'use client';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+// Cliente Supabase - usa tus variables de Vercel
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function Home() {
-  const [code, setCode] = useState<string | null>(null);
-  const [product, setProduct] = useState<any>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const qrRef = useRef<any>(null);
+  const [qrId, setQrId] = useState('');
+  const [producto, setProducto] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
+  const [inputValue, setInputValue] = useState('PROD-TEST-001');
 
-  const buscarProducto = async (qrId: string) => {
-    setCode(qrId);
-    // 1. Guarda el escaneo
-    await supabase.from("Escaneos").insert({ "Código": qrId, "Dispositivo": "web-alpha" }).catch(()=>{});
-    // 2. Busca en dpp_test
-    const { data } = await supabase.from("dpp_test").select("*").eq("qr_id", qrId).limit(1).single();
-    if(data) setProduct(data);
-    else {
-      // intenta con productos_test también
-      const { data: p2 } = await supabase.from("productos_test").select("*").eq("qr_id", qrId).limit(1).single();
-      setProduct(p2 || { qr_id: qrId, Material: "No encontrado", Orígenes: "No encontrado" });
+  const buscarYGuardar = async (codigo: string) => {
+    if (!codigo) return;
+    setLoading(true);
+    setStatus('Buscando...');
+    setQrId(codigo);
+    
+    try {
+      // 1. GUARDAR EN ESCANEOS (con tilde)
+      const { error: insertError } = await supabase
+        .from('Escaneos')
+        .insert([{ "Código": codigo, "Dispositivo": "web-alpha" } as any]);
+
+      if (insertError) {
+        console.error(insertError);
+        setStatus(`Error guardando: ${insertError.message}`);
+      } else {
+        setStatus(`Escaneo ${codigo} guardado ✓`);
+      }
+
+      // 2. BUSCAR PRODUCTO EN dpp_test o productos_test
+      // Probamos dpp_test primero
+      let { data, error } = await supabase
+        .from('dpp_test')
+        .select('*')
+        .eq('codigo', codigo)
+        .maybeSingle();
+
+      if (!data) {
+        // Si no está en dpp_test, prueba productos_test
+        const res2 = await supabase
+          .from('productos_test')
+          .select('*')
+          .eq('codigo', codigo)
+          .maybeSingle();
+        data = res2.data;
+        error = res2.error as any;
+      }
+
+      if (data) {
+        setProducto(data);
+      } else {
+        setProducto({ codigo: codigo, material: 'No encontrado, pero escaneo guardado en Escaneos' });
+      }
+
+    } catch (err: any) {
+      setStatus(`Error: ${err.message}`);
     }
+    setLoading(false);
   };
 
-  useEffect(() => {
-    if (!isScanning) return;
-    (async () => {
-      const { Html5Qrcode } = await import("html5-qrcode");
-      const qr = new Html5Qrcode("reader");
-      qrRef.current = qr;
-      await qr.start({ facingMode: "environment" }, { fps: 15, qrbox: 280 },
-        async (decoded: string) => {
-          await buscarProducto(decoded);
-          try{ await qr.stop(); }catch{} setIsScanning(false);
-        }, ()=>{}
-      );
-    })();
-    return () => { qrRef.current?.stop().catch(()=>{}); };
-  }, [isScanning]);
-
   return (
-    <div style={{ fontFamily:'system-ui', maxWidth:480, margin:'0 auto', padding:20 }}>
-      <h1 style={{ fontSize:24, fontWeight:800 }}>Vinculab DPP 🌿</h1>
-      <p style={{ color:'#666' }}>Escanea PROD-TEST-001</p>
+    <main className="min-h-screen bg-gray-50 p-6 flex flex-col items-center">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 mt-10">
+        <h1 className="text-xl font-bold mb-1">DDP-QR v2.2</h1>
+        <p className="text-sm text-gray-500 mb-6">Vinculab - estable</p>
 
-      {!isScanning? <button onClick={()=>setIsScanning(true)} style={{ width:'100%', padding:16, background:'black', color:'white', borderRadius:12, fontWeight:700, marginTop:20 }}>📷 ESCANEAR QR</button>
-      : <button onClick={async()=>{try{await qrRef.current?.stop()}catch{}; setIsScanning(false)}} style={{ width:'100%', padding:16, background:'#ff4444', color:'white', borderRadius:12 }}>Cancelar</button>}
-
-      <div id="reader" style={{ width:'100%', marginTop:20, borderRadius:12, overflow:'hidden' }}></div>
-
-      {code && (
-        <div style={{ marginTop:20, padding:16, background:'#f0fdf4', border:'2px solid #16a34a', borderRadius:12 }}>
-          <div style={{ fontSize:12, color:'#16a34a', fontWeight:700 }}>QR: {code}</div>
-          {product? (
-            <div style={{ marginTop:10 }}>
-              <div><b>Material:</b> {product.Material || product.material}</div>
-              <div><b>Origen:</b> {product.Orígenes || product.origenes}</div>
-              <div style={{ marginTop:8, fontSize:12, color:'#555' }}>ID: {product.id}</div>
-              <pre style={{ marginTop:10, fontSize:10, background:'#fff', padding:8, overflow:'auto' }}>{JSON.stringify(product.datos_dummy || product, null, 2)}</pre>
-            </div>
-          ) : <div>Buscando...</div>}
+        <div className="flex gap-2 mb-4">
+          <input
+            className="flex-1 border rounded-lg px-3 py-2 text-sm"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="PROD-TEST-001"
+          />
+          <button
+            onClick={() => buscarYGuardar(inputValue)}
+            disabled={loading}
+            className="bg-black text-white rounded-lg px-4 py-2 text-sm font-medium"
+          >
+            {loading ? '...' : 'Escanear'}
+          </button>
         </div>
-      )}
-    </div>
+
+        {status && <p className="text-xs text-gray-600 mb-4">{status}</p>}
+
+        {producto && (
+          <div className="border rounded-xl p-4 bg-gray-50">
+            <p className="text-xs text-gray-400">Código</p>
+            <p className="font-mono font-bold mb-3">{qrId}</p>
+            
+            <p className="text-xs text-gray-400">Datos DPP</p>
+            <pre className="text-xs overflow-auto whitespace-pre-wrap">
+              {JSON.stringify(producto, null, 2)}
+            </pre>
+          </div>
+        )}
+
+        <div className="mt-6 text-center">
+          <a href="https://supabase.com/dashboard/project/fgfoahonirhpmlbanzvy/editor" target="_blank" className="text-xs text-blue-600 underline">
+            Ver tabla Escaneos en Supabase
+          </a>
+        </div>
+      </div>
+    </main>
   );
 }

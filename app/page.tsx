@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Cliente Supabase - usa tus variables de Vercel
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -18,46 +17,39 @@ export default function Home() {
   const buscarYGuardar = async (codigo: string) => {
     if (!codigo) return;
     setLoading(true);
-    setStatus('Buscando...');
+    setStatus('Guardando...');
     setQrId(codigo);
     
     try {
-      // 1. GUARDAR EN ESCANEOS (con tilde)
+      // 1. GUARDAR EN ESCANEOS - con tilde y as any para que compile
       const { error: insertError } = await supabase
         .from('Escaneos')
         .insert([{ "Código": codigo, "Dispositivo": "web-alpha" } as any]);
 
       if (insertError) {
-        console.error(insertError);
         setStatus(`Error guardando: ${insertError.message}`);
+        console.error(insertError);
       } else {
         setStatus(`Escaneo ${codigo} guardado ✓`);
       }
 
-      // 2. BUSCAR PRODUCTO EN dpp_test o productos_test
-      // Probamos dpp_test primero
-      let { data, error } = await supabase
+      // 2. BUSCAR PRODUCTO
+      let { data } = await supabase
         .from('dpp_test')
         .select('*')
         .eq('codigo', codigo)
         .maybeSingle();
 
       if (!data) {
-        // Si no está en dpp_test, prueba productos_test
         const res2 = await supabase
           .from('productos_test')
           .select('*')
           .eq('codigo', codigo)
           .maybeSingle();
         data = res2.data;
-        error = res2.error as any;
       }
 
-      if (data) {
-        setProducto(data);
-      } else {
-        setProducto({ codigo: codigo, material: 'No encontrado, pero escaneo guardado en Escaneos' });
-      }
+      setProducto(data || { codigo: codigo, mensaje: 'Guardado en Escaneos, producto no encontrado en dpp_test' });
 
     } catch (err: any) {
       setStatus(`Error: ${err.message}`);
@@ -81,7 +73,7 @@ export default function Home() {
           <button
             onClick={() => buscarYGuardar(inputValue)}
             disabled={loading}
-            className="bg-black text-white rounded-lg px-4 py-2 text-sm font-medium"
+            className="bg-black text-white rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
             {loading ? '...' : 'Escanear'}
           </button>
@@ -93,7 +85,6 @@ export default function Home() {
           <div className="border rounded-xl p-4 bg-gray-50">
             <p className="text-xs text-gray-400">Código</p>
             <p className="font-mono font-bold mb-3">{qrId}</p>
-            
             <p className="text-xs text-gray-400">Datos DPP</p>
             <pre className="text-xs overflow-auto whitespace-pre-wrap">
               {JSON.stringify(producto, null, 2)}
@@ -103,7 +94,7 @@ export default function Home() {
 
         <div className="mt-6 text-center">
           <a href="https://supabase.com/dashboard/project/fgfoahonirhpmlbanzvy/editor" target="_blank" className="text-xs text-blue-600 underline">
-            Ver tabla Escaneos en Supabase
+            Ver tabla Escaneos
           </a>
         </div>
       </div>

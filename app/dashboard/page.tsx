@@ -3,40 +3,54 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({empresas:0, productos:0, lotes:0})
-
+  const [count, setCount] = useState(0)
   useEffect(() => {
-    async function load() {
-      const { count: c1 } = await supabase.from('nfc_qr').select('*', {count:'exact', head:true})
-      setStats({empresas:1, productos: c1 || 30, lotes:1})
-    }
-    load()
+    supabase.from('nfc_qr').select('*', {count:'exact', head:true}).then(({count})=>setCount(count||0))
   }, [])
 
   return (
-    <div style={{display:'flex', minHeight:'100vh', fontFamily:'sans-serif'}}>
-      <div style={{width:240, background:'#1e293b', color:'white', padding:20}}>
-        <h2 style={{fontWeight:'bold', marginBottom:30}}>VINCULAB</h2>
-        <div style={{display:'flex', flexDirection:'column', gap:15}}>
-          <span>📊 Dashboard</span>
+    <div style={{display:'flex', minHeight:'100vh', background:'#0a0a0a', color:'white', fontFamily:'Arial'}}>
+      {/* SIDEBAR NEGRO COMO TU FOTO */}
+      <div style={{width:220, background:'#000', borderRight:'1px solid #222', padding:15}}>
+        <div style={{color:'#ff6a00', fontWeight:'bold', fontSize:18, marginBottom:25}}>VINCULAB</div>
+        <div style={{display:'flex', flexDirection:'column', gap:12, fontSize:13, color:'#aaa'}}>
+          <span style={{color:'white', background:'#1a1a1a', padding:'8px 10px', borderRadius:6, borderLeft:'3px solid #ff6a00'}}>◼ Dashboard</span>
           <span>🏢 Empresas</span>
           <span>📦 Productos</span>
+          <span>🏷️ Modelos</span>
           <span>🏷️ Lotes</span>
-          <span>📄 Pasaporte Digital</span>
-          <span style={{background:'#334155', padding:8, borderRadius:6}}>📱 NFC/QR</span>
+          <span>🔢 Productos Individuales</span>
+          <span style={{marginTop:10, fontSize:10, color:'#555'}}>OPERACIONES</span>
+          <span>📄 DPP</span>
+          <span>📱 NFC/QR</span>
+          <span>✓ Confirmaciones</span>
+          <span>📍 Trazabilidad</span>
         </div>
       </div>
-      <div style={{flex:1, padding:30, background:'#f1f5f9'}}>
-        <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:20, marginBottom:30}}>
-          <div style={{background:'white', padding:20, borderRadius:12}}>Empresas<br/><b style={{fontSize:24}}>{stats.empresas}</b></div>
-          <div style={{background:'white', padding:20, borderRadius:12}}>Productos<br/><b style={{fontSize:24}}>{stats.productos}</b></div>
-          <div style={{background:'white', padding:20, borderRadius:12}}>Lotes<br/><b style={{fontSize:24}}>{stats.lotes}</b></div>
-          <div style={{background:'white', padding:20, borderRadius:12, color:'green'}}>Sistema<br/><b>Listo</b></div>
+
+      {/* MAIN COMO TU FOTO */}
+      <div style={{flex:1, padding:25, background:'#0f0f0f'}}>
+        <h2 style={{fontSize:14, marginBottom:20}}>Dashboard <span style={{fontWeight:'normal', color:'#666', fontSize:11, display:'block'}}>Vista general de la plataforma de Identidad Digital de Productos</span></h2>
+        
+        <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:15}}>
+          {[
+            {label:'EMPRESAS', val:1},
+            {label:'PRODUCTOS', val:count},
+            {label:'MODELOS', val:1},
+            {label:'LOTES', val:1},
+          ].map(c=>(
+            <div key={c.label} style={{background:'#1a1a1a', border:'1px solid #222', borderLeft:'3px solid #ff6a00', padding:15, borderRadius:4}}>
+              <div style={{fontSize:9, color:'#666', letterSpacing:1}}>{c.label}</div>
+              <div style={{fontSize:22, fontWeight:'bold', marginTop:5}}>{c.val}</div>
+            </div>
+          ))}
         </div>
-        <div style={{background:'white', padding:20, borderRadius:12}}>
-          <h3>Últimos QR Generados (migrados)</h3>
-          <p>Tu tabla <b>nfc_qr</b> ya tiene 30. <a href="/print">Ver hoja de impresión</a></p>
-          <p>Prueba: <a href="/p/VIN-CL-000015">/p/VIN-CL-000015</a></p>
+
+        <div style={{marginTop:30, background:'#151515', border:'1px solid #222', padding:20, borderRadius:6}}>
+          <h3 style={{fontSize:13}}>Últimos QR Generados (migrados)</h3>
+          <p style={{fontSize:12, color:'#888'}}>Tu tabla nfc_qr ya tiene {count} items migrados a Supabase.</p>
+          <a href="/print" style={{color:'#ff6a00', fontSize:12}}>Ver hoja de impresión →</a><br/>
+          <a href="/p/VIN-CL-000015" style={{color:'#ff6a00', fontSize:12}}>Probar /p/VIN-CL-000015 →</a>
         </div>
       </div>
     </div>

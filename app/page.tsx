@@ -7,130 +7,110 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-const menu = [
-  {section:'PRINCIPAL', items:[{id:'dashboard', label:'Dashboard', icon:'⌂'}]},
-  {section:'GESTIÓN', items:[
-    {id:'empresas', label:'Empresas', icon:'◫'},
-    {id:'productos', label:'Productos', icon:'⬙'},
-    {id:'modelos', label:'Modelos', icon:'◇'},
-    {id:'lotes', label:'Lotes', icon:'☰'},
-    {id:'individuales', label:'Productos Individuales', icon:'◉'},
-  ]},
-  {section:'IDENTIDAD DIGITAL', items:[
-    {id:'dpp', label:'DPP', icon:'▤'},
-    {id:'nfc', label:'NFC / QR', icon:'≋'},
-    {id:'certificados', label:'Certificados', icon:'✓'},
-    {id:'trazabilidad', label:'Trazabilidad', icon:'◍'},
-  ]},
-]
-
 export default function Page() {
-  const [tab, setTab] = useState('dashboard')
-  const [counts, setCounts] = useState({empresas:2, productos:0, modelos:0, lotes:0})
-  const [empresas, setEmpresas] = useState<any[]>([
-    {id:'1', nombre:'Hercom Chile', rut:'76.123.456-7'},
-    {id:'2', nombre:'Trimar Hotel', rut:'77.987.654-3'}
+  const [tab, setTab] = useState('empresas')
+  const [empresas] = useState([
+    {id:'hercom', nombre:'Hercom Chile'},
+    {id:'trimar', nombre:'Trimar Hotel'}
   ])
   const [productos, setProductos] = useState<any[]>([])
-  const [lotes, setLotes] = useState<any[]>([])
+  const [showNew, setShowNew] = useState(false)
+  const [form, setForm] = useState({nombre:'', sku:'', empresa_id:'hercom'})
 
-  useEffect(()=>{
-    async function load(){
-      const filtroNombres = ['Hercom Chile', 'Trimar Hotel']
-      try {
-        // 1. Trae las 2 empresas y saca sus IDs reales
-        const {data: empData} = await supabase.from('empresas').select('*').in('nombre', filtroNombres)
-        const listaEmpresas = empData && empData.length > 0 ? empData : empresas
-        setEmpresas(listaEmpresas)
-        const ids = listaEmpresas.map((e:any)=>e.id)
+  useEffect(()=>{ loadProductos() },[])
 
-        // 2. Productos solo de esas 2 empresas
-        const {data: prodData, count: prodCount} = await supabase.from('productos').select('*', {count:'exact'}).in('empresa_id', ids)
-        const {data: prodData2, count: prodCount2} = await supabase.from('productos').select('*', {count:'exact'}).in('empresa_nombre', filtroNombres)
-        
-        // Usa el que tenga datos
-        const prods = (prodData && prodData.length > 0) ? prodData : (prodData2 && prodData2.length > 0 ? prodData2 : [])
-        setProductos(prods)
-        
-        // 3. Lotes solo de esas 2 empresas
-        const {data: lotesData} = await supabase.from('lotes').select('*').in('empresa_id', ids)
-        setLotes(lotesData || [])
+  async function loadProductos(){
+    const {data} = await supabase.from('productos').select('*').order('created_at', {ascending:false})
+    if(data) setProductos(data)
+  }
 
-        // Counts
-        const [e,m] = await Promise.all([
-          supabase.from('empresas').select('*', {count:'exact', head:true}).in('nombre', filtroNombres),
-          supabase.from('modelos').select('*', {count:'exact', head:true}),
-        ])
-        setCounts({
-          empresas: e.count || 2,
-          productos: prods.length || prodCount || prodCount2 || 0,
-          modelos: m.count || 0,
-          lotes: lotesData?.length || 0
-        })
-
-      } catch(err){
-        console.log('Usando datos locales', err)
-      }
+  async function crearProducto(){
+    if(!form.nombre ||!form.sku) return alert('Nombre y SKU obligatorios')
+    const empresa = empresas.find(e=>e.id===form.empresa_id)
+    const {error} = await supabase.from('productos').insert([{
+      nombre: form.nombre,
+      sku: form.sku,
+      empresa_id: form.empresa_id,
+      empresa_nombre: empresa?.nombre
+    }])
+    if(error){ alert(error.message) } else {
+      setShowNew(false)
+      setForm({nombre:'', sku:'', empresa_id:'hercom'})
+      loadProductos()
     }
-    load()
-  },[])
+  }
 
   return (
     <div style={{display:'flex', minHeight:'100vh', background:'#09090b', color:'white', fontFamily:'Inter, Arial'}}>
-      <div style={{width:250, background:'#0f1012', borderRight:'1px solid #1f1f23', display:'flex', flexDirection:'column', position:'sticky', top:0, height:'100vh'}}>
-        <div style={{padding:'18px 20px', borderBottom:'1px solid #1f1f23'}}>
-          <div style={{fontWeight:900, fontSize:20, letterSpacing:2}}>VINCULA<span style={{color:'#ff6a00'}}>B</span></div>
-          <div style={{fontSize:8, color:'#666', letterSpacing:1.5}}>DIGITAL PRODUCT IDENTITY</div>
+      {/* SIDEBAR - solo 2 empresas */}
+      <div style={{width:240, background:'#0f1012', borderRight:'1px solid #1f1f23'}}>
+        <div style={{padding:18, borderBottom:'1px solid #1f1f23'}}>
+          <div style={{fontWeight:900}}>VINCULA<span style={{color:'#ff6a00'}}>B</span></div>
+          <div style={{fontSize:9, color:'#666'}}>SOLO 2 EMPRESAS</div>
         </div>
-        <div style={{flex:1, padding:'15px 10px', overflowY:'auto'}}>
-          {menu.map(group=>(
-            <div key={group.section} style={{marginBottom:20}}>
-              <div style={{fontSize:9, color:'#555', letterSpacing:2, padding:'10px 12px', fontWeight:700}}>{group.section}</div>
-              {group.items.map(item=>{
-                const active = tab===item.id
-                return <button key={item.id} onClick={()=>setTab(item.id)} style={{width:'100%', textAlign:'left', display:'flex', gap:10, background: active ? '#1c1917' : 'transparent', color: active ? 'white' : '#b0b0b0', border:'none', borderLeft: active ? '3px solid #ff6a00' : '3px solid transparent', padding:'10px 12px', borderRadius:6, cursor:'pointer', fontSize:13, fontWeight: active ? 700 : 400}}><span style={{color:'#ff6a00'}}>{item.icon}</span>{item.label}</button>
-              })}
-            </div>
-          ))}
-        </div>
+        <button onClick={()=>setTab('empresas')} style={{width:'100%', textAlign:'left', padding:12, background: tab==='empresas'? '#1c1917' : 'transparent', border:'none', borderLeft: tab==='empresas'? '3px solid #ff6a00' : '3px solid transparent', color:'white', cursor:'pointer'}}>◫ Empresas (2)</button>
+        <button onClick={()=>setTab('productos')} style={{width:'100%', textAlign:'left', padding:12, background: tab==='productos'? '#1c1917' : 'transparent', border:'none', borderLeft: tab==='productos'? '3px solid #ff6a00' : '3px solid transparent', color:'white', cursor:'pointer'}}>⬙ Productos ({productos.length})</button>
+        <button onClick={()=>setTab('modelos')} style={{width:'100%', textAlign:'left', padding:12, background: tab==='modelos'? '#1c1917' : 'transparent', border:'none', borderLeft: tab==='modelos'? '3px solid #ff6a00' : '3px solid transparent', color:'white', cursor:'pointer'}}>◇ Modelos</button>
+        <button onClick={()=>setTab('lotes')} style={{width:'100%', textAlign:'left', padding:12, background: tab==='lotes'? '#1c1917' : 'transparent', border:'none', borderLeft: tab==='lotes'? '3px solid #ff6a00' : '3px solid transparent', color:'white', cursor:'pointer'}}>☰ Lotes</button>
       </div>
 
-      <div style={{flex:1, display:'flex', flexDirection:'column'}}>
-        <div style={{height:56, background:'#111214', borderBottom:'1px solid #1f1f23', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 25px'}}>
-          <div style={{fontSize:11, color:'#666'}}>PLATAFORMA DE IDENTIDAD DIGITAL DE PRODUCTOS</div>
-          <div style={{display:'flex', gap:10, alignItems:'center'}}><div style={{textAlign:'right'}}><div style={{fontSize:9, color:'#666'}}>FILTRO ACTIVO</div><div style={{fontSize:11, fontWeight:700, color:'#ff6a00'}}>Hercom + Trimar</div></div><div style={{width:32, height:32, background:'#ff6a00', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900}}>A</div></div>
-        </div>
+      <div style={{flex:1, padding:25}}>
+        {tab==='empresas' && (
+          <>
+            <h1>Empresas - 2 activas</h1>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:15, marginTop:20}}>
+              {empresas.map(e=>(
+                <div key={e.id} style={{background:'#15161a', border:'1px solid #1f1f23', borderRadius:8, padding:20, borderLeft:'4px solid #ff6a00'}}>
+                  <div style={{fontWeight:800, fontSize:18}}>{e.nombre}</div>
+                  <div style={{fontSize:11, color:'#22c55e', marginTop:10}}>● Activa - lista para crear productos</div>
+                </div>
+              ))}
+            </div>
+            <div style={{marginTop:25, background:'#111', padding:15, borderRadius:8, fontSize:12, color:'#666'}}>Ahora vas a Productos y creas desde cero para estas 2 empresas.</div>
+          </>
+        )}
 
-        <div style={{flex:1, background:'#09090b', padding:25}}>
-          {tab==='dashboard' && (
-            <>
-              <h1 style={{fontSize:26, margin:0, fontWeight:800}}>Dashboard</h1>
-              <p style={{color:'#666', fontSize:13}}>Filtrado solo para Hercom Chile y Trimar Hotel.</p>
-              <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:15, marginTop:25}}>
-                <div style={{background:'#15161a', border:'1px solid #1f1f23', borderLeft:'4px solid #ff4500', borderRadius:8, padding:18}}><div style={{fontSize:10, color:'#666'}}>EMPRESAS</div><div style={{fontSize:32, fontWeight:900, marginTop:8}}>{counts.empresas}</div></div>
-                <div style={{background:'#15161a', border:'1px solid #1f1f23', borderLeft:'4px solid #ff4500', borderRadius:8, padding:18}}><div style={{fontSize:10, color:'#666'}}>PRODUCTOS</div><div style={{fontSize:32, fontWeight:900, marginTop:8}}>{counts.productos}</div></div>
-                <div style={{background:'#15161a', border:'1px solid #1f1f23', borderLeft:'4px solid #ff4500', borderRadius:8, padding:18}}><div style={{fontSize:10, color:'#666'}}>MODELOS</div><div style={{fontSize:32, fontWeight:900, marginTop:8}}>{counts.modelos}</div></div>
-                <div style={{background:'#15161a', border:'1px solid #1f1f23', borderLeft:'4px solid #ff4500', borderRadius:8, padding:18}}><div style={{fontSize:10, color:'#666'}}>LOTES</div><div style={{fontSize:32, fontWeight:900, marginTop:8}}>{counts.lotes}</div></div>
+        {tab==='productos' && (
+          <>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <h1 style={{margin:0}}>Productos ({productos.length}) - Desde cero</h1>
+              <button onClick={()=>setShowNew(true)} style={{background:'#ff6a00', color:'white', border:'none', padding:'10px 18px', borderRadius:8, fontWeight:800, cursor:'pointer'}}>+ Nuevo Producto</button>
+            </div>
+
+            {showNew && (
+              <div style={{background:'#15161a', border:'1px solid #ff6a00', borderRadius:8, padding:20, marginTop:20}}>
+                <h3 style={{marginTop:0}}>Crear Producto Nuevo</h3>
+                <div style={{display:'grid', gap:12, maxWidth:400}}>
+                  <label style={{fontSize:11, color:'#888'}}>EMPRESA (solo 2 opciones)</label>
+                  <select value={form.empresa_id} onChange={e=>setForm({...form, empresa_id:e.target.value})} style={{padding:10, background:'#09090b', color:'white', border:'1px solid #333', borderRadius:6}}>
+                    <option value="hercom">Hercom Chile</option>
+                    <option value="trimar">Trimar Hotel</option>
+                  </select>
+                  <label style={{fontSize:11, color:'#888'}}>NOMBRE PRODUCTO</label>
+                  <input value={form.nombre} onChange={e=>setForm({...form, nombre:e.target.value})} placeholder="Ej: Toalla Premium" style={{padding:10, background:'#09090b', color:'white', border:'1px solid #333', borderRadius:6}}/>
+                  <label style={{fontSize:11, color:'#888'}}>SKU / CÓDIGO</label>
+                  <input value={form.sku} onChange={e=>setForm({...form, sku:e.target.value})} placeholder="Ej: HER-001" style={{padding:10, background:'#09090b', color:'white', border:'1px solid #333', borderRadius:6}}/>
+                  <div style={{display:'flex', gap:10, marginTop:10}}>
+                    <button onClick={crearProducto} style={{background:'#ff6a00', border:'none', padding:'10px 20px', borderRadius:6, color:'white', fontWeight:700, cursor:'pointer'}}>Guardar</button>
+                    <button onClick={()=>setShowNew(false)} style={{background:'#222', border:'none', padding:'10px 20px', borderRadius:6, color:'white', cursor:'pointer'}}>Cancelar</button>
+                  </div>
+                </div>
               </div>
-            </>
-          )}
+            )}
 
-          {tab==='empresas' && (
-            <div><h1 style={{fontSize:24, fontWeight:800}}>Empresas ({empresas.length})</h1><div style={{background:'#15161a', border:'1px solid #1f1f23', borderRadius:8, marginTop:15, overflow:'hidden'}}><div style={{display:'grid', gridTemplateColumns:'1.5fr 1fr 1fr', padding:'12px 20px', background:'#1a1a1e', fontSize:10, color:'#666'}}><div>EMPRESA</div><div>RUT</div><div>ESTADO</div></div>{empresas.map((emp:any,i:number)=><div key={i} style={{display:'grid', gridTemplateColumns:'1.5fr 1fr 1fr', padding:'16px 20px', borderTop:'1px solid #1f1f23', fontSize:13}}><div style={{fontWeight:600}}>{emp.nombre}</div><div style={{color:'#888'}}>{emp.rut}</div><div><span style={{background:'#052e16', color:'#22c55e', padding:'4px 10px', borderRadius:20, fontSize:11}}>● Activa</span></div></div>)}</div></div>
-          )}
-
-          {tab==='productos' && (
-            <div><h1 style={{fontSize:24, fontWeight:800}}>Productos ({productos.length})</h1><p style={{color:'#666', fontSize:12}}>Solo productos de Hercom Chile y Trimar Hotel</p><div style={{background:'#15161a', border:'1px solid #1f1f23', borderRadius:8, marginTop:15}}>{productos.length===0 ? <div style={{padding:30, color:'#666', textAlign:'center'}}>No hay productos para estas 2 empresas aún. Importa desde Google Sheets.</div> : productos.map((p:any,i:number)=><div key={i} style={{padding:'14px 20px', borderTop: i===0 ? 'none' : '1px solid #1f1f23', display:'flex', justifyContent:'space-between'}}><div><div style={{fontWeight:600}}>{p.nombre || p.name}</div><div style={{fontSize:11, color:'#666'}}>{p.empresa_nombre || p.empresa_id}</div></div><div style={{color:'#888', fontSize:12}}>{p.sku || p.id}</div></div>)}</div></div>
-          )}
-
-          {tab==='lotes' && (
-            <div><h1 style={{fontSize:24, fontWeight:800}}>Lotes ({lotes.length})</h1><div style={{background:'#15161a', border:'1px solid #1f1f23', borderRadius:8, marginTop:15}}>{lotes.length===0 ? <div style={{padding:30, color:'#666', textAlign:'center'}}>No hay lotes para estas 2 empresas aún.</div> : lotes.map((l:any,i:number)=><div key={i} style={{padding:'14px 20px', borderTop: i===0 ? 'none' : '1px solid #1f1f23'}}>{l.codigo || l.id}</div>)}</div></div>
-          )}
-
-          {tab!=='dashboard' && tab!=='empresas' && tab!=='productos' && tab!=='lotes' && (
-            <div style={{background:'#15161a', border:'1px solid #1f1f23', borderRadius:8, padding:30}}><h2>{menu.flatMap(g=>g.items).find(i=>i.id===tab)?.label}</h2><p style={{color:'#888'}}>Módulo filtrado para Hercom + Trimar</p></div>
-          )}
-        </div>
+            <div style={{background:'#15161a', border:'1px solid #1f1f23', borderRadius:8, marginTop:20}}>
+              {productos.length===0? (
+                <div style={{padding:40, textAlign:'center', color:'#666'}}>
+                  <div style={{fontSize:30}}>⬙</div>
+                  <div style={{marginTop:10}}>Cero productos. Estás partiendo de cero.</div>
+                  <div style={{fontSize:11, marginTop:5}}>Haz click en + Nuevo Producto para crear el primero para Hercom Chile o Trimar Hotel</div>
+                </div>
+              ) : (
+                productos.map((p,i)=><div key={i} style={{padding:'14px 20px', borderTop: i===0? 'none' : '1px solid #1f1f23', display:'flex', justifyContent:'space-between'}}><div><b>{p.nombre}</b><div style={{fontSize:11, color:'#666'}}>{p.empresa_nombre} - {p.sku}</div></div><div style={{fontSize:11, color:'#22c55e'}}>● Creado</div></div>)
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

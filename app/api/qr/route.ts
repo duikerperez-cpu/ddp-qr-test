@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+// @ts-ignore
 import QRCode from 'qrcode'
 
 export async function GET(req: NextRequest) {

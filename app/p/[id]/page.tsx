@@ -9,10 +9,10 @@ export default async function Page({ params }: { params: { id: string } }) {
   const vinculabId = params.id.toUpperCase()
 
   const { data: item } = await supabase
- .from('items')
- .select('*, lotes(*, modelos(*, productos(*, empresas(*)))), nfc_qr(*), dpp(*)')
- .eq('vinculab_id', vinculabId)
- .single()
+    .from('items')
+    .select('*, nfc_qr(*)')
+    .eq('vinculab_id', vinculabId)
+    .single()
 
   if (!item) {
     return <div style={{padding:40, background:'#000', color:'#fff', minHeight:'100vh'}}>NO ENCONTRADO: {vinculabId}<br/>Revisa tabla items en Supabase</div>

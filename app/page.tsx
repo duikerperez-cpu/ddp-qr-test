@@ -2,146 +2,162 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
-export default function Page() {
+export default function Page(){
+  const [view, setView] = useState('dashboard')
   const [empresas, setEmpresas] = useState<any[]>([])
   const [productos, setProductos] = useState<any[]>([])
-  const [filtro, setFiltro] = useState('')
-  const [empresaFiltro, setEmpresaFiltro] = useState('todas')
+  const [modelos, setModelos] = useState<any[]>([])
+  const [lotes, setLotes] = useState<any[]>([])
   const [showNew, setShowNew] = useState(false)
-  const [editProd, setEditProd] = useState<any>(null)
+  const [filtro, setFiltro] = useState('')
   const [form, setForm] = useState({nombre:'', sku:'', categoria:'', empresa_id:''})
 
-  async function cargar() {
+  async function cargar(){
     const {data: emp} = await supabase.from('empresas').select('*').order('razon_social')
-    if(emp) {
-      // deja solo hercom y trimar, sin mayusculas duplicadas
-      const clean = emp.filter((e:any)=> e.razon_social.toLowerCase().includes('hercom') || e.razon_social.toLowerCase().includes('trimar'))
-      setEmpresas(clean.length? clean : emp)
-      if(clean[0] &&!form.empresa_id) setForm(f=>({...f, empresa_id: clean[0].id}))
-    }
-    const {data: prod} = await supabase.from('productos').select('*').order('created_at', {ascending:false})
+    if(emp) setEmpresas(emp)
+    const {data: prod} = await supabase.from('productos').select('*').order('created_at',{ascending:false})
     if(prod) setProductos(prod)
+    const {data: mod} = await supabase.from('modelos').select('*').limit(100)
+    if(mod) setModelos(mod)
+    const {data: lot} = await supabase.from('lotes').select('*').limit(100)
+    if(lot) setLotes(lot)
+    if(emp && emp[0]) setForm(f=>({...f, empresa_id: f.empresa_id || emp[0].id}))
   }
+  useEffect(()=>{cargar()},[])
 
-  useEffect(()=>{ cargar() },[])
-
-  async function guardar() {
-    if(!form.nombre ||!form.empresa_id) return alert('Falta nombre o empresa')
-    const payload = {
-      id: editProd?.id || crypto.randomUUID(),
-      nombre: form.nombre,
-      sku: form.sku,
-      categoria: form.categoria,
-      empresa_id: form.empresa_id,
-    }
-    let error
-    if(editProd){
-      const res = await supabase.from('productos').update(payload).eq('id', editProd.id)
-      error = res.error
-    } else {
-      const res = await supabase.from('productos').insert([payload])
-      error = res.error
-    }
+  async function guardar(){
+    if(!form.nombre) return alert('Falta nombre')
+    const payload = { id: crypto.randomUUID(), nombre: form.nombre, sku: form.sku, categoria: form.categoria, empresa_id: form.empresa_id }
+    const {error} = await supabase.from('productos').insert([payload])
     if(error) return alert(error.message)
-    setShowNew(false); setEditProd(null)
-    setForm({nombre:'', sku:'', categoria:'', empresa_id: empresas[0]?.id || ''})
-    cargar()
+    setShowNew(false); setForm({nombre:'', sku:'', categoria:'', empresa_id: empresas[0]?.id}); cargar()
   }
 
-  async function borrar(id:string){
-    if(!confirm('¿Borrar producto?')) return
-    await supabase.from('productos').delete().eq('id', id)
-    cargar()
-  }
+  const menu = [
+    {id:'dashboard', label:'Dashboard', icon:'⌂'},
+    {id:'empresas', label:'Empresas', icon:'◧'},
+    {id:'productos', label:'Productos', icon:'⬔'},
+    {id:'modelos', label:'Modelos', icon:'⬙'},
+    {id:'lotes', label:'Lotes', icon:'☰'},
+    {id:'individuales', label:'Productos Individuales', icon:'◎'},
+  ]
+  const menu2 = [
+    {id:'dpp', label:'DPP', icon:'◫'},
+    {id:'qr', label:'NFC / QR', icon:'↗'},
+    {id:'cert', label:'Certificados', icon:'✓'},
+    {id:'traza', label:'Trazabilidad', icon:'●'},
+  ]
 
-  const filtrados = productos.filter(p=>{
-    const matchTexto = `${p.nombre} ${p.sku} ${p.categoria}`.toLowerCase().includes(filtro.toLowerCase())
-    const matchEmp = empresaFiltro === 'todas' || p.empresa_id === empresaFiltro
-    return matchTexto && matchEmp
-  })
+  const filtrados = productos.filter(p=> `${p.nombre} ${p.sku}`.toLowerCase().includes(filtro.toLowerCase()))
 
-  return (
-    <div style={{display:'flex', minHeight:'100vh', background:'#09090b', color:'white', fontFamily:'Inter, sans-serif'}}>
-      {/* SIDEBAR */}
-      <div style={{width:270, background:'#0f1012', borderRight:'1px solid #1f1f23', padding:18, position:'sticky', top:0, height:'100vh'}}>
-        <div style={{fontWeight:900, fontSize:20, letterSpacing:-0.5}}>VINCULA<span style={{color:'#ff6a00'}}>B</span></div>
-        <div style={{fontSize:10, color:'#666', marginTop:4}}>SISTEMA PRODUCTOS</div>
-
-        <div style={{marginTop:25, fontSize:10, color:'#888', fontWeight:700, letterSpacing:1}}>EMPRESAS ({empresas.length})</div>
-        <div style={{marginTop:10, display:'flex', flexDirection:'column', gap:8}}>
-          <button onClick={()=>setEmpresaFiltro('todas')} style={{textAlign:'left', padding:'10px 12px', borderRadius:8, border: empresaFiltro==='todas'?'1px solid #ff6a00':'1px solid #1f1f23', background: empresaFiltro==='todas'?'#1c1917':'#15161a', color:'white', cursor:'pointer', fontSize:12}}>🌐 Todas</button>
-          {empresas.map(e=>(
-            <button key={e.id} onClick={()=>setEmpresaFiltro(e.id)} style={{textAlign:'left', padding:'10px 12px', borderRadius:8, border: empresaFiltro===e.id?'1px solid #ff6a00':'1px solid #1f1f23', background: empresaFiltro===e.id?'#1c1917':'#15161a', color:'white', cursor:'pointer'}}>
-              <div style={{fontWeight:700, fontSize:12, borderLeft:'3px solid #ff6a00', paddingLeft:8}}>{e.razon_social}</div>
-              <div style={{fontSize:9, color:'#666', marginTop:2, paddingLeft:11}}>{e.rut || 'Sin RUT'} • {productos.filter(p=>p.empresa_id===e.id).length} prod.</div>
-            </button>
-          ))}
+  return(
+    <div style={{display:'flex', minHeight:'100vh', background:'#0a0a0b', color:'white', fontFamily:'Inter, sans-serif'}}>
+      {/* SIDEBAR EXACTO AL ORIGINAL */}
+      <div style={{width:250, background:'#0f1012', borderRight:'1px solid #1e1e21', padding:'0', display:'flex', flexDirection:'column'}}>
+        <div style={{padding:'22px 20px', borderBottom:'1px solid #1e1e21'}}>
+          <div style={{fontWeight:900, fontSize:22, letterSpacing:-0.5}}>VINCULA<span style={{color:'#ff6a00'}}>B</span></div>
+          <div style={{fontSize:9, letterSpacing:1.5, color:'#666', marginTop:2}}>DIGITAL PRODUCT IDENTITY</div>
         </div>
 
-        <div style={{marginTop:25, background:'#15161a', borderRadius:8, padding:12, border:'1px solid #1f1f23'}}>
-          <div style={{fontSize:10, color:'#666'}}>TOTAL</div>
-          <div style={{fontSize:22, fontWeight:800}}>{productos.length}</div>
-          <div style={{fontSize:10, color:'#ff6a00', marginTop:4}}>{filtrados.length} filtrados</div>
+        <div style={{padding:'18px 12px', flex:1}}>
+          <div style={{fontSize:9, letterSpacing:1.5, color:'#555', marginBottom:10, paddingLeft:8}}>PRINCIPAL</div>
+          {menu.map(m=>(
+            <button key={m.id} onClick={()=>setView(m.id)} style={{width:'100%', textAlign:'left', display:'flex', gap:10, alignItems:'center', padding:'10px 12px', borderRadius:8, border:'none', background: view===m.id?'#1e1410':'transparent', color: view===m.id?'white':'#888', cursor:'pointer', fontSize:13, marginBottom:4, borderLeft: view===m.id?'3px solid #ff6a00':'3px solid transparent'}}>
+              <span style={{color:'#ff6a00'}}>{m.icon}</span> {m.label}
+            </button>
+          ))}
+          <div style={{fontSize:9, letterSpacing:1.5, color:'#555', margin:'18px 0 10px 8'}}>GESTIÓN</div>
+          {/* ya incluidos arriba */}
+          <div style={{fontSize:9, letterSpacing:1.5, color:'#555', margin:'18px 0 10px 8'}}>IDENTIDAD DIGITAL</div>
+          {menu2.map(m=>(
+            <button key={m.id} onClick={()=>setView(m.id)} style={{width:'100%', textAlign:'left', display:'flex', gap:10, alignItems:'center', padding:'10px 12px', borderRadius:8, border:'none', background: view===m.id?'#1e1410':'transparent', color: view===m.id?'white':'#888', cursor:'pointer', fontSize:13, marginBottom:4, borderLeft: view===m.id?'3px solid #ff6a00':'3px solid transparent'}}>
+              <span style={{color:'#ff6a00'}}>{m.icon}</span> {m.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* MAIN */}
-      <div style={{flex:1, padding:'25px 30px'}}>
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+      <div style={{flex:1, background:'#09090b'}}>
+        <div style={{height:60, borderBottom:'1px solid #1e1e21', display:'flex', justifyContent:'space-between', alignItems:'center', padding:'0 28px'}}>
           <div>
-            <h1 style={{margin:0, fontSize:28, fontWeight:900}}>Productos ({filtrados.length})</h1>
-            <div style={{fontSize:12, color:'#666', marginTop:4}}>Tablero desde cero • Hercom + Trimar</div>
+            <div style={{fontSize:11, letterSpacing:2, color:'#666'}}>PLATAFORMA DE IDENTIDAD DIGITAL DE PRODUCTOS</div>
           </div>
-          <button onClick={()=>{setForm({nombre:'', sku:'', categoria:'', empresa_id: empresas[0]?.id || ''}); setEditProd(null); setShowNew(true)}} style={{background:'#ff6a00', border:'none', padding:'12px 20px', borderRadius:10, color:'white', fontWeight:900, cursor:'pointer'}}>+ Nuevo</button>
+          <div style={{display:'flex', alignItems:'center', gap:12}}>
+            <div style={{textAlign:'right'}}><div style={{fontSize:9, color:'#666'}}>USUARIO</div><div style={{fontSize:12, fontWeight:700}}>Administrador</div></div>
+            <div style={{width:32, height:32, background:'#ff6a00', borderRadius:50, display:'flex', alignItems:'center', justifyContent:'center', fontWeight:900, fontSize:12}}>A</div>
+          </div>
         </div>
 
-        <div style={{display:'flex', gap:12, marginTop:20}}>
-          <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar por nombre, SKU, categoría..." style={{flex:1, padding:'12px 14px', background:'#15161a', border:'1px solid #1f1f23', borderRadius:8, color:'white'}}/>
-        </div>
-
-        {/* TABLA */}
-        <div style={{background:'#15161a', border:'1px solid #1f1f23', borderRadius:12, marginTop:20, overflow:'hidden'}}>
-          <div style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 100px', padding:'12px 20px', fontSize:10, color:'#666', fontWeight:700, letterSpacing:1, background:'#0f1012', borderBottom:'1px solid #1f1f23'}}>
-            <span>NOMBRE</span><span>SKU</span><span>CATEGORIA</span><span>EMPRESA</span><span>ACCION</span>
-          </div>
-          {filtrados.length===0? (
-            <div style={{padding:40, textAlign:'center', color:'#555'}}>Sin productos. Crea el primero con + Nuevo</div>
-          ) : filtrados.map(p=>(
-            <div key={p.id} style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 100px', padding:'14px 20px', borderTop:'1px solid #1f1f23', fontSize:13, alignItems:'center'}}>
-              <div><b style={{color:'white'}}>{p.nombre}</b></div>
-              <div style={{color:'#aaa', fontSize:12}}>{p.sku || '-'}</div>
-              <div><span style={{background:'#1f1f23', padding:'4px 8px', borderRadius:4, fontSize:11}}>{p.categoria || 'General'}</span></div>
-              <div style={{fontSize:11, color:'#ff6a00'}}>{empresas.find(e=>e.id===p.empresa_id)?.razon_social?.slice(0,15) || p.empresa_id?.slice(0,8)}</div>
-              <div style={{display:'flex', gap:6}}>
-                <button onClick={()=>{setEditProd(p); setForm({nombre:p.nombre, sku:p.sku||'', categoria:p.categoria||'', empresa_id:p.empresa_id}); setShowNew(true)}} style={{background:'#222', border:'1px solid #333', color:'white', padding:'6px 10px', borderRadius:6, cursor:'pointer', fontSize:11}}>Editar</button>
-                <button onClick={()=>borrar(p.id)} style={{background:'#2a1212', border:'1px solid #4a2222', color:'#ff5555', padding:'6px 8px', borderRadius:6, cursor:'pointer', fontSize:11}}>X</button>
+        <div style={{padding:'28px'}}>
+          {view==='dashboard' && (
+            <>
+              <h1 style={{margin:0, fontSize:24, fontWeight:800}}>Dashboard</h1>
+              <div style={{fontSize:12, color:'#666', marginTop:4}}>Vista general de la plataforma Vinculab.</div>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:16, marginTop:22}}>
+                {[
+                  {label:'EMPRESAS', val: empresas.length},
+                  {label:'PRODUCTOS', val: productos.length},
+                  {label:'MODELOS', val: modelos.length},
+                  {label:'LOTES', val: lotes.length},
+                ].map(c=>(
+                  <div key={c.label} style={{background:'#15161a', border:'1px solid #1f1f23', borderLeft:'3px solid #ff6a00', borderRadius:10, padding:'18px 20px'}}>
+                    <div style={{fontSize:10, letterSpacing:1.5, color:'#666'}}>{c.label}</div>
+                    <div style={{fontSize:28, fontWeight:900, marginTop:10}}>{c.val}</div>
+                  </div>
+                ))}
               </div>
+              <div style={{marginTop:30, background:'#15161a', border:'1px solid #1f1f23', borderRadius:12, padding:20}}>
+                <div style={{fontWeight:700, marginBottom:15}}>Productos recientes</div>
+                {productos.slice(0,5).map(p=><div key={p.id} style={{display:'flex', justifyContent:'space-between', padding:'10px 0', borderTop:'1px solid #1f1f23', fontSize:13}}><span>{p.nombre}</span><span style={{color:'#666'}}>{empresas.find(e=>e.id===p.empresa_id)?.razon_social}</span></div>)}
+              </div>
+            </>
+          )}
+
+          {view==='productos' && (
+            <>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <h1 style={{margin:0}}>Productos ({filtrados.length})</h1>
+                <button onClick={()=>setShowNew(true)} style={{background:'#ff6a00', border:'none', padding:'10px 18px', borderRadius:8, color:'white', fontWeight:800, cursor:'pointer'}}>+ Nuevo</button>
+              </div>
+              <input value={filtro} onChange={e=>setFiltro(e.target.value)} placeholder="Buscar por nombre, SKU, categoría..." style={{width:'100%', marginTop:18, padding:'12px 14px', background:'#15161a', border:'1px solid #1f1f23', borderRadius:8, color:'white'}}/>
+              <div style={{background:'#15161a', border:'1px solid #1f1f23', borderRadius:12, marginTop:16, overflow:'hidden'}}>
+                <div style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 100px', padding:'12px 20px', fontSize:10, color:'#666', background:'#0f1012'}}><span>NOMBRE</span><span>SKU</span><span>CATEGORIA</span><span>EMPRESA</span><span>ACCION</span></div>
+                {filtrados.map(p=><div key={p.id} style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 100px', padding:'14px 20px', borderTop:'1px solid #1f1f23', fontSize:13}}><b>{p.nombre}</b><span style={{color:'#aaa'}}>{p.sku}</span><span>{p.categoria}</span><span style={{color:'#ff6a00', fontSize:11}}>{empresas.find(e=>e.id===p.empresa_id)?.razon_social}</span><span><button onClick={async()=>{if(confirm('Borrar?')){await supabase.from('productos').delete().eq('id',p.id); cargar()}}} style={{background:'#2a1212', border:'1px solid #333', color:'#ff5555', padding:'5px 8px', borderRadius:6, cursor:'pointer', fontSize:11}}>Borrar</button></span></div>)}
+              </div>
+            </>
+          )}
+
+          {view==='empresas' && (
+            <>
+              <h1>Empresas ({empresas.length})</h1>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:20}}>
+                {empresas.map(e=><div key={e.id} style={{background:'#15161a', border:'1px solid #1f1f23', borderLeft:'3px solid #ff6a00', borderRadius:10, padding:18}}><div style={{fontWeight:800}}>{e.razon_social}</div><div style={{fontSize:11, color:'#666', marginTop:4}}>{e.rut} - {e.pais} • {productos.filter(p=>p.empresa_id===e.id).length} productos</div></div>)}
+              </div>
+            </>
+          )}
+
+          {(view==='modelos' || view==='lotes' || view==='individuales' || view==='dpp' || view==='qr' || view==='cert' || view==='traza') && (
+            <div style={{textAlign:'center', padding:80, color:'#555'}}>
+              <div style={{fontSize:40}}>🚧</div>
+              <div style={{marginTop:10, fontWeight:700}}>{view.toUpperCase()} - Próximamente</div>
+              <div style={{fontSize:12, marginTop:6}}>Este módulo ya está preparado en tu BD, lo conectamos cuando quieras.</div>
             </div>
-          ))}
+          )}
         </div>
       </div>
 
-      {/* MODAL */}
       {showNew && (
         <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50}}>
           <div style={{background:'#15161a', border:'1px solid #ff6a00', borderRadius:12, padding:22, width:420}}>
-            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15}}><b>{editProd? 'Editar Producto' : 'Nuevo Producto'}</b><button onClick={()=>setShowNew(false)} style={{background:'#222', border:'none', color:'white', borderRadius:6, padding:'4px 8px', cursor:'pointer'}}>X</button></div>
-            <label style={{fontSize:10, color:'#888'}}>EMPRESA</label>
-            <select value={form.empresa_id} onChange={e=>setForm({...form, empresa_id:e.target.value})} style={{width:'100%', padding:12, background:'#000', color:'white', marginBottom:12, border:'1px solid #333', borderRadius:8}}>
-              {empresas.map(emp=><option key={emp.id} value={emp.id}>{emp.razon_social}</option>)}
-            </select>
-            <label style={{fontSize:10, color:'#888'}}>NOMBRE</label>
-            <input value={form.nombre} onChange={e=>setForm({...form, nombre:e.target.value})} placeholder="Ej: Escalera de Seguridad" style={{width:'100%', padding:12, background:'#000', color:'white', marginBottom:12, border:'1px solid #333', borderRadius:8}}/>
-            <label style={{fontSize:10, color:'#888'}}>SKU</label>
-            <input value={form.sku} onChange={e=>setForm({...form, sku:e.target.value})} placeholder="Ej: GHERC-0001" style={{width:'100%', padding:12, background:'#000', color:'white', marginBottom:12, border:'1px solid #333', borderRadius:8}}/>
-            <label style={{fontSize:10, color:'#888'}}>CATEGORIA</label>
-            <input value={form.categoria} onChange={e=>setForm({...form, categoria:e.target.value})} placeholder="Ej: Estructuras Metalicas" style={{width:'100%', padding:12, background:'#000', color:'white', marginBottom:16, border:'1px solid #333', borderRadius:8}}/>
-            <button onClick={guardar} style={{width:'100%', background:'#ff6a00', border:'none', padding:14, color:'white', fontWeight:900, borderRadius:8, cursor:'pointer'}}>{editProd? 'Actualizar' : 'Guardar Producto'}</button>
+            <div style={{display:'flex', justifyContent:'space-between', marginBottom:15}}><b>Nuevo Producto</b><button onClick={()=>setShowNew(false)} style={{background:'#222', border:'none', color:'white', borderRadius:6, padding:'4px 8px', cursor:'pointer'}}>X</button></div>
+            <select value={form.empresa_id} onChange={e=>setForm({...form, empresa_id:e.target.value})} style={{width:'100%', padding:12, background:'#000', color:'white', marginBottom:12, border:'1px solid #333', borderRadius:8}}>{empresas.map(o=><option key={o.id} value={o.id}>{o.razon_social}</option>)}</select>
+            <input value={form.nombre} onChange={e=>setForm({...form, nombre:e.target.value})} placeholder="Nombre" style={{width:'100%', padding:12, background:'#000', color:'white', marginBottom:12, border:'1px solid #333', borderRadius:8}}/>
+            <input value={form.sku} onChange={e=>setForm({...form, sku:e.target.value})} placeholder="SKU" style={{width:'100%', padding:12, background:'#000', color:'white', marginBottom:12, border:'1px solid #333', borderRadius:8}}/>
+            <input value={form.categoria} onChange={e=>setForm({...form, categoria:e.target.value})} placeholder="Categoria" style={{width:'100%', padding:12, background:'#000', color:'white', marginBottom:16, border:'1px solid #333', borderRadius:8}}/>
+            <button onClick={guardar} style={{width:'100%', background:'#ff6a00', border:'none', padding:14, color:'white', fontWeight:900, borderRadius:8, cursor:'pointer'}}>Guardar</button>
           </div>
         </div>
       )}

@@ -1,64 +1,165 @@
-'use client'
-import { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-js'
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+"use client"
+import { useState, useEffect } from "react"
+import { createClient } from "@supabase/supabase-js"
 
-export default function Page(){
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+export default function Page() {
   const [empresas, setEmpresas] = useState<any[]>([])
   const [productos, setProductos] = useState<any[]>([])
-  const [showNew, setShowNew] = useState(false)
-  const [form, setForm] = useState({nombre:'', sku:'', categoria:'', empresa_id:''})
+  const [modelos, setModelos] = useState<any[]>([])
+  const [selectedEmpresa, setSelectedEmpresa] = useState<string>("")
+  const [activeTab, setActiveTab] = useState<"productos" | "modelos">("productos")
 
-  useEffect(()=>{
-    (async()=>{
-      const {data: emp} = await supabase.from('empresas').select('*')
-      if(emp){
-        const f = emp.filter((e:any)=> (e.razon_social||'').toLowerCase().includes('hercom') || (e.razon_social||'').toLowerCase().includes('trimar'))
-        setEmpresas(f.length? f: emp)
-        if(f[0]) setForm(s=>({...s, empresa_id: f[0].id}))
-      }
-      const {data: prod} = await supabase.from('productos').select('*').order('created_at',{ascending:false})
-      if(prod) setProductos(prod)
-    })()
-  },[])
+  // Modal Nuevo Modelo
+  const [showModal, setShowModal] = useState(false)
+  const [empresaModal, setEmpresaModal] = useState("")
+  const [productosModal, setProductosModal] = useState<any[]>([])
+  const [productoModal, setProductoModal] = useState("")
+  const [nombreModelo, setNombreModelo] = useState("")
 
-  async function crear(){
-    if(!form.nombre ||!form.empresa_id) return alert('Falta datos')
-    const {error} = await supabase.from('productos').insert([{
-      id: crypto.randomUUID(),
-      nombre: form.nombre,
-      sku: form.sku,
-      categoria: form.categoria,
-      empresa_id: form.empresa_id
-    }])
-    if(error) return alert(error.message)
-    setShowNew(false)
-    const {data} = await supabase.from('productos').select('*').order('created_at',{ascending:false})
-    if(data) setProductos(data)
+  useEffect(() => {
+    fetchAll()
+  }, [])
+
+  async function fetchAll() {
+    const { data: emp } = await supabase.from("empresas").select("*")
+    if (emp) {
+      setEmpresas(emp)
+      if (emp.length > 0 &&!selectedEmpresa) setSelectedEmpresa(emp[0].id)
+    }
+    const { data: prod } = await supabase.from("productos").select("*")
+    if (prod) setProductos(prod)
+    const { data: mod } = await supabase.from("modelos").select("*, productos(nombre), empresas(nombre)").order("created_at", { ascending: false })
+    if (mod) setModelos(mod)
   }
 
-  return(
-    <div style={{display:'flex', minHeight:'100vh', background:'#09090b', color:'white'}}>
-      <div style={{width:240, background:'#0f1012', padding:15, borderRight:'1px solid #1f1f23'}}>
-        <b>VINCULA<span style={{color:'#ff6a00'}}>B</span></b>
-        <div style={{marginTop:15, fontSize:11, color:'#666'}}>{empresas.length} empresas</div>
-        {empresas.map(e=><div key={e.id} style={{marginTop:8, background:'#1c1917', padding:8, borderRadius:6, borderLeft:'3px solid #ff6a00', fontSize:12}}>{e.razon_social}</div>)}
-      </div>
-      <div style={{flex:1, padding:25}}>
-        <div style={{display:'flex', justifyContent:'space-between'}}><h1 style={{margin:0}}>Productos ({productos.length})</h1><button onClick={()=>setShowNew(true)} style={{background:'#ff6a00', border:'none', padding:'10px 16px', borderRadius:6, color:'white', fontWeight:800, cursor:'pointer'}}>+ Nuevo</button></div>
-        {showNew && <div style={{background:'#15161a', padding:20, borderRadius:8, marginTop:15, maxWidth:400, border:'1px solid #ff6a00'}}>
-          <select value={form.empresa_id} onChange={e=>setForm({...form, empresa_id:e.target.value})} style={{width:'100%', padding:10, background:'#000', color:'white', marginBottom:10, border:'1px solid #333'}}>
-            {empresas.map(o=><option key={o.id} value={o.id}>{o.razon_social}</option>)}
-          </select>
-          <input value={form.nombre} onChange={e=>setForm({...form, nombre:e.target.value})} placeholder="Nombre" style={{width:'100%', padding:10, background:'#000', color:'white', marginBottom:10, border:'1px solid #333'}}/>
-          <input value={form.sku} onChange={e=>setForm({...form, sku:e.target.value})} placeholder="SKU" style={{width:'100%', padding:10, background:'#000', color:'white', marginBottom:10, border:'1px solid #333'}}/>
-          <input value={form.categoria} onChange={e=>setForm({...form, categoria:e.target.value})} placeholder="Categoria" style={{width:'100%', padding:10, background:'#000', color:'white', marginBottom:10, border:'1px solid #333'}}/>
-          <button onClick={crear} style={{width:'100%', background:'#ff6a00', border:'none', padding:12, color:'white', fontWeight:800, borderRadius:6}}>Guardar</button>
-        </div>}
-        <div style={{marginTop:20, background:'#15161a', borderRadius:8, border:'1px solid #1f1f23'}}>
-          {productos.map((p,i)=><div key={i} style={{padding:12, borderTop: i===0?'none':'1px solid #222', fontSize:13}}><b>{p.nombre}</b> - {p.sku} <span style={{color:'#666'}}>{p.categoria}</span></div>)}
+  const productosFiltrados = productos.filter(p =>!selectedEmpresa || p.empresa_id === selectedEmpresa)
+  const modelosFiltrados = modelos.filter(m =>!selectedEmpresa || m.empresa_id === selectedEmpresa)
+
+  async function openNuevoModelo() {
+    setShowModal(true)
+    setEmpresaModal(selectedEmpresa)
+    if (selectedEmpresa) {
+      const { data } = await supabase.from("productos").select("*").eq("empresa_id", selectedEmpresa)
+      setProductosModal(data || [])
+    }
+  }
+
+  async function handleEmpresaModalChange(e: any) {
+    const id = e.target.value
+    setEmpresaModal(id)
+    setProductoModal("")
+    const { data } = await supabase.from("productos").select("*").eq("empresa_id", id)
+    setProductosModal(data || [])
+  }
+
+  async function handleGuardarModelo() {
+    if (!empresaModal ||!productoModal ||!nombreModelo) {
+      alert("Completa empresa, producto y nombre")
+      return
+    }
+    const { error } = await supabase.from("modelos").insert({
+      empresa_id: empresaModal,
+      producto_id: productoModal,
+      nombre: nombreModelo
+    })
+    if (error) alert(error.message)
+    else {
+      setShowModal(false)
+      setNombreModelo("")
+      setProductoModal("")
+      fetchAll()
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen bg-[#0a0a0a] text-white font-sans">
+      {/* SIDEBAR */}
+      <div className="w-[200px] bg-[#111] border-r border-[#222] p-4">
+        <h1 className="font-black text-lg tracking-widest mb-1">VINCULA<span className="text-orange-500">B</span></h1>
+        <p className="text-[10px] text-zinc-500 mb-4">{empresas.length} empresas</p>
+        <div className="space-y-2">
+          {empresas.map((e: any) => (
+            <button
+              key={e.id}
+              onClick={() => setSelectedEmpresa(e.id)}
+              className={`w-full text-left text-xs p-2.5 rounded border-l-2 transition ${selectedEmpresa === e.id? "bg-[#1e1e1e] border-orange-500 text-white" : "bg-[#1a1a1a] border-[#333] text-zinc-400 hover:text-white"}`}
+            >
+              {e.nombre}
+            </button>
+          ))}
         </div>
       </div>
+
+      {/* MAIN */}
+      <div className="flex-1 p-8">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex gap-6">
+            <button onClick={() => setActiveTab("productos")} className={`text-2xl font-serif font-bold ${activeTab === "productos"? "text-white" : "text-zinc-600"}`}>Productos ({productosFiltrados.length})</button>
+            <button onClick={() => setActiveTab("modelos")} className={`text-2xl font-serif font-bold ${activeTab === "modelos"? "text-white" : "text-zinc-600"}`}>Modelos ({modelosFiltrados.length})</button>
+          </div>
+          <button onClick={openNuevoModelo} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded">+ Nuevo</button>
+        </div>
+
+        {activeTab === "productos"? (
+          <div className="space-y-1">
+            {productosFiltrados.map((p: any) => (
+              <div key={p.id} className="bg-[#151515] border border-[#222] p-3 rounded text-xs">
+                <span className="font-bold">{p.nombre}</span><span className="text-zinc-500"> - {p.sku || p.categoria || "Sin categoría"}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {modelosFiltrados.map((m: any) => (
+              <div key={m.id} className="bg-[#151515] border border-[#222] p-3 rounded text-xs flex justify-between">
+                <span className="font-bold">{m.nombre}</span>
+                <span className="text-zinc-500">{m.productos?.nombre} - {m.empresas?.nombre}</span>
+              </div>
+            ))}
+            {modelosFiltrados.length === 0 && <p className="text-zinc-600 text-xs mt-10">No hay modelos para esta empresa. Crea uno con + Nuevo</p>}
+          </div>
+        )}
+      </div>
+
+      {/* MODAL NUEVO MODELO - AHORA SI SE PUEDE SELECCIONAR PRODUCTO */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-[#1a1a1a] border border-[#333] rounded-lg p-6 w-full max-w-md space-y-4">
+            <h2 className="font-bold">Nuevo Modelo</h2>
+            <div>
+              <label className="text-[11px] text-zinc-500">Empresa</label>
+              <select value={empresaModal} onChange={handleEmpresaModalChange} className="w-full mt-1 bg-[#222] border border-[#333] rounded p-2 text-sm">
+                <option value="">Selecciona Empresa</option>
+                {empresas.map((e: any) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] text-zinc-500">Producto</label>
+              <select value={productoModal} onChange={(e) => {
+                setProductoModal(e.target.value)
+                const prod = productosModal.find(x => x.id === e.target.value)
+                if(prod) setNombreModelo(`${prod.nombre.toUpperCase()}-${new Date().getFullYear()}-001`)
+              }} className="w-full mt-1 bg-[#222] border border-[#333] rounded p-2 text-sm">
+                <option value="">Selecciona Producto</option>
+                {productosModal.map((p: any) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] text-zinc-500">Nombre Modelo</label>
+              <input value={nombreModelo} onChange={(e) => setNombreModelo(e.target.value)} className="w-full mt-1 bg-[#222] border border-[#333] rounded p-2 text-sm" placeholder="ESCALERA-2024-001" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button onClick={() => setShowModal(false)} className="text-zinc-500 text-xs px-3 py-2">Cancelar</button>
+              <button onClick={handleGuardarModelo} className="bg-orange-500 text-xs font-bold px-4 py-2 rounded">Guardar Modelo</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

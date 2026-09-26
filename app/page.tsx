@@ -1,8 +1,13 @@
 "use client"
 import { useState, useEffect } from "react"
-import { supabase } from "@/lib/supabaseClient" // si tu lib se llama distinto cambia esto
+import { createClient } from "@supabase/supabase-js"
 
-export default function DashboardPage() {
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+export default function Page() {
   const [empresas, setEmpresas] = useState<any[]>([])
   const [productos, setProductos] = useState<any[]>([])
   const [modelos, setModelos] = useState<any[]>([])
@@ -28,16 +33,15 @@ export default function DashboardPage() {
     if (data) setModelos(data)
   }
 
-  // ESTA ES LA PARTE QUE TE FALTABA - CARGAR PRODUCTOS POR EMPRESA
   async function handleEmpresaChange(e: any) {
     const id = e.target.value
     setEmpresaId(id)
-    setProductoId("") // resetea producto
+    setProductoId("")
     setProductos([])
     
     if (id) {
       const { data } = await supabase.from("productos").select("*").eq("empresa_id", id)
-      console.log("Productos encontrados:", data)
+      console.log("Productos:", data)
       setProductos(data || [])
     }
   }
@@ -48,14 +52,13 @@ export default function DashboardPage() {
     setProductoId(id)
     const prod = productos.find(p => p.id === id)
     if (prod) {
-      // genera nombre automatico
       setNombre(`${prod.nombre.toUpperCase()}-HERCOM-${new Date().getFullYear()}-${Date.now().toString().slice(-3)}`)
     }
   }
 
   async function handleGuardar() {
     if (!empresaId || !productoId) {
-      alert("Selecciona empresa y producto")
+      alert("Debes seleccionar empresa y producto")
       return
     }
     setLoading(true)
@@ -80,19 +83,17 @@ export default function DashboardPage() {
     <div className="p-6 bg-black min-h-screen text-white">
       <div className="flex justify-between mb-6">
         <h1 className="text-2xl font-bold">Modelos ({modelos.length})</h1>
-        <button onClick={() => setShowModal(true)} className="bg-orange-500 px-4 py-2 rounded">+ Nuevo Modelo</button>
+        <button onClick={() => setShowModal(true)} className="bg-orange-500 px-4 py-2 rounded font-bold">+ Nuevo Modelo</button>
       </div>
 
-      {/* LISTA */}
       <div className="grid gap-2">
         {modelos.map((m: any) => (
           <div key={m.id} className="bg-zinc-900 p-3 rounded border border-zinc-800">
-            {m.nombre} - {m.productos?.nombre} - {m.empresas?.nombre}
+            {m.nombre} - {m.productos?.nombre || 'Sin producto'} - {m.empresas?.nombre || 'Sin empresa'}
           </div>
         ))}
       </div>
 
-      {/* MODAL NUEVO MODELO */}
       {showModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 w-full max-w-md space-y-4">
@@ -101,7 +102,7 @@ export default function DashboardPage() {
             <div>
               <label className="text-sm text-zinc-400">Empresa</label>
               <select value={empresaId} onChange={handleEmpresaChange} className="w-full mt-1 bg-zinc-800 border border-zinc-700 rounded p-2 text-white">
-                <option value="">Hercom Chile</option>
+                <option value="">Selecciona Empresa</option>
                 {empresas.map((e: any) => (
                   <option key={e.id} value={e.id}>{e.nombre}</option>
                 ))}
@@ -109,7 +110,7 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <label className="text-sm text-zinc-400">Producto - AQUI YA SE PUEDE SELECCIONAR</label>
+              <label className="text-sm text-zinc-400">Producto</label>
               <select 
                 value={productoId} 
                 onChange={handleProductoChange} 
@@ -122,7 +123,7 @@ export default function DashboardPage() {
                 ))}
               </select>
               {empresaId && productos.length === 0 && (
-                <p className="text-xs text-red-400 mt-1">No hay productos vinculados a esta empresa. Ejecuta el SQL de abajo.</p>
+                <p className="text-xs text-red-400 mt-1">No hay productos para esta empresa</p>
               )}
             </div>
 
@@ -133,7 +134,7 @@ export default function DashboardPage() {
 
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowModal(false)} className="text-zinc-400 px-3 py-2">Cancelar</button>
-              <button onClick={handleGuardar} disabled={loading} className="bg-orange-500 px-4 py-2 rounded disabled:opacity-50">
+              <button onClick={handleGuardar} disabled={loading} className="bg-orange-500 px-4 py-2 rounded disabled:opacity-50 font-bold">
                 {loading ? "Guardando..." : "Guardar Modelo"}
               </button>
             </div>

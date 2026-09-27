@@ -8,10 +8,12 @@ const supabase = createClient(
 export default async function Page({ params }: { params: { id: string } }) {
   const vinculabId = params.id.toUpperCase()
 
-  const { data: item, error } = await supabase
-    .from('items')
-    .select('*')
-    .eq('vinculab_id', vinculabId)
+ 
+    const { data: item, error } = await supabase
+      .from('productos_individuales')
+      .select('*')
+      .eq('codigo_qr', vinculabId)
+      .single()
     .single()
 
   if (error) {

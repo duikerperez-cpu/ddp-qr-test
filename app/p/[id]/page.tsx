@@ -14,7 +14,7 @@ export default async function Page({ params }: { params: { id: string } }) {
       .select('*')
       .eq('codigo_qr', vinculabId)
       .single()
-    .single()
+    
 
   if (error) {
     return <div style={{padding:40, background:'#000', color:'#f55', minHeight:'100vh'}}>ERROR SUPABASE: {error.message}<br/>ID buscado: {vinculabId}</div>

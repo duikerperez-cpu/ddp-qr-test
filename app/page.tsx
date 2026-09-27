@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js"
 
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 const getNombre = (e:any) => e.nombre || e.razon_social || e.empresa_nombre || e.name || "Sin nombre"
-const APP_URL = "https://ddp-qr-test-2-alpha.vercel.app"
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://vinculab.cl"
 
 export default function Page() {
   const [tab, setTab] = useState("lotes")

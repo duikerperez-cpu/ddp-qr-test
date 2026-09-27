@@ -62,7 +62,7 @@ export default function Page() {
     const loteId = lote.id || lote.codigo
     const lista = Array.from({length: cantidad}, (_, i)=>{
       const id = `${lote.codigo}-${String(i+1).padStart(4,"0")}`
-      return { id, lote_id: loteId, empresa_id: lote.empresa_id, modelo_id: lote.modelo_id, codigo_qr: id, url_dpp: `${APP_URL}/dpp/${id}`, estado: "activo" }
+      return { id, lote_id: loteId, empresa_id: lote.empresa_id, modelo_id: lote.modelo_id, codigo_qr: id, url_dpp: `${APP_URL}/p/${id}`, estado: "activo" }
     })
     const {error}=await supabase.from("productos_individuales").insert(lista)
     if(error) alert("Error individuales: "+error.message)

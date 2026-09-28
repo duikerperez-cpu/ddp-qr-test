@@ -1,56 +1,153 @@
 "use client"
 import { useState, useEffect } from "react"
 import { createClient } from "@supabase/supabase-js"
+
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-const getNombre = (e:any) => e?.nombre || e?.razon_social || "Sin nombre"
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://vinculab.cl"
+
+function getNombre(e:any){ return e?.nombre || e?.razon_social || "Sin nombre" }
 
 export default function Page() {
   const [tab, setTab] = useState("dashboard")
-  const [empresas, setEmpresas] = useState<any[]>([]); const [productos, setProductos] = useState<any[]>([]); const [modelos, setModelos] = useState<any[]>([]); const [lotes, setLotes] = useState<any[]>([]); const [individuales, setIndividuales] = useState<any[]>([])
-  // Modales
-  const [showEmpresa, setShowEmpresa] = useState(false); const [nomEmpresa, setNomEmpresa] = useState("")
-  const [showProducto, setShowProducto] = useState(false); const [prodEmpresa, setProdEmpresa] = useState(""); const [nomProducto, setNomProducto] = useState("")
-  const [showModelo, setShowModelo] = useState(false); const [modEmpresa, setModEmpresa] = useState(""); const [modProducto, setModProducto] = useState(""); const [modProdFiltrados, setModProdFiltrados] = useState<any[]>([]); const [nomModelo, setNomModelo] = useState("")
-  const [showLoteModal, setShowLoteModal] = useState(false); const [loteEmpresa, setLoteEmpresa] = useState(""); const [loteModelosFiltrados, setLoteModelosFiltrados] = useState<any[]>([]); const [loteModelo, setLoteModelo] = useState(""); const [loteCantidad, setLoteCantidad] = useState("2"); const [loteCodigo, setLoteCodigo] = useState("")
+  const [empresas, setEmpresas] = useState<any[]>([])
+  const [productos, setProductos] = useState<any[]>([])
+  const [modelos, setModelos] = useState<any[]>([])
+  const [lotes, setLotes] = useState<any[]>([])
+  const [individuales, setIndividuales] = useState<any[]>([])
+
+  const [showEmpresa, setShowEmpresa] = useState(false)
+  const [nomEmpresa, setNomEmpresa] = useState("")
+  const [showProducto, setShowProducto] = useState(false)
+  const [prodEmpresa, setProdEmpresa] = useState("")
+  const [nomProducto, setNomProducto] = useState("")
+  const [showModelo, setShowModelo] = useState(false)
+  const [modEmpresa, setModEmpresa] = useState("")
+  const [modProducto, setModProducto] = useState("")
+  const [modProdFiltrados, setModProdFiltrados] = useState<any[]>([])
+  const [nomModelo, setNomModelo] = useState("")
+  const [showLoteModal, setShowLoteModal] = useState(false)
+  const [loteEmpresa, setLoteEmpresa] = useState("")
+  const [loteModelosFiltrados, setLoteModelosFiltrados] = useState<any[]>([])
+  const [loteModelo, setLoteModelo] = useState("")
+  const [loteCantidad, setLoteCantidad] = useState("2")
+  const [loteCodigo, setLoteCodigo] = useState("")
 
   useEffect(()=>{ load(); genCodigo() },[])
-  function genCodigo(){ setLoteCodigo(`LOTE-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.floor(1000+Math.random()*9000)}`) }
-  async function load(){
-    const {data:e}=await supabase.from("empresas").select("*").order('created_at',{ascending:false})
-    const {data:p}=await supabase.from("productos").select("*").order('created_at',{ascending:false})
-    const {data:m}=await supabase.from("modelos").select("*").order('created_at',{ascending:false})
-    const {data:l}=await supabase.from("lotes").select("*").order('created_at',{ascending:false})
-    const {data:ind}=await supabase.from("productos_individuales").select("*").limit(100)
-    if(e) setEmpresas(e); if(p) setProductos(p); if(m) setModelos(m); if(l) setLotes(l); if(ind) setIndividuales(ind)
-  }
-  async function guardarEmpresa(){ if(!nomEmpresa) return; const {error}=await supabase.from("empresas").insert({nombre:nomEmpresa}); if(error) alert(error.message); else {setShowEmpresa(false); setNomEmpresa(""); load()} }
-  async function guardarProducto(){ if(!prodEmpresa||!nomProducto) return alert("Falta empresa y nombre"); const {error}=await supabase.from("productos").insert({empresa_id:prodEmpresa, nombre:nomProducto}); if(error) alert(error.message); else {setShowProducto(false); setNomProducto(""); load()} }
-  async function onModEmpresaChange(id:string){ setModEmpresa(id); const {data}=await supabase.from("productos").select("*").eq("empresa_id", id); setModProdFiltrados(data||[]) }
-  async function guardarModelo(){ if(!modEmpresa||!modProducto||!nomModelo) return alert("Falta todo"); const {error}=await supabase.from("modelos").insert({empresa_id:modEmpresa, producto_id:modProducto, nombre:nomModelo}); if(error) alert(error.message); else {setShowModelo(false); setNomModelo(""); load()} }
-  async function onLoteEmpresaChange(id:string){ setLoteEmpresa(id); const {data}=await supabase.from("modelos").select("*").eq("empresa_id", id); setLoteModelosFiltrados(data||[]) }
-  async function guardarLote(){ if(!loteEmpresa||!loteModelo) return alert("Falta empresa y modelo"); const cantidad=parseInt(loteCantidad); const {data:loteCreado, error}=await supabase.from("lotes").insert({codigo:loteCodigo, cantidad, modelo_id:loteModelo, empresa_id:loteEmpresa, estado:"activo"}).select().single(); if(error) return alert(error.message); const lista = Array.from({length: cantidad}, (_, i)=>{ const id = `${loteCreado.codigo}-${String(i+1).padStart(4,"0")}`; return { id, lote_id: loteCreado.id, empresa_id: loteCreado.empresa_id, modelo_id: loteCreado.modelo_id, codigo_qr: id, url_dpp: `${APP_URL}/p/${id}`, estado: "activo" } }); await supabase.from("productos_individuales").insert(lista); setShowLoteModal(false); genCodigo(); load(); setTab("individuales") }
 
-  const Menu = ({label, id, count}:{label:string, id:string, count?:number}) => {px", borderRadius:"6px", fontSize:"12px", color:active?"#ff6a00":"#8a8a8e", background:active?"#ff6a0015":"transparent", cursor:"pointer", display:"flex", justifyContent:"space-between"}}><span><span style={{fontSize:"7px", marginRight:"6px"}}>●</span>{label}</span>{count!==undefined&&<span style={{fontSize:"10px"}}>{count}</span>}</div> }
-  const Card = (title:string, value:number) => (<div style={{background:"#1e1e20", border:"1px solid #2a2a2e", borderLeft:"2px solid #ff6a00", borderRadius:"6px", padding:"16px 18px"}}><div style={{fontSize:"9px", color:"#666", fontWeight:700}}>{title}</div><div style={{fontSize:"22px", fontWeight:900, marginTop:"6px"}}>{value}</div></div>)
+  function genCodigo(){
+    const c = `LOTE-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.floor(1000+Math.random()*9000)}`
+    setLoteCodigo(c)
+  }
+
+  async function load(){
+    const e = await supabase.from("empresas").select("*").order('created_at',{ascending:false})
+    const p = await supabase.from("productos").select("*").order('created_at',{ascending:false})
+    const m = await supabase.from("modelos").select("*").order('created_at',{ascending:false})
+    const l = await supabase.from("lotes").select("*").order('created_at',{ascending:false})
+    const ind = await supabase.from("productos_individuales").select("*").limit(100)
+    if(e.data) setEmpresas(e.data)
+    if(p.data) setProductos(p.data)
+    if(m.data) setModelos(m.data)
+    if(l.data) setLotes(l.data)
+    if(ind.data) setIndividuales(ind.data)
+  }
+
+  async function guardarEmpresa(){
+    if(!nomEmpresa) return
+    const {error} = await supabase.from("empresas").insert({nombre:nomEmpresa})
+    if(error) alert(error.message)
+    else { setShowEmpresa(false); setNomEmpresa(""); load() }
+  }
+
+  async function guardarProducto(){
+    if(!prodEmpresa || !nomProducto) return alert("Falta empresa y nombre")
+    const {error} = await supabase.from("productos").insert({empresa_id:prodEmpresa, nombre:nomProducto})
+    if(error) alert(error.message)
+    else { setShowProducto(false); setNomProducto(""); load() }
+  }
+
+  async function onModEmpresaChange(id:string){
+    setModEmpresa(id)
+    const {data} = await supabase.from("productos").select("*").eq("empresa_id", id)
+    setModProdFiltrados(data||[])
+  }
+
+  async function guardarModelo(){
+    if(!modEmpresa || !modProducto || !nomModelo) return alert("Falta todo")
+    const {error} = await supabase.from("modelos").insert({empresa_id:modEmpresa, producto_id:modProducto, nombre:nomModelo})
+    if(error) alert(error.message)
+    else { setShowModelo(false); setNomModelo(""); load() }
+  }
+
+  async function onLoteEmpresaChange(id:string){
+    setLoteEmpresa(id)
+    const {data} = await supabase.from("modelos").select("*").eq("empresa_id", id)
+    setLoteModelosFiltrados(data||[])
+  }
+
+  async function guardarLote(){
+    if(!loteEmpresa || !loteModelo) return alert("Falta empresa y modelo")
+    const cantidad = parseInt(loteCantidad)
+    const {data:loteCreado, error} = await supabase.from("lotes").insert({codigo:loteCodigo, cantidad, modelo_id:loteModelo, empresa_id:loteEmpresa, estado:"activo"}).select().single()
+    if(error) return alert(error.message)
+    const lista = []
+    for(let i=0;i<cantidad;i++){
+      const id = `${loteCreado.codigo}-${String(i+1).padStart(4,"0")}`
+      lista.push({ id, lote_id: loteCreado.id, empresa_id: loteCreado.empresa_id, modelo_id: loteCreado.modelo_id, codigo_qr: id, url_dpp: `${APP_URL}/p/${id}`, estado: "activo" })
+    }
+    await supabase.from("productos_individuales").insert(lista)
+    setShowLoteModal(false); genCodigo(); load(); setTab("individuales")
+  }
+
+  function Menu(props:any){
+    const active = tab===props.id
+    return (
+      <div onClick={()=>setTab(props.id)} style={{padding:"9px 16px", margin:"2px 8px", borderRadius:"6px", fontSize:"12px", color:active?"#ff6a00":"#8a8a8e", background:active?"#ff6a0015":"transparent", cursor:"pointer", display:"flex", justifyContent:"space-between", borderLeft:active?"2px solid #ff6a00":"2px solid transparent"}}>
+        <span>{props.label}</span>
+        {props.count!==undefined && <span>{props.count}</span>}
+      </div>
+    )
+  }
+
+  function Card(title:string, value:number){
+    return (
+      <div style={{background:"#1e1e20", border:"1px solid #2a2a2e", borderLeft:"2px solid #ff6a00", borderRadius:"6px", padding:"16px 18px"}}>
+        <div style={{fontSize:"9px", color:"#666", fontWeight:700}}>{title}</div>
+        <div style={{fontSize:"22px", fontWeight:900, marginTop:"6px"}}>{value}</div>
+      </div>
+    )
+  }
 
   return (
     <div style={{display:"flex", minHeight:"100vh", background:"#0e0e10", color:"white"}}>
-      <div style={{width:"210px", background:"#131315", borderRight:"1px solid #1e1e22"}}><div style={{padding:"18px 16px", borderBottom:"1px solid #1e1e22"}}><div style={{fontWeight:900, fontSize:"18px"}}>VINCULA<span style={{background:"#ff6a00", padding:"0 4px", borderRadius:"3px"}}>B</span></div></div><div style={{padding:"12px 0"}}><div style={{fontSize:"8px", color:"#444", padding:"0 16px 6px"}}>PRINCIPAL</div><Menu label="Dashboard" id="dashboard"/><div style={{fontSize:"8px", color:"#444", padding:"12px 16px 6px"}}>GESTIÓN</div><Menu label="Empresas" id="empresas" count={empresas.length}/><Menu label="Productos" id="productos" count={productos.length}/><Menu label="Modelos" id="modelos" count={modelos.length}/><Menu label="Lotes" id="lotes" count={lotes.length}/><Menu label="Productos Individuales" id="individuales" count={individuales.length}/></div></div>
-      <div style={{flex:1, display:"flex", flexDirection:"column"}}><div style={{height:"48px", background:"#161618", borderBottom:"1px solid #1e1e22", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px"}}><div style={{fontSize:"9px", color:"#555"}}>PLATAFORMA DE IDENTIDAD DIGITAL</div><div style={{fontSize:"11px", fontWeight:700}}>Administrador</div></div>
-        <div style={{padding:"20px", background:"#0a0a0c", flex:1}}>
-          {tab==="dashboard" && <><div style={{marginBottom:"16px"}}><div style={{fontWeight:700}}>Dashboard</div><div style={{fontSize:"11px", color:"#666"}}>Vista general</div></div><div style={{display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:"12px"}}>{Card("EMPRESAS", empresas.length)}{Card("PRODUCTOS", productos.length)}{Card("MODELOS", modelos.length)}{Card("LOTES", lotes.length)}</div></>}
-          {tab==="empresas" && <><div style={{display:"flex", justifyContent:"space-between"}}><h2>Empresas ({empresas.length})</h2><button onClick={()=>setShowEmpresa(true)} style={{background:"#ff6a00", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px", fontSize:"12px"}}>+ Nueva Empresa</button></div><div style={{marginTop:"16px", display:"flex", flexDirection:"column", gap:"8px"}}>{empresas.map((e:any)=><div key={e.id} style={{background:"#1a1a1e", border:"1px solid #222", padding:"12px", borderRadius:"6px", fontSize:"12px"}}>{getNombre(e)}</div>)}</div></>}
-          {tab==="productos" && <><div style={{display:"flex", justifyContent:"space-between"}}><h2>Productos ({productos.length})</h2><button onClick={()=>setShowProducto(true)} style={{background:"#ff6a00", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px", fontSize:"12px"}}>+ Nuevo Producto</button></div><div style={{marginTop:"16px", display:"flex", flexDirection:"column", gap:"8px"}}>{productos.map((p:any)=><div key={p.id} style={{background:"#1a1a1e", border:"1px solid #222", padding:"12px", borderRadius:"6px", fontSize:"12px"}}>{p.nombre} - <span style={{color:"#666"}}>{getNombre(empresas.find(e=>e.id===p.empresa_id)||{})}</span></div>)}</div></>}
-          {tab==="modelos" && <><div style={{display:"flex", justifyContent:"space-between"}}><h2>Modelos ({modelos.length})</h2><button onClick={()=>setShowModelo(true)} style={{background:"#ff6a00", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px", fontSize:"12px"}}>+ Nuevo Modelo</button></div><div style={{marginTop:"16px", display:"flex", flexDirection:"column", gap:"8px"}}>{modelos.map((m:any)=><div key={m.id} style={{background:"#1a1a1e", border:"1px solid #222", padding:"12px", borderRadius:"6px", fontSize:"12px"}}>{m.nombre}</div>)}</div></>}
-          {tab==="lotes" && <><div style={{display:"flex", justifyContent:"space-between"}}><h2>Lotes ({lotes.length})</h2><button onClick={()=>{genCodigo(); setShowLoteModal(true)}} style={{background:"#ff6a00", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px", fontSize:"12px"}}>+ Nuevo Lote</button></div><div style={{marginTop:"16px", display:"flex", flexDirection:"column", gap:"8px"}}>{lotes.map((l:any)=><div key={l.id} style={{background:"#1a1a1e", border:"1px solid #222", borderLeft:"2px solid #ff6a00", padding:"12px", borderRadius:"6px", fontSize:"12px", display:"flex", justifyContent:"space-between"}}><div>{l.codigo} - {l.cantidad} u - {getNombre(empresas.find(e=>e.id===l.empresa_id)||{})}</div><button onClick={()=>setTab("individuales")} style={{background:"#222", color:"#ff6a00", border:"1px solid #333", padding:"4px 8px", borderRadius:"4px", fontSize:"10px"}}>QRs</button></div>)}</div></>}
-          {tab==="individuales" && <><h2>Productos Individuales ({individuales.length})</h2><div style={{marginTop:"16px", display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:"12px"}}>{individuales.map((ind:any)=><div key={ind.id} style={{background:"#1a1a1e", border:"1px solid #222", borderRadius:"8px", padding:"10px", textAlign:"center"}}><div style={{fontSize:"10px", fontWeight:700}}>{ind.id}</div><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(ind.url_dpp)}`} style={{width:"100%", background:"white", padding:"4px", borderRadius:"4px", marginTop:"6px"}} alt="qr"/></div>)}</div></>}
+      <div style={{width:"210px", background:"#131315", borderRight:"1px solid #1e1e22"}}>
+        <div style={{padding:"18px 16px", borderBottom:"1px solid #1e1e22"}}><div style={{fontWeight:900, fontSize:"18px"}}>VINCULA<span style={{background:"#ff6a00", padding:"0 4px", borderRadius:"3px"}}>B</span></div></div>
+        <div style={{padding:"12px 0"}}>
+          <div style={{fontSize:"8px", color:"#444", padding:"0 16px 6px"}}>PRINCIPAL</div>
+          <Menu label="Dashboard" id="dashboard" />
+          <div style={{fontSize:"8px", color:"#444", padding:"12px 16px 6px"}}>GESTIÓN</div>
+          <Menu label="Empresas" id="empresas" count={empresas.length} />
+          <Menu label="Productos" id="productos" count={productos.length} />
+          <Menu label="Modelos" id="modelos" count={modelos.length} />
+          <Menu label="Lotes" id="lotes" count={lotes.length} />
+          <Menu label="Productos Individuales" id="individuales" count={individuales.length} />
         </div>
       </div>
-      {showEmpresa && <div style={{position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:99}}><div style={{background:"#1a1a1e", border:"1px solid #333", borderRadius:"12px", padding:"22px", width:"400"}}><h3>Nueva Empresa</h3><input value={nomEmpresa} onChange={e=>setNomEmpresa(e.target.value)} placeholder="Hercom, Vinculab..." style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}/><div style={{display:"flex", justifyContent:"flex-end", gap:"10px", marginTop:"16px"}}><button onClick={()=>setShowEmpresa(false)} style={{background:"transparent", color:"#888", border:"none"}}>Cancelar</button><button onClick={guardarEmpresa} style={{background:"#ff6a00", color:"white", border:"none", padding:"8px 16px", borderRadius:"6px"}}>Guardar</button></div></div></div>}
-      {showProducto && <div style={{position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:99}}><div style={{background:"#1a1a1e", border:"1px solid #333", borderRadius:"12px", padding:"22px", width:"400"}}><h3>Nuevo Producto</h3><select value={prodEmpresa} onChange={e=>setProdEmpresa(e.target.value)} style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Empresa</option>{empresas.map((e:any)=><option key={e.id} value={e.id}>{getNombre(e)}</option>)}</select><input value={nomProducto} onChange={e=>setNomProducto(e.target.value)} placeholder="Polera, Mueble..." style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}/><div style={{display:"flex", justifyContent:"flex-end", gap:"10px", marginTop:"16px"}}><button onClick={()=>setShowProducto(false)} style={{background:"transparent", color:"#888", border:"none"}}>Cancelar</button><button onClick={guardarProducto} style={{background:"#ff6a00", color:"white", border:"none", padding:"8px 16px", borderRadius:"6px"}}>Guardar</button></div></div></div>}
-      {showModelo && <div style={{position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:99}}><div style={{background:"#1a1a1e", border:"1px solid #333", borderRadius:"12px", padding:"22px", width:"400"}}><h3>Nuevo Modelo</h3><select value={modEmpresa} onChange={e=>onModEmpresaChange(e.target.value)} style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Empresa</option>{empresas.map((e:any)=><option key={e.id} value={e.id}>{getNombre(e)}</option>)}</select><select value={modProducto} onChange={e=>setModProducto(e.target.value)} style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Producto</option>{modProdFiltrados.map((p:any)=><option key={p.id} value={p.id}>{p.nombre}</option>)}</select><input value={nomModelo} onChange={e=>setNomModelo(e.target.value)} placeholder="Modelo 2025..." style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}/><div style={{display:"flex", justifyContent:"flex-end", gap:"10px", marginTop:"16px"}}><button onClick={()=>setShowModelo(false)} style={{background:"transparent", color:"#888", border:"none"}}>Cancelar</button><button onClick={guardarModelo} style={{background:"#ff6a00", color:"white", border:"none", padding:"8px 16px", borderRadius:"6px"}}>Guardar</button></div></div></div>}
-      {showLoteModal && <div style={{position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:99}}><div style={{background:"#1a1a1e", border:"1px solid #333", borderRadius:"12px", padding:"22px", width:"460"}}><h3>Nuevo Lote</h3><select value={loteEmpresa} onChange={e=>onLoteEmpresaChange(e.target.value)} style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", margin:"12px 0"}}><option value="">Empresa</option>{empresas.map((e:any)=><option key={e.id} value={e.id}>{getNombre(e)}</option>)}</select><select value={loteModelo} onChange={e=>setLoteModelo(e.target.value)} style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginBottom:"12px"}}><option value="">Modelo</option>{loteModelosFiltrados.map((m:any)=><option key={m.id} value={m.id}>{m.nombre}</option>)}</select><div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px"}}><input value={loteCodigo} onChange={e=>setLoteCodigo(e.target.value)} style={{background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px"}}/><input type="number" value={loteCantidad} onChange={e=>setLoteCantidad(e.target.value)} style={{background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px"}}/></div><div style={{display:"flex", justifyContent:"flex-end", gap:"10px", marginTop:"16px"}}><button onClick={()=>setShowLoteModal(false)} style={{background:"transparent", color:"#888", border:"none"}}>Cancelar</button><button onClick={guardarLote} style={{background:"#ff6a00", color:"white", border:"none", padding:"8px 16px", borderRadius:"6px"}}>Crear Lote + QRs</button></div></div></div>}
+      <div style={{flex:1, display:"flex", flexDirection:"column"}}>
+        <div style={{height:"48px", background:"#161618", borderBottom:"1px solid #1e1e22", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px"}}><div style={{fontSize:"9px", color:"#555"}}>PLATAFORMA DE IDENTIDAD DIGITAL</div><div style={{fontSize:"11px", fontWeight:700}}>Administrador</div></div>
+        <div style={{padding:"20px", background:"#0a0a0c", flex:1}}>
+          {tab==="dashboard" && <div><div style={{fontWeight:700}}>Dashboard</div><div style={{display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:"12px", marginTop:"16px"}}>{Card("EMPRESAS", empresas.length)}{Card("PRODUCTOS", productos.length)}{Card("MODELOS", modelos.length)}{Card("LOTES", lotes.length)}</div></div>}
+          {tab==="empresas" && <div><div style={{display:"flex", justifyContent:"space-between"}}><h2>Empresas ({empresas.length})</h2><button onClick={()=>setShowEmpresa(true)} style={{background:"#ff6a00", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px"}}>+ Nueva Empresa</button></div><div style={{marginTop:"16px", display:"flex", flexDirection:"column", gap:"8px"}}>{empresas.map((e:any)=><div key={e.id} style={{background:"#1a1a1e", border:"1px solid #222", padding:"12px", borderRadius:"6px"}}>{getNombre(e)}</div>)}</div></div>}
+          {tab==="productos" && <div><div style={{display:"flex", justifyContent:"space-between"}}><h2>Productos ({productos.length})</h2><button onClick={()=>setShowProducto(true)} style={{background:"#ff6a00", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px"}}>+ Nuevo Producto</button></div><div style={{marginTop:"16px", display:"flex", flexDirection:"column", gap:"8px"}}>{productos.map((p:any)=><div key={p.id} style={{background:"#1a1a1e", border:"1px solid #222", padding:"12px", borderRadius:"6px"}}>{p.nombre}</div>)}</div></div>}
+          {tab==="modelos" && <div><div style={{display:"flex", justifyContent:"space-between"}}><h2>Modelos ({modelos.length})</h2><button onClick={()=>setShowModelo(true)} style={{background:"#ff6a00", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px"}}>+ Nuevo Modelo</button></div><div style={{marginTop:"16px", display:"flex", flexDirection:"column", gap:"8px"}}>{modelos.map((m:any)=><div key={m.id} style={{background:"#1a1a1e", border:"1px solid #222", padding:"12px", borderRadius:"6px"}}>{m.nombre}</div>)}</div></div>}
+          {tab==="lotes" && <div><div style={{display:"flex", justifyContent:"space-between"}}><h2>Lotes ({lotes.length})</h2><button onClick={()=>{genCodigo(); setShowLoteModal(true)}} style={{background:"#ff6a00", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px"}}>+ Nuevo Lote</button></div><div style={{marginTop:"16px", display:"flex", flexDirection:"column", gap:"8px"}}>{lotes.map((l:any)=><div key={l.id} style={{background:"#1a1a1e", border:"1px solid #222", borderLeft:"2px solid #ff6a00", padding:"12px", borderRadius:"6px"}}>{l.codigo} - {l.cantidad} u</div>)}</div></div>}
+          {tab==="individuales" && <div><h2>Productos Individuales ({individuales.length})</h2><div style={{marginTop:"16px", display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:"12px"}}>{individuales.map((ind:any)=><div key={ind.id} style={{background:"#1a1a1e", border:"1px solid #222", borderRadius:"8px", padding:"10px", textAlign:"center"}}><div style={{fontSize:"10px"}}>{ind.id}</div><img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(ind.url_dpp)}`} style={{width:"100%", background:"white", padding:"4px", borderRadius:"4px", marginTop:"6px"}} alt="qr"/></div>)}</div></div>}
+        </div>
+      </div>
+      {showEmpresa && <div style={{position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center"}}><div style={{background:"#1a1a1e", border:"1px solid #333", borderRadius:"12px", padding:"22px", width:"400"}}><h3>Nueva Empresa</h3><input value={nomEmpresa} onChange={e=>setNomEmpresa(e.target.value)} placeholder="Nombre" style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}/><div style={{display:"flex", justifyContent:"flex-end", gap:"10px", marginTop:"16px"}}><button onClick={()=>setShowEmpresa(false)} style={{background:"transparent", color:"#888", border:"none"}}>Cancelar</button><button onClick={guardarEmpresa} style={{background:"#ff6a00", color:"white", border:"none", padding:"8px 16px", borderRadius:"6px"}}>Guardar</button></div></div></div>}
+      {showProducto && <div style={{position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center"}}><div style={{background:"#1a1a1e", border:"1px solid #333", borderRadius:"12px", padding:"22px", width:"400"}}><h3>Nuevo Producto</h3><select value={prodEmpresa} onChange={e=>setProdEmpresa(e.target.value)} style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Empresa</option>{empresas.map((e:any)=><option key={e.id} value={e.id}>{getNombre(e)}</option>)}</select><input value={nomProducto} onChange={e=>setNomProducto(e.target.value)} placeholder="Producto" style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}/><div style={{display:"flex", justifyContent:"flex-end", gap:"10px", marginTop:"16px"}}><button onClick={()=>setShowProducto(false)} style={{background:"transparent", color:"#888", border:"none"}}>Cancelar</button><button onClick={guardarProducto} style={{background:"#ff6a00", color:"white", border:"none", padding:"8px 16px", borderRadius:"6px"}}>Guardar</button></div></div></div>}
+      {showModelo && <div style={{position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center"}}><div style={{background:"#1a1a1e", border:"1px solid #333", borderRadius:"12px", padding:"22px", width:"400"}}><h3>Nuevo Modelo</h3><select value={modEmpresa} onChange={e=>onModEmpresaChange(e.target.value)} style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Empresa</option>{empresas.map((e:any)=><option key={e.id} value={e.id}>{getNombre(e)}</option>)}</select><select value={modProducto} onChange={e=>setModProducto(e.target.value)} style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Producto</option>{modProdFiltrados.map((p:any)=><option key={p.id} value={p.id}>{p.nombre}</option>)}</select><input value={nomModelo} onChange={e=>setNomModelo(e.target.value)} placeholder="Modelo" style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}/><div style={{display:"flex", justifyContent:"flex-end", gap:"10px", marginTop:"16px"}}><button onClick={()=>setShowModelo(false)} style={{background:"transparent", color:"#888", border:"none"}}>Cancelar</button><button onClick={guardarModelo} style={{background:"#ff6a00", color:"white", border:"none", padding:"8px 16px", borderRadius:"6px"}}>Guardar</button></div></div></div>}
+      {showLoteModal && <div style={{position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center"}}><div style={{background:"#1a1a1e", border:"1px solid #333", borderRadius:"12px", padding:"22px", width:"460"}}><h3>Nuevo Lote</h3><select value={loteEmpresa} onChange={e=>onLoteEmpresaChange(e.target.value)} style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Empresa</option>{empresas.map((e:any)=><option key={e.id} value={e.id}>{getNombre(e)}</option>)}</select><select value={loteModelo} onChange={e=>setLoteModelo(e.target.value)} style={{width:"100%", background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Modelo</option>{loteModelosFiltrados.map((m:any)=><option key={m.id} value={m.id}>{m.nombre}</option>)}</select><div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginTop:"12px"}}><input value={loteCodigo} onChange={e=>setLoteCodigo(e.target.value)} style={{background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px"}}/><input type="number" value={loteCantidad} onChange={e=>setLoteCantidad(e.target.value)} style={{background:"#222", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px"}}/></div><div style={{display:"flex", justifyContent:"flex-end", gap:"10px", marginTop:"16px"}}><button onClick={()=>setShowLoteModal(false)} style={{background:"transparent", color:"#888", border:"none"}}>Cancelar</button><button onClick={guardarLote} style={{background:"#ff6a00", color:"white", border:"none", padding:"8px 16px", borderRadius:"6px"}}>Crear Lote + QRs</button></div></div></div>}
     </div>
   )
 }

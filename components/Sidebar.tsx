@@ -1,12 +1,11 @@
 import Link from "next/link";
 
-function MenuLink({
-  href,
-  text,
-}: {
+type MenuLinkProps = {
   href: string;
   text: string;
-}) {
+};
+
+function MenuLink({ href, text }: MenuLinkProps) {
   return (
     <Link
       href={href}
@@ -14,7 +13,8 @@ function MenuLink({
         display: "block",
         color: "white",
         textDecoration: "none",
-        padding: "8px 0inHeight: "100vh",
+      220px",
+        minHeight: "100vh",
         background: "#08111f",
         color: "white",
         padding: "20px",
@@ -28,14 +28,44 @@ function MenuLink({
 
       <hr />
 
-      <p>PRINCIPAL</p>
+      <p
+        style={{
+          color: "#6f7c91",
+          fontSize: "10px",
+          textTransform: "uppercase",
+        }}
+      >
+        Principal
+      </p>
 
-      <Menu    <hr />
+      <
 
-      <p>GESTIÓN</p>
+      <hr />
 
-      <MenuLink href="/empuLink href="/productos href="/modelos"href="/lotes"     <p>IDENTIDAD DIGITAL</p>
+      <p
+        style={{
+          color: "#6f7c91",
+          fontSize: "10px",
+          textTransform: "uppercase",
+        }}
+      >
+        Gestión
+      </p>
 
-      <MenuLink href="/dpp" text"/nfc" text"/certificados href="/traziv>
+      <MenuLink
+      <MenuLink href="/productos"href="/modelos" text"/lotes" text<p
+        style={{
+          color: "#6f7c91",
+          fontSize: "10px",
+          textTransform: "uppercase",
+        }}
+      >
+        Identidad Digital
+      </p>
+
+      /dpp
+      <MenuLink href="/ficados
+      <Menuabilidad
+    </div>
   );
 }

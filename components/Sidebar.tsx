@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function Sidebar() {
   return (
-    <aside
+    <div
       style={{
         width: "220px",
         minHeight: "100vh",
@@ -15,7 +15,7 @@ export default function Sidebar() {
       <h2
         style={{
           marginBottom: "20px",
-          fontSize: "32px",
+          fontSize: "30px",
           fontWeight: 800,
         }}
       >
@@ -25,49 +25,48 @@ export default function Sidebar() {
 
       <hr style={{ borderColor: "#1b2330" }} />
 
-      <div
+      <p
         style={{
-          marginTop: "20px",
-          marginBottom: "10px",
           color: "#6f7c91",
           fontSize: "10px",
           textTransform: "uppercase",
         }}
       >
         Principal
-      </div>
+      </p>
 
-      <MenuLink href="/" texttyle={{
-          marginTop: "25px",
-          marginBottom: "10px",
+      <
+
+      <p
+        style={{
+          marginTop: "20px",
           color: "#6f7c91",
           fontSize: "10px",
           textTransform: "uppercase",
         }}
       >
         Gestión
-      </div>
+      </p>
 
-      <MenuLink href  <MenuLink href="/productos" text=/modelos" text="
+      <MenuLink
+      <MenuLink href="/productos" text"/modelos"href="/
         style={{
           borderColor: "#1b2330",
-          marginTop: "20px",
-          marginBottom: "20px",
+          margin: "20px 0",
         }}
       />
 
-      <div
+      <p
         style={{
-          marginBottom: "10px",
           color: "#6f7c91",
           fontSize: "10px",
           textTransform: "uppercase",
         }}
       >
         Identidad Digital
-      </div>
+      </p>
 
-      <MenuLink href="/dpp" text="nfc" text="📱 NFC / QRk href="/trazside>
+      <MenuLink href="/dpp" text"/nfc" text="certificados"href="/traziv>
   );
 }
 
@@ -85,5 +84,4 @@ function MenuLink({
         display: "block",
         color: "white",
         textDecoration: "none",
-        padding: "10px 0",
-        fontSize: "14px"
+   

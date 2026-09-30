@@ -237,13 +237,68 @@ export default function Empresas() {
               </th>
             </tr>
           </thead>
+<tbody>
+  {empresas.map((empresa) => (
+    <tr
+      key={empresa.id}
+      style={{
+        borderTop: "1px solid #1b2330",
+      }}
+    >
+      <td style={{ padding: "12px" }}>
+        {empresa.razon_social}
+      </td>
 
-          <tbody>
-            {empresas.map((empresa) => (
-              <tr
-                key={empresa.id}
-                style={{
-                  borderTop: "1px solid #1b2330",
-                }}
-              >
-                <td
+      <td style={{ padding: "12px" }}>
+        {empresa.pais}
+      </td>
+
+      <td style={{ padding: "12px" }}>
+        {empresa.sector}
+      </td>
+
+      <td style={{ padding: "12px" }}>
+        {empresa.estado}
+      </td>
+
+      <td style={{ padding: "12px" }}>
+        <button
+          onClick={() =>
+            editarEmpresa(
+              empresa.id,
+              empresa.razon_social
+            )
+          }
+          style={{
+            background: "#2563eb",
+            color: "white",
+            border: "none",
+            padding: "6px 10px",
+            marginRight: "8px",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Editar
+        </button>
+
+        <button
+          onClick={() =>
+            eliminarEmpresa(empresa.id)
+          }
+          style={{
+            background: "#dc2626",
+            color: "white",
+            border: "none",
+            padding: "6px 10px",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Eliminar
+        </button>
+      </td>
+    </tr>
+  ))}
+</tbody>
+        

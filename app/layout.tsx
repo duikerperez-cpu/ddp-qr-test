@@ -1,4 +1,3 @@
-import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 
 export default function RootLayout({
@@ -18,29 +17,20 @@ export default function RootLayout({
         <div
           style={{
             display: "flex",
+            flexDirection: "column",
             minHeight: "100vh",
           }}
         >
-          <Sidebar />
+          <Topbar />
 
-          <div
+          <main
             style={{
               flex: 1,
-              display: "flex",
-              flexDirection: "column",
+              padding: "0",
             }}
           >
-            <Topbar />
-
-            <main
-              style={{
-                flex: 1,
-                padding: "18px",
-              }}
-            >
-              {children}
-            </main>
-          </div>
+            {children}
+          </main>
         </div>
       </body>
     </html>

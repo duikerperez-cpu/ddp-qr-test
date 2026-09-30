@@ -10,10 +10,80 @@ const supabase = createClient(
 
 export default function Empresas() {
   const [empresas, setEmpresas] = useState<any[]>([]);
+  const [nuevaEmpresa, setNuevaEmpresa] = useState("");
+const [pais, setPais] = useState("Chile");
+const [sector, setSector] = useState("");
+const [editando, setEditando] = useState<string | null>(null);
 
   useEffect(() => {
     cargarEmpresas();
   }, []);
+  async function crearEmpresa() {
+  if (!nuevaEmpresa) return;
+
+  const { error } = await supabase
+    .from("empresas")
+    .insert({
+      razon_social: nuevaEmpresa,
+      pais,
+      sector,
+      estado: "activa",
+    });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  setNuevaEmpresa("");
+  setPais("Chile");
+  setSector("");
+
+  cargarEmpresas();
+}
+  async function eliminarEmpresa(id: string) {
+  const confirmar = window.confirm(
+    "¿Eliminar esta empresa?"
+  );
+
+  if (!confirmar) return;
+
+  const { error } = await supabase
+    .from("empresas")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+async function editarEmpresa(
+  id: string,
+  razon_social: string
+) {
+  const nuevoNombre = prompt(
+    "Nuevo nombre",
+    razon_social
+  );
+
+  if (!nuevoNombre) return;
+
+  const { error } = await supabase
+    .from("empresas")
+    .update({
+      razon_social: nuevoNombre,
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  cargarEmpresas();
+}
+  cargarEmpresas();
+}
 
   async function cargarEmpresas() {
     const { data, error } = await supabase
@@ -48,6 +118,77 @@ export default function Empresas() {
         }}
       >
         Empresas registradas en la plataforma.
+        <div
+  style={{
+    background: "#08111d",
+    padding: "16px",
+    borderRadius: "8px",
+    marginBottom: "20px",
+    border: "1px solid #1b2330",
+  }}
+>
+  <h3>Nueva Empresa</h3>
+
+  <input
+    value={nuevaEmpresa}
+    onChange={(e) =>
+      setNuevaEmpresa(e.target.value)
+    }
+    placeholder="Razón social"
+    style={{
+      width: "100%",
+      padding: "10px",
+      marginTop: "10px",
+      background: "#111827",
+      border: "1px solid #1b2330",
+      color: "white",
+    }}
+  />
+
+  <input
+    value={pais}
+    onChange={(e) => setPais(e.target.value)}
+    placeholder="País"
+    style={{
+      width: "100%",
+      padding: "10px",
+      marginTop: "10px",
+      background: "#111827",
+      border: "1px solid #1b2330",
+      color: "white",
+    }}
+  />
+
+  <input
+    value={sector}
+    onChange={(e) => setSector(e.target.value)}
+    placeholder="Sector"
+    style={{
+      width: "100%",
+      padding: "10px",
+      marginTop: "10px",
+      background: "#111827",
+      border: "1px solid #1b2330",
+      color: "white",
+    }}
+  />
+
+  <button
+    onClick={crearEmpresa}
+    style={{
+      marginTop: "12px",
+      background: "#ff6b1a",
+      color: "white",
+      border: "none",
+      padding: "10px 14px",
+      borderRadius: "6px",
+      cursor: "pointer",
+    }}
+  >
+    + Nueva Empresa
+  </button>
+</div>
+`
       </p>
 
       <div
@@ -65,7 +206,47 @@ export default function Empresas() {
           }}
         >
           <thead>
+            <th style={{ padding: "12px" }}>
+  Acciones
+</th>
             <tr
+              <td style={{ padding: "12px" }}>
+  <button
+    onClick={() =>
+      editarEmpresa(
+        empresa.id,
+        empresa.razon_social
+      )
+    }
+    style={{
+      background: "#2563eb",
+      color: "white",
+      border: "none",
+      padding: "6px 10px",
+      marginRight: "8px",
+      borderRadius: "4px",
+      cursor: "pointer",
+    }}
+  >
+    Editar
+  </button>
+
+  <button
+    onClick={() =>
+      eliminarEmpresa(empresa.id)
+    }
+    style={{
+      background: "#dc2626",
+      color: "white",
+      border: "none",
+      padding: "6px 10px",
+      borderRadius: "4px",
+      cursor: "pointer",
+    }}
+  >
+    Eliminar
+  </button>
+</td>
               style={{
                 background: "#111827",
               }}

@@ -21,33 +21,26 @@ export default function RootLayout({
             minHeight: "100vh",
           }}
         >
-<Sidebar />
+          <Sidebar />
 
-<div
-  style={{
-    flex: 1,
-    display: "flex",
-    flexDirection: "column",
-  }}
->
-  <Topbar />
-
-  <main
-    style={{
-      flex: 1,
-      padding: "18px",
-    }}
-  >
-    {children}
-  </main>
-</div>
+          <div
             style={{
               flex: 1,
-              padding: "20px",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
-            {children}
-          </main>
+            <Topbar />
+
+            <main
+              style={{
+                flex: 1,
+                padding: "18px",
+              }}
+            >
+              {children}
+            </main>
+          </div>
         </div>
       </body>
     </html>

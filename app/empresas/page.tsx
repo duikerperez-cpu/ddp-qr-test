@@ -19,7 +19,7 @@ export default function Empresas() {
     const { data, error } = await supabase
       .from("empresas")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("razon_social");
 
     if (error) {
       console.error(error);
@@ -70,22 +70,20 @@ export default function Empresas() {
                 background: "#111827",
               }}
             >
-              <th
-                style={{
-                  padding: "12px",
-                  textAlign: "left",
-                }}
-              >
-                Nombre
+              <th style={{ padding: "12px", textAlign: "left" }}>
+                Empresa
               </th>
 
-              <th
-                style={{
-                  padding: "12px",
-                  textAlign: "left",
-                }}
-              >
-                ID
+              <th style={{ padding: "12px", textAlign: "left" }}>
+                País
+              </th>
+
+              <th style={{ padding: "12px", textAlign: "left" }}>
+                Sector
+              </th>
+
+              <th style={{ padding: "12px", textAlign: "left" }}>
+                Estado
               </th>
             </tr>
           </thead>
@@ -99,13 +97,19 @@ export default function Empresas() {
                 }}
               >
                 <td style={{ padding: "12px" }}>
-                  {empresa.nombre ||
-                    empresa.razon_social ||
-                    "Sin nombre"}
+                  {empresa.razon_social}
                 </td>
 
                 <td style={{ padding: "12px" }}>
-                  {empresa.id}
+                  {empresa.pais}
+                </td>
+
+                <td style={{ padding: "12px" }}>
+                  {empresa.sector}
+                </td>
+
+                <td style={{ padding: "12px" }}>
+                  {empresa.estado}
                 </td>
               </tr>
             ))}

@@ -1,4 +1,34 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
 export default function Empresas() {
+  const [empresas, setEmpresas] = useState<any[]>([]);
+
+  useEffect(() => {
+    cargarEmpresas();
+  }, []);
+
+  async function cargarEmpresas() {
+    const { data, error } = await supabase
+      .from("empresas")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setEmpresas(data || []);
+  }
+
   return (
     <div>
       <h1
@@ -17,21 +47,71 @@ export default function Empresas() {
           marginBottom: "20px",
         }}
       >
-        Administración de empresas registradas.
+        Empresas registradas en la plataforma.
       </p>
 
-      <button
+      <div
         style={{
-          background: "#ff6b1a",
-          color: "white",
-          border: "none",
-          padding: "10px 14px",
-          borderRadius: "6px",
-          cursor: "pointer",
+          background: "#08111d",
+          border: "1px solid #1b2330",
+          borderRadius: "8px",
+          overflow: "hidden",
         }}
       >
-        + Nueva Empresa
-      </button>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+          }}
+        >
+          <thead>
+            <tr
+              style={{
+                background: "#111827",
+              }}
+            >
+              <th
+                style={{
+                  padding: "12px",
+                  textAlign: "left",
+                }}
+              >
+                Nombre
+              </th>
+
+              <th
+                style={{
+                  padding: "12px",
+                  textAlign: "left",
+                }}
+              >
+                ID
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {empresas.map((empresa) => (
+              <tr
+                key={empresa.id}
+                style={{
+                  borderTop: "1px solid #1b2330",
+                }}
+              >
+                <td style={{ padding: "12px" }}>
+                  {empresa.nombre ||
+                    empresa.razon_social ||
+                    "Sin nombre"}
+                </td>
+
+                <td style={{ padding: "12px" }}>
+                  {empresa.id}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

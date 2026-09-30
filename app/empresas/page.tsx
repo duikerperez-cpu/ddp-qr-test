@@ -104,7 +104,7 @@ export default function Empresas() {
 
   return (
   <div>
-    <h1
+    <h1)
         style={{
           fontSize: "28px",
           fontWeight: 700,

@@ -9,12 +9,11 @@ export const getEmpresas = () => supabase.from('empresas').select('*').order('ra
 
 export const createEmpresa = async (data: any) => {
   const newRow = {
-    id: crypto.randomUUID(), // <--- ESTO FALTABA
+    id: crypto.randomUUID(),
     razon_social: data.razon_social,
-    Pais: data.Pais || 'Chile',
-    Sector: data.Sector || 'Industrial',
-    Estado: 'Activa',
-    nombre: data.razon_social, // tu tabla tiene duplicado nombre/Nombre
+    Pais: 'Chile',
+    Sector: data.Sector || 'General',
+    nombre: data.razon_social,
     Nombre: data.razon_social
   }
   const res = await supabase.from('empresas').insert([newRow]).select()
@@ -29,8 +28,7 @@ export const updateEmpresa = (id: string, data: any) => {
   return supabase.from('empresas').update({
     razon_social: data.razon_social,
     Sector: data.Sector,
-    nombre: data.razon_social,
-    Nombre: data.razon_social
+    nombre: data.razon_social
   }).eq('id', id)
 }
 

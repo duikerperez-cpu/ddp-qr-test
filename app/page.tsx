@@ -66,8 +66,176 @@ export default function Page(){
       <div style={{maxWidth:"1100px", margin:"0 auto"}}>
 
 
-        {tab==="dashboard" && <div><h2 style={{fontSize:"20px", fontWeight:800}}>Dashboard Vinculab</h2><div style={{display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px", marginTop:"16px"}}><div style={{background:"#1a1a1e", padding:"16px", borderRadius:"10px"}}>Empresas: {empresas.length}</div><div style={{background:"#1a1a1e", padding:"16px", borderRadius:"10px"}}>Productos: {productos.length}</div><div style={{background:"#1a1a1e", padding:"16px", borderRadius:"10px"}}>Modelos: {modelos.length}</div><div style={{background:"#1a1a1e", padding:"16px", borderRadius:"10px"}}>Lotes: {lotes.length}</div></div></div>}
+        {tab==="dashboard" && (
+  <div>
+    <div style={{ marginBottom: "20px" }}>
+      <h1
+        style={{
+          margin: 0,
+          fontSize: "28px",
+          fontWeight: 700,
+          color: "#fff",
+        }}
+      >
+        Dashboard
+      </h1>
 
+      <p
+        style={{
+          marginTop: "6px",
+          fontSize: "12px",
+          color: "#6f7c91",
+        }}
+      >
+        Vista general de la plataforma Vinculab.
+      </p>
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4,1fr)",
+        gap: "12px",
+      }}
+    >
+      {/* Empresas */}
+
+      <div
+        style={{
+          background: "#08111d",
+          border: "1px solid #1a2330",
+          borderLeft: "3px solid #ff6b1a",
+          borderRadius: "8px",
+          padding: "14px",
+          minHeight: "70px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "9px",
+            color: "#7b8798",
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+          }}
+        >
+          Empresas
+        </div>
+
+        <div
+          style={{
+            fontSize: "18px",
+            fontWeight: 700,
+            marginTop: "10px",
+          }}
+        >
+          {empresas.length}
+        </div>
+      </div>
+
+      {/* Productos */}
+
+      <div
+        style={{
+          background: "#08111d",
+          border: "1px solid #1a2330",
+          borderLeft: "3px solid #ff6b1a",
+          borderRadius: "8px",
+          padding: "14px",
+          minHeight: "70px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "9px",
+            color: "#7b8798",
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+          }}
+        >
+          Productos
+        </div>
+
+        <div
+          style={{
+            fontSize: "18px",
+            fontWeight: 700,
+            marginTop: "10px",
+          }}
+        >
+          {productos.length}
+        </div>
+      </div>
+
+      {/* Modelos */}
+
+      <div
+        style={{
+          background: "#08111d",
+          border: "1px solid #1a2330",
+          borderLeft: "3px solid #ff6b1a",
+          borderRadius: "8px",
+          padding: "14px",
+          minHeight: "70px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "9px",
+            color: "#7b8798",
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+          }}
+        >
+          Modelos
+        </div>
+
+        <div
+          style={{
+            fontSize: "18px",
+            fontWeight: 700,
+            marginTop: "10px",
+          }}
+        >
+          {modelos.length}
+        </div>
+      </div>
+
+      {/* Lotes */}
+
+      <div
+        style={{
+          background: "#08111d",
+          border: "1px solid #1a2330",
+          borderLeft: "3px solid #ff6b1a",
+          borderRadius: "8px",
+          padding: "14px",
+          minHeight: "70px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "9px",
+            color: "#7b8798",
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+          }}
+        >
+          Lotes
+        </div>
+
+        <div
+          style={{
+            fontSize: "18px",
+            fontWeight: 700,
+            marginTop: "10px",
+          }}
+        >
+          {lotes.length}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
         {tab==="modelos" && <div><div style={{display:"flex", justifyContent:"space-between"}}><h3>Modelos</h3><button onClick={()=>setShowModelo(true)} style={{background:"#ff5a1f", border:"none", color:"white", padding:"6px 12px", borderRadius:"6px"}}>+ Nuevo Modelo DPP</button></div><div style={{marginTop:"12px"}}>{modelos.map((m:any)=><div key={m.id} style={{background:"#1a1a1e", padding:"10px", marginTop:"8px", borderRadius:"8px", fontSize:"12px"}}>{m.nombre} • {m.categoria || 'Battery'} • Li:{m.lithium_pct}% Co:{m.cobalt_pct}% Ni:{m.nickel_pct}% • CO2:{m.co2_total}kg</div>)}</div></div>}
 
         {tab==="lotes" && <div><div style={{display:"flex", justifyContent:"space-between"}}><h3>Lotes</h3><button onClick={()=>{genCodigo(); setShowLote(true)}} style={{background:"#ff5a1f", border:"none", color:"white", padding:"6px 12px", borderRadius:"6px"}}>+ Nuevo Lote + QRs</button></div><div style={{marginTop:"12px"}}>{lotes.map((l:any)=><div key={l.id} style={{background:"#1a1a1e", padding:"10px", marginTop:"8px", borderRadius:"8px", fontSize:"12px"}}>{l.codigo} • <a href={`/p/${l.codigo}-0001`} style={{color:"#ff5a1f"}} target="_blank">Ver DPP ejemplo</a></div>)}</div></div>}

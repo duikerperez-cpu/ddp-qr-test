@@ -64,9 +64,7 @@ export default function Page(){
   return (
     <div style={{minHeight:"100vh", background:"#0f0f11", color:"white", fontFamily:"Inter,sans-serif", padding:"20px"}}>
       <div style={{maxWidth:"1100px", margin:"0 auto"}}>
-        <div style={{display:"flex", gap:"10px", marginBottom:"20px"}}>
-          {["dashboard","empresas","productos","modelos","lotes","DPP"].map(t=><button key={t} onClick={()=>setTab(t)} style={{background:tab===t?"#ff5a1f":"#1f1f23", border:"1px solid #2a2a2e", color:"white", padding:"8px 14px", borderRadius:"8px", fontSize:"12px", textTransform:"uppercase"}}>{t}</button>)}
-        </div>
+
 
         {tab==="dashboard" && <div><h2 style={{fontSize:"20px", fontWeight:800}}>Dashboard Vinculab</h2><div style={{display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px", marginTop:"16px"}}><div style={{background:"#1a1a1e", padding:"16px", borderRadius:"10px"}}>Empresas: {empresas.length}</div><div style={{background:"#1a1a1e", padding:"16px", borderRadius:"10px"}}>Productos: {productos.length}</div><div style={{background:"#1a1a1e", padding:"16px", borderRadius:"10px"}}>Modelos: {modelos.length}</div><div style={{background:"#1a1a1e", padding:"16px", borderRadius:"10px"}}>Lotes: {lotes.length}</div></div></div>}
 

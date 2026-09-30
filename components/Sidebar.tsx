@@ -30,15 +30,13 @@ export default function Sidebar() {
           color: "#6f7c91",
           fontSize: "10px",
           textTransform: "uppercase",
+          marginTop: "20px",
         }}
       >
         Principal
       </p>
 
-      <
-
-      <p
-        style={{
+      <MenuLink href="/"  style={{
           marginTop: "20px",
           color: "#6f7c91",
           fontSize: "10px",
@@ -48,8 +46,7 @@ export default function Sidebar() {
         Gestión
       </p>
 
-      <MenuLink
-      <MenuLink href="/productos" text"/modelos"href="/
+      <MenuLink href="/empresas href="/productos" text"/modelos"href="/
         style={{
           borderColor: "#1b2330",
           margin: "20px 0",
@@ -66,11 +63,8 @@ export default function Sidebar() {
         Identidad Digital
       </p>
 
-      <MenuLink href="/dpp" text"/nfc" text="certificados"href="/traziv>
-  );
-}
-
-function MenuLink({
+      /dpp
+      <MenuLink href="/nfc" text="📱 NFC / QRs" text="✅ Certilidad" text="tion MenuLink({
   href,
   text,
 }: {
@@ -84,4 +78,5 @@ function MenuLink({
         display: "block",
         color: "white",
         textDecoration: "none",
-   
+        padding: "10px 0",
+     

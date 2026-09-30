@@ -1,19 +1,8 @@
-import Link from "next/link";
-
-type MenuLinkProps = {
-  href: string;
-  text: string;
-};
-
-function MenuLink({ href, text }: MenuLinkProps) {
+export default function Sidebar() {
   return (
-    <Link
-      href={href}
+    <div
       style={{
-        display: "block",
-        color: "white",
-        textDecoration: "none",
-      220px",
+        width: "220px",
         minHeight: "100vh",
         background: "#08111f",
         color: "white",
@@ -28,44 +17,18 @@ function MenuLink({ href, text }: MenuLinkProps) {
 
       <hr />
 
-      <p
-        style={{
-          color: "#6f7c91",
-          fontSize: "10px",
-          textTransform: "uppercase",
-        }}
-      >
-        Principal
-      </p>
-
-      <
+      <p>Dashboard</p>
+      <p>Empresas</p>
+      <p>Productos</p>
+      <p>Modelos</p>
+      <p>Lotes</p>
 
       <hr />
 
-      <p
-        style={{
-          color: "#6f7c91",
-          fontSize: "10px",
-          textTransform: "uppercase",
-        }}
-      >
-        Gestión
-      </p>
-
-      <MenuLink
-      <MenuLink href="/productos"href="/modelos" text"/lotes" text<p
-        style={{
-          color: "#6f7c91",
-          fontSize: "10px",
-          textTransform: "uppercase",
-        }}
-      >
-        Identidad Digital
-      </p>
-
-      /dpp
-      <MenuLink href="/ficados
-      <Menuabilidad
+      <p>DPP</p>
+      <p>NFC / QR</p>
+      <p>Certificados</p>
+      <p>Trazabilidad</p>
     </div>
   );
 }

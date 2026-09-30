@@ -5,22 +5,19 @@ export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-// LEER
-export const getEmpresas = () => {
-  return supabase.from('empresas').select('*').order('razon_social', { ascending: true })
+export const getEmpresas = () => supabase.from('empresas').select('*').order('razon_social')
+
+export const createEmpresa = async (data: any) => {
+  const res = await supabase.from('empresas').insert([data]).select()
+  console.log('CREATE RES:', res)
+  if (res.error) alert('Error Supabase: ' + res.error.message)
+  return res
 }
 
-// CREAR
-export const createEmpresa = (data: any) => {
-  return supabase.from('empresas').insert([data]).select()
+export const updateEmpresa = async (id: string, data: any) => {
+  const res = await supabase.from('empresas').update(data).eq('id', id).select()
+  if (res.error) alert('Error Update: ' + res.error.message)
+  return res
 }
 
-// EDITAR
-export const updateEmpresa = (id: string, data: any) => {
-  return supabase.from('empresas').update(data).eq('id', id).select()
-}
-
-// BORRAR
-export const deleteEmpresa = (id: string) => {
-  return supabase.from('empresas').delete().eq('id', id)
-}
+export const deleteEmpresa = (id: string) => supabase.from('empresas').delete().eq('id', id)

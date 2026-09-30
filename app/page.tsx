@@ -1,83 +1,22 @@
-"use client"
-import { useState, useEffect } from "react"
-import { createClient } from "@supabase/supabase-js"
-
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://vinculab.cl"
-const getNombre = (e:any) => e?.nombre || e?.razon_social || "Sin nombre"
-
-export default function Page(){
-  const [tab,setTab]=useState("dashboard")
-  const [empresas,setEmpresas]=useState<any[]>([]); const [productos,setProductos]=useState<any[]>([]); const [modelos,setModelos]=useState<any[]>([]); const [lotes,setLotes]=useState<any[]>([]); const [individuales,setIndividuales]=useState<any[]>([])
-  
-  // Crear
-  const [showEmpresa,setShowEmpresa]=useState(false); const [nomEmpresa,setNomEmpresa]=useState("")
-  const [showProducto,setShowProducto]=useState(false); const [prodEmpresa,setProdEmpresa]=useState(""); const [nomProducto,setNomProducto]=useState("")
-  const [showModelo,setShowModelo]=useState(false); const [modEmpresa,setModEmpresa]=useState(""); const [modProducto,setModProducto]=useState(""); const [modProdFiltrados,setModProdFiltrados]=useState<any[]>([]); const [nomModelo,setNomModelo]=useState("")
-  const [showLote,setShowLote]=useState(false); const [loteEmpresa,setLoteEmpresa]=useState(""); const [loteModelosFiltrados,setLoteModelosFiltrados]=useState<any[]>([]); const [loteModelo,setLoteModelo]=useState(""); const [loteCantidad,setLoteCantidad]=useState("10"); const [loteCodigo,setLoteCodigo]=useState("")
-
-  useEffect(()=>{ load(); genCodigo() },[])
-  function genCodigo(){ setLoteCodigo(`LOTE-${new Date().toISOString().slice(0,10).replace(/-/g,"")}-${Math.floor(1000+Math.random()*9000)}`) }
-  async function load(){
-    const {data:e}=await supabase.from("empresas").select("*")
-    const {data:p}=await supabase.from("productos").select("*")
-    const {data:m}=await supabase.from("modelos").select("*")
-    const {data:l}=await supabase.from("lotes").select("*")
-    const {data:ind}=await supabase.from("productos_individuales").select("*").limit(200)
-    if(e) setEmpresas(e); if(p) setProductos(p); if(m) setModelos(m); if(l) setLotes(l); if(ind) setIndividuales(ind)
-  }
-
-  async function guardarEmpresa(){ if(!nomEmpresa) return; await supabase.from("empresas").insert({razon_social:nomEmpresa, nombre:nomEmpresa, pais:"Chile", sector:"Industrial", estado:"activa"}); setShowEmpresa(false); setNomEmpresa(""); load() }
-  async function guardarProducto(){ if(!prodEmpresa||!nomProducto) return; await supabase.from("productos").insert({empresa_id:prodEmpresa, nombre:nomProducto}); setShowProducto(false); setNomProducto(""); load() }
-  async function onModEmpresaChange(id:string){ setModEmpresa(id); const {data}=await supabase.from("productos").select("*").eq("empresa_id",id); setModProdFiltrados(data||[]) }
-  async function guardarModelo(){ if(!modEmpresa||!modProducto||!nomModelo) return; await supabase.from("modelos").insert({empresa_id:modEmpresa, producto_id:modProducto, nombre:nomModelo}); setShowModelo(false); setNomModelo(""); load() }
-  async function onLoteEmpresaChange(id:string){ setLoteEmpresa(id); const {data}=await supabase.from("modelos").select("*").eq("empresa_id",id); setLoteModelosFiltrados(data||[]) }
-  async function guardarLote(){ const cantidad=parseInt(loteCantidad); const {data:loteCreado}=await supabase.from("lotes").insert({codigo:loteCodigo, cantidad, modelo_id:loteModelo, empresa_id:loteEmpresa, estado:"activo"}).select().single(); const lista=Array.from({length:cantidad},(_,i)=>{ const id=`${loteCreado.codigo}-${String(i+1).padStart(4,"0")}`; return {id, lote_id:loteCreado.id, empresa_id:loteCreado.empresa_id, modelo_id:loteCreado.modelo_id, codigo_qr:id, url_dpp:`${APP_URL}/p/${id}`, estado:"activo"}}); await supabase.from("productos_individuales").insert(lista); setShowLote(false); genCodigo(); load(); setTab("individuales") }
-
-  const Menu = (props:any) => {
-    const active = tab===props.id
-    return <div onClick={()=>setTab(props.id)} style={{padding:"9px 14px", margin:"3px 8px", borderRadius:"6px", fontSize:"11px", color:active?"#fff":"#6b6b6f", background:active?"#1f1f23":"transparent", border:active?"1px solid #2a2a2e":"1px solid transparent", borderLeft:active?"3px solid #ff5a1f":"3px solid transparent", cursor:"pointer", display:"flex", alignItems:"center", gap:"8px"}}><span style={{fontSize:"10px"}}>{props.icon}</span> {props.label}</div>
-  }
-  const Card = (t:string, v:number) => <div style={{background:"#17171a", border:"1px solid #232326", borderLeft:"3px solid #ff5a1f", borderRadius:"8px", padding:"18px"}}><div style={{fontSize:"9px", color:"#6b6b6f", letterSpacing:"1px"}}>{t}</div><div style={{fontSize:"24px", fontWeight:800, marginTop:"8px"}}>{v}</div></div>
-
+export default function Page() {
   return (
-    <div style={{display:"flex", minHeight:"100vh", background:"#0a0a0c", color:"#e5e5e5", fontFamily:"Inter, sans-serif"}}>
-      {/* SIDEBAR IGUAL A TU FOTO */}
-      <div style={{width:"220px", background:"#0f0f11", borderRight:"1px solid #1e1e22", display:"flex", flexDirection:"column"}}>
-        <div style={{padding:"16px", borderBottom:"1px solid #1e1e22", display:"flex", alignItems:"center", gap:"2px"}}><span style={{fontWeight:900, fontSize:"16px", letterSpacing:"1px"}}>VINCULA</span><span style={{background:"#ff5a1f", color:"white", fontWeight:900, padding:"1px 5px", borderRadius:"3px", fontSize:"14px"}}>B</span></div>
-        <div style={{padding:"14px 0", flex:1}}>
-          <div style={{fontSize:"8px", color:"#3a3a3e", padding:"0 16px 8px", letterSpacing:"1.5px"}}>PRINCIPAL</div><Menu icon="◧" label="Dashboard" id="dashboard"/>
-          <div style={{fontSize:"8px", color:"#3a3a3e", padding:"16px 16px 8px", letterSpacing:"1.5px"}}>GESTIÓN</div><Menu icon="◫" label="Empresas" id="empresas"/><Menu icon="◫" label="Productos" id="productos"/><Menu icon="◫" label="Modelos" id="modelos"/><Menu icon="◫" label="Lotes" id="lotes"/><Menu icon="◫" label="Productos Individuales" id="individuales"/>
-          <div style={{fontSize:"8px", color:"#3a3a3e", padding:"16px 16px 8px", letterSpacing:"1.5px"}}>IDENTIDAD DIGITAL</div><Menu icon="◧" label="DPP" id="dpp"/><Menu icon="↗" label="NFC / QR" id="nfc"/><Menu icon="✓" label="Certificados" id="cert"/><Menu icon="◉" label="Trazabilidad" id="traz"/>
-        </div>
+    <div style={{ padding: '10px 20px' }}>
+      <h1 style={{ fontSize: 20, fontWeight: 800 }}>Dashboard</h1>
+      <p style={{ opacity: 0.6, fontSize: 13, marginTop: 4 }}>Vista general de la plataforma Vinculab.</p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginTop: 24 }}>
+        {[
+          { k: 'EMPRESAS', v: '2' },
+          { k: 'PRODUCTOS', v: '2' },
+          { k: 'MODELOS', v: '5' },
+          { k: 'LOTES', v: '10' },
+        ].map(c => (
+          <div key={c.k} style={{ background: '#18181b', borderLeft: '3px solid #ff6a00', borderRadius: 10, padding: 20 }}>
+            <div style={{ fontSize: 10, letterSpacing: 1, opacity: 0.5 }}>{c.k}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, marginTop: 8 }}>{c.v}</div>
+          </div>
+        ))}
       </div>
-
-      {/* MAIN */}
-      <div style={{flex:1}}>
-        <div style={{height:"44px", background:"#0f0f11", borderBottom:"1px solid #1e1e22", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 20px"}}><div style={{fontSize:"8px", color:"#4a4a4e", letterSpacing:"1px"}}>PLATAFORMA DE IDENTIDAD DIGITAL DE PRODUCTOS</div><div style={{display:"flex", alignItems:"center", gap:"8px"}}><div style={{fontSize:"10px", color:"#888"}}>Administrador</div><div style={{width:"22px", height:"22px", background:"#ff5a1f", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"10px", fontWeight:800}}>A</div></div></div>
-        
-        <div style={{padding:"24px"}}>
-          {tab==="dashboard" && <><div style={{marginBottom:"18px"}}><div style={{fontWeight:700, fontSize:"15px"}}>Dashboard</div><div style={{fontSize:"10px", color:"#5a5a5e"}}>Vista general de la plataforma Vinculab.</div></div><div style={{display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:"12px"}}>{Card("EMPRESAS", empresas.length)}{Card("PRODUCTOS", productos.length)}{Card("MODELOS", modelos.length)}{Card("LOTES", lotes.length)}</div></>}
-
-          {tab==="empresas" && <><div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}><h2 style={{fontSize:"14px"}}>Empresas ({empresas.length})</h2><button onClick={()=>setShowEmpresa(true)} style={{background:"#ff5a1f", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:700}}>+ Nueva Empresa</button></div><div style={{marginTop:"16px", display:"grid", gap:"8px"}}>{empresas.map((e:any)=><div key={e.id} style={{background:"#17171a", border:"1px solid #232326", padding:"14px", borderRadius:"8px", fontSize:"12px"}}>{getNombre(e)} - {e.pais}</div>)}</div></>}
-
-          {tab==="productos" && <><div style={{display:"flex", justifyContent:"space-between"}}><h2 style={{fontSize:"14px"}}>Productos ({productos.length})</h2><button onClick={()=>setShowProducto(true)} style={{background:"#ff5a1f", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:700}}>+ Nuevo Producto</button></div><div style={{marginTop:"16px"}}>{productos.map((p:any)=><div key={p.id} style={{background:"#17171a", border:"1px solid #232326", padding:"14px", borderRadius:"8px", marginBottom:"8px", fontSize:"12px"}}>{p.nombre} <span style={{color:"#555"}}> - {getNombre(empresas.find((x:any)=>x.id===p.empresa_id))}</span></div>)}</div></>}
-
-          {tab==="modelos" && <><div style={{display:"flex", justifyContent:"space-between"}}><h2 style={{fontSize:"14px"}}>Modelos ({modelos.length})</h2><button onClick={()=>setShowModelo(true)} style={{background:"#ff5a1f", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:700}}>+ Nuevo Modelo</button></div><div style={{marginTop:"16px"}}>{modelos.map((m:any)=><div key={m.id} style={{background:"#17171a", border:"1px solid #232326", padding:"14px", borderRadius:"8px", marginBottom:"8px", fontSize:"12px"}}>{m.nombre}</div>)}</div></>}
-
-          {tab==="lotes" && <><div style={{display:"flex", justifyContent:"space-between"}}><h2 style={{fontSize:"14px"}}>Lotes ({lotes.length})</h2><button onClick={()=>{genCodigo(); setShowLote(true)}} style={{background:"#ff5a1f", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px", fontSize:"12px", fontWeight:700}}>+ Nuevo Lote</button></div><div style={{marginTop:"16px"}}>{lotes.map((l:any)=><div key={l.id} style={{background:"#17171a", border:"1px solid #232326", borderLeft:"3px solid #ff5a1f", padding:"14px", borderRadius:"8px", marginBottom:"8px", display:"flex", justifyContent:"space-between", fontSize:"12px"}}><span>{l.codigo} - {l.cantidad} unidades</span><button onClick={()=>setTab("individuales")} style={{background:"#232326", color:"#ff5a1f", border:"none", padding:"4px 10px", borderRadius:"4px", fontSize:"11px"}}>Ver QRs →</button></div>)}</div></>}
-
-          {tab==="individuales" && <><div style={{display:"flex", justifyContent:"space-between"}}><h2 style={{fontSize:"14px"}}>Productos Individuales ({individuales.length})</h2><button onClick={()=>{genCodigo(); setShowLote(true)}} style={{background:"#ff5a1f", border:"none", color:"white", padding:"8px 14px", borderRadius:"6px", fontSize:"12px"}}>+ Generar Lote</button></div><div style={{marginTop:"16px", display:"grid", gridTemplateColumns:"repeat(5, 1fr)", gap:"12px"}}>{individuales.map((ind:any)=><div key={ind.id} style={{background:"#17171a", border:"1px solid #232326", borderRadius:"10px", padding:"12px", textAlign:"center"}}><div style={{fontSize:"9px", fontWeight:700}}>{ind.id}</div><img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(ind.url_dpp)}`} style={{width:"100%", background:"white", padding:"6px", borderRadius:"6px", marginTop:"8px"}} alt="qr"/><div style={{fontSize:"8px", color:"#555", marginTop:"6px", wordBreak:"break-all"}}>{ind.url_dpp}</div></div>)}</div></>}
-
-          {tab==="dpp" && <div style={{color:"#666", fontSize:"12px"}}>Tus páginas DPP blancas están en <b>vinculab.cl/p/[codigo]</b> - esa no se toca, ya quedó perfecta.</div>}
-        </div>
-      </div>
-
-      {/* MODALES */}
-      {showEmpresa && <div style={{position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:50}}><div style={{background:"#1a1a1e", border:"1px solid #2a2a2e", borderRadius:"12px", padding:"22px", width:"380"}}><h3 style={{fontSize:"13px"}}>Nueva Empresa</h3><input value={nomEmpresa} onChange={e=>setNomEmpresa(e.target.value)} placeholder="Ej: Hercom Chile" style={{width:"100%", background:"#222227", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}/><div style={{display:"flex", justifyContent:"flex-end", gap:"10px", marginTop:"16px"}}><button onClick={()=>setShowEmpresa(false)} style={{background:"transparent", color:"#666", border:"none", fontSize:"12px"}}>Cancelar</button><button onClick={guardarEmpresa} style={{background:"#ff5a1f", color:"white", border:"none", padding:"8px 16px", borderRadius:"6px", fontWeight:700, fontSize:"12px"}}>Guardar</button></div></div></div>}
-      {showProducto && <div style={{position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:50}}><div style={{background:"#1a1a1e", border:"1px solid #2a2a2e", borderRadius:"12px", padding:"22px", width:"380"}}><h3 style={{fontSize:"13px"}}>Nuevo Producto</h3><select value={prodEmpresa} onChange={e=>setProdEmpresa(e.target.value)} style={{width:"100%", background:"#222227", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Selecciona Empresa</option>{empresas.map((e:any)=><option key={e.id} value={e.id}>{getNombre(e)}</option>)}</select><input value={nomProducto} onChange={e=>setNomProducto(e.target.value)} placeholder="Ej: Polera" style={{width:"100%", background:"#222227", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}/><div style={{display:"flex", justifyContent:"flex-end", gap:"10px", marginTop:"16px"}}><button onClick={()=>setShowProducto(false)} style={{background:"transparent", color:"#666", border:"none"}}>Cancelar</button><button onClick={guardarProducto} style={{background:"#ff5a1f", color:"white", border:"none", padding:"8px 16px", borderRadius:"6px", fontWeight:700}}>Guardar</button></div></div></div>}
-      {showModelo && <div style={{position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:50}}><div style={{background:"#1a1a1e", border:"1px solid #2a2a2e", borderRadius:"12px", padding:"22px", width:"380"}}><h3 style={{fontSize:"13px"}}>Nuevo Modelo</h3><select value={modEmpresa} onChange={e=>onModEmpresaChange(e.target.value)} style={{width:"100%", background:"#222227", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Empresa</option>{empresas.map((e:any)=><option key={e.id} value={e.id}>{getNombre(e)}</option>)}</select><select value={modProducto} onChange={e=>setModProducto(e.target.value)} style={{width:"100%", background:"#222227", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Producto</option>{modProdFiltrados.map((p:any)=><option key={p.id} value={p.id}>{p.nombre}</option>)}</select><input value={nomModelo} onChange={e=>setNomModelo(e.target.value)} placeholder="Ej: Modelo 2025" style={{width:"100%", background:"#222227", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}/><div style={{display:"flex", justifyContent:"flex-end", gap:"10px", marginTop:"16px"}}><button onClick={()=>setShowModelo(false)} style={{background:"transparent", color:"#666", border:"none"}}>Cancelar</button><button onClick={guardarModelo} style={{background:"#ff5a1f", color:"white", border:"none", padding:"8px 16px", borderRadius:"6px", fontWeight:700}}>Guardar</button></div></div></div>}
-      {showLote && <div style={{position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:50}}><div style={{background:"#1a1a1e", border:"1px solid #2a2a2e", borderRadius:"12px", padding:"22px", width:"440"}}><h3 style={{fontSize:"13px"}}>Nuevo Lote + QRs</h3><select value={loteEmpresa} onChange={e=>onLoteEmpresaChange(e.target.value)} style={{width:"100%", background:"#222227", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Empresa</option>{empresas.map((e:any)=><option key={e.id} value={e.id}>{getNombre(e)}</option>)}</select><select value={loteModelo} onChange={e=>setLoteModelo(e.target.value)} style={{width:"100%", background:"#222227", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px", marginTop:"12px"}}><option value="">Modelo</option>{loteModelosFiltrados.map((m:any)=><option key={m.id} value={m.id}>{m.nombre}</option>)}</select><div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginTop:"12px"}}><input value={loteCodigo} onChange={e=>setLoteCodigo(e.target.value)} style={{background:"#222227", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px"}}/><input type="number" value={loteCantidad} onChange={e=>setLoteCantidad(e.target.value)} style={{background:"#222227", border:"1px solid #333", color:"white", padding:"10px", borderRadius:"6px"}}/></div><div style={{display:"flex", justifyContent:"flex-end", gap:"10px", marginTop:"16px"}}><button onClick={()=>setShowLote(false)} style={{background:"transparent", color:"#666", border:"none"}}>Cancelar</button><button onClick={guardarLote} style={{background:"#ff5a1f", color:"white", border:"none", padding:"8px 16px", borderRadius:"6px", fontWeight:700}}>Crear Lote + QRs</button></div></div></div>}
     </div>
-  )
+  );
 }

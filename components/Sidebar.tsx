@@ -1,8 +1,20 @@
-export default function Sidebar() {
+import Link from "next/link";
+
+function MenuLink({
+  href,
+  text,
+}: {
+  href: string;
+  text: string;
+}) {
   return (
-    <div
+    <Link
+      href={href}
       style={{
-        width: "220px",
+        display: "block",
+        color: "white",
+        textDecoration: "none",
+   : "220px",
         minHeight: "100vh",
         background: "#08111f",
         color: "white",
@@ -17,13 +29,13 @@ export default function Sidebar() {
 
       <hr />
 
-      <p>Dashboard</p>
-      <p>Empresas</p>
-      <p>Productos</p>
-      <p>Modelos</p>
-      <p>Lotes</p>
+      <p>PRINCIPAL</p>
 
-      <hr />
+      <MenuLink href>
+
+      <p>GESTIÓN</p>
+
+      <MenuLink href="/empuLink href="/productos      <p>IDENTIDAD DIGITAL</p>
 
       <p>DPP</p>
       <p>NFC / QR</p>

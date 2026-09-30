@@ -1,43 +1,70 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { EmpresasTable } from './components/EmpresasTable'
+import { EmpresaForm } from './components/EmpresaForm'
+import { getEmpresas, createEmpresa, updateEmpresa, deleteEmpresa } from './lib/queries'
+import { Empresa } from './types'
 
 export default function EmpresasPage() {
-  const [empresas, setEmpresas] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [empresas, setEmpresas] = useState<Empresa[]>([])
+  const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<Empresa | null>(null)
 
   const cargar = async () => {
-    setLoading(true)
-    const { data, error } = await supabase.from('empresas').select('*').order('razon_social')
-    console.log('data', data, 'error', error)
-    if (data) setEmpresas(data)
-    setLoading(false)
+    const { data } = await getEmpresas()
+    if (data) setEmpresas(data as any)
   }
 
   useEffect(() => { cargar() }, [])
 
-  return (
-    <div style={{ padding: '10px' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 800 }}>Empresas</h1>
-      <p style={{ opacity: 0.5, fontSize: 12 }}>{empresas.length} empresas</p>
+  const handleSave = async (formData: any) => {
+    if (editing) {
+      await updateEmpresa(editing.id, formData)
+    } else {
+      await createEmpresa({ ...formData, Estado: 'Activa' })
+    }
+    setShowForm(false)
+    setEditing(null)
+    cargar()
+  }
 
-      <div style={{ marginTop: 24, background: '#18181b', borderRadius: 12, border: '1px solid #232326' }}>
-        {loading ? <div style={{ padding: 24, opacity: 0.5 }}>Cargando...</div> :
-          empresas.map(e => (
-            <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid #232326' }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{e.razon_social || e.nombre}</div>
-                <div style={{ opacity: 0.4, fontSize: 11 }}>{e.Pais} - {e.Sector} - {e.Estado}</div>
-              </div>
-              <span style={{ opacity: 0.4, fontSize: 11 }}>{e.id.slice(0,8)}</span>
-            </div>
-          ))}
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Seguro borrar esta empresa?')) return
+    await deleteEmpresa(id)
+    cargar()
+  }
+
+  const handleEdit = (emp: Empresa) => {
+    setEditing(emp)
+    setShowForm(true)
+  }
+
+  return (
+    <div style={{ padding: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Empresas</h1>
+          <p style={{ opacity: 0.5, fontSize: 12, margin: '4px 0 0 0' }}>{empresas.length} empresas registradas</p>
+        </div>
+        <button 
+          onClick={() => { setEditing(null); setShowForm(true) }} 
+          style={{ background: '#ff6a00', border: 0, borderRadius: 8, padding: '10px 18px', color: 'white', fontWeight: 700, cursor: 'pointer' }}
+        >
+          + Nueva
+        </button>
       </div>
+
+      <div style={{ marginTop: 20 }}>
+        <EmpresasTable empresas={empresas} onEdit={handleEdit} onDelete={handleDelete} />
+      </div>
+
+      {showForm && (
+        <EmpresaForm 
+          initial={editing} 
+          onSave={handleSave} 
+          onClose={() => { setShowForm(false); setEditing(null) }} 
+        />
+      )}
     </div>
   )
 }

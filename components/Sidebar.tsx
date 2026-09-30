@@ -33,7 +33,7 @@ function MenuLink({
 
       <MenuLink href>
 
-      <p>GESTIÓN</p>
+      <p>GESTION</p>
 
       <MenuLink href="/empuLink href="/productos      <p>IDENTIDAD DIGITAL</p>
 

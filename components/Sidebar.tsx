@@ -14,7 +14,7 @@ function MenuLink({
         display: "block",
         color: "white",
         textDecoration: "none",
-        padding: "    minHeight: "100vh",
+        padding: "8px 0inHeight: "100vh",
         background: "#08111f",
         color: "white",
         padding: "20px",
@@ -34,9 +34,7 @@ function MenuLink({
 
       <p>GESTIÓN</p>
 
-      <MenuLink href  <MenuLink href="/productos href="/modelos"href="/lotes" text="Lotes" />
-
-DIGITAL</p>
+      <MenuLink href="/empuLink href="/productos href="/modelos"href="/lotes"     <p>IDENTIDAD DIGITAL</p>
 
       <MenuLink href="/dpp" text"/nfc" text"/certificados href="/traziv>
   );

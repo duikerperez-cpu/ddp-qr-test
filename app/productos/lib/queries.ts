@@ -9,11 +9,10 @@ export const createProducto = async (data: any) => {
     empresa_id: data.empresa_id, 
     nombre: data.nombre,
     categoria: data.categoria || null,
-    sku: data.sku || null,
-    descripcion: data.descripcion || null
+    sku: data.sku || null
   }]).select()
-  if(res.error) alert('Error: ' + res.error.message)
+  if(res.error) { alert('Error: ' + res.error.message); console.error(res.error) }
   return res
 }
-export const updateProducto = (id: string, data: any) => supabase.from('productos').update({ nombre: data.nombre, empresa_id: data.empresa_id, categoria: data.categoria, sku: data.sku, descripcion: data.descripcion }).eq('id', id)
+export const updateProducto = (id: string, data: any) => supabase.from('productos').update({ nombre: data.nombre, empresa_id: data.empresa_id, categoria: data.categoria, sku: data.sku }).eq('id', id)
 export const deleteProducto = (id: string) => supabase.from('productos').delete().eq('id', id)

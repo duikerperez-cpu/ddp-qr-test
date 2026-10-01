@@ -37,6 +37,18 @@ const PLANTILLAS: any = {
   }
 }
 
+const inputStyle = {
+  width:'100%',
+  background:'#27272a',
+  color:'white',
+  border:'1px solid #3f3f46',
+  padding:'12px',
+  borderRadius:8,
+  marginTop:6,
+  outline:'none',
+  fontSize:14
+} as any
+
 export default function DppPage(){
   const [plantilla, setPlantilla] = useState('mineria')
   const [lotes, setLotes] = useState<any[]>([])
@@ -61,7 +73,7 @@ export default function DppPage(){
       materiales: form.tipo_acero || form.ingredientes || '',
       origen: form.ubicacion_obra || form.parcela || '',
       huella_carbono: form.carga_max? `${form.carga_max} kg` : '3.0 Kg CO2e',
-      datos: form, // TODO: AQUÍ ESTÁ LA CLAVE GENÉRICA
+      datos: form,
       plantilla
     }).select().single()
     setSaving(false)
@@ -75,42 +87,49 @@ export default function DppPage(){
   const fields = PLANTILLAS[plantilla].fields
 
   return (
-    <div style={{background:'#09090b', minHeight:'100vh', color:'white', padding:24}}>
+    <div style={{background:'#09090b', minHeight:'100vh', color:'white', padding:24, fontFamily:'system-ui'}}>
       <div style={{maxWidth:800, margin:'0 auto'}}>
         <h1 style={{fontSize:24, fontWeight:900}}>Crear DPP <span style={{color:'#ff6a00'}}>Genérico</span></h1>
 
         <div style={{marginTop:16, display:'flex', gap:8}}>
-          <button onClick={()=>setPlantilla('mineria')} style={{padding:'10px 16px', borderRadius:8, background: plantilla==='mineria'?'#ff6a00':'#27272a', fontWeight:700}}>HERCOM - Minería</button>
-          <button onClick={()=>setPlantilla('alimentos')} style={{padding:'10px 16px', borderRadius:8, background: plantilla==='alimentos'?'#ff6a00':'#27272a', fontWeight:700}}>AUKA - Alimentos</button>
+          <button onClick={()=>{setPlantilla('mineria'); setForm({})}} style={{padding:'10px 16px', borderRadius:8, background: plantilla==='mineria'?'#ff6a00':'#27272a', fontWeight:700, border:'1px solid #3f3f46', color:'white'}}>HERCOM - Minería</button>
+          <button onClick={()=>{setPlantilla('alimentos'); setForm({})}} style={{padding:'10px 16px', borderRadius:8, background: plantilla==='alimentos'?'#ff6a00':'#27272a', fontWeight:700, border:'1px solid #3f3f46', color:'white'}}>AUKA - Alimentos</button>
         </div>
 
-        <div style={{marginTop:20, background:'#18181b', padding:20, borderRadius:12, border:'1px solid #27272a', display:'grid', gap:12}}>
-          <label>Código DPP (QR) <input value={codigo} onChange={e=>setCodigo(e.target.value)} style={{width:'100%', background:'#09090b', padding:10, borderRadius:8, marginTop:4}} /></label>
-          <label>Descripción corta <input value={descripcion} onChange={e=>setDescripcion(e.target.value)} placeholder={plantilla==='mineria'?'Escalera minera 5m':'Kombucha Berries Tuna'} style={{width:'100%', background:'#09090b', padding:10, borderRadius:8, marginTop:4}} /></label>
-          <label>Lote asociado (opcional)
-            <select value={loteId} onChange={e=>setLoteId(e.target.value)} style={{width:'100%', background:'#09090b', padding:10, borderRadius:8, marginTop:4}}>
+        <div style={{marginTop:20, background:'#18181b', padding:20, borderRadius:12, border:'1px solid #27272a', display:'grid', gap:16}}>
+
+          <label style={{fontSize:13, fontWeight:600}}>Código DPP (QR)
+            <input value={codigo} onChange={e=>setCodigo(e.target.value)} style={inputStyle} />
+          </label>
+
+          <label style={{fontSize:13, fontWeight:600}}>Descripción corta
+            <input value={descripcion} onChange={e=>setDescripcion(e.target.value)} placeholder={plantilla==='mineria'?'Escalera minera 5m':'Kombucha Berries Tuna'} style={inputStyle} />
+          </label>
+
+          <label style={{fontSize:13, fontWeight:600}}>Lote asociado (opcional)
+            <select value={loteId} onChange={e=>setLoteId(e.target.value)} style={inputStyle}>
               <option value="">Sin lote</option>
               {lotes.map((l:any)=><option key={l.id} value={l.id}>{l.codigo}</option>)}
             </select>
           </label>
 
           <hr style={{borderColor:'#27272a', margin:'10px 0'}} />
-          <h3 style={{fontWeight:800, color:'#ff6a00'}}>{PLANTILLAS[plantilla].label}</h3>
+          <h3 style={{fontWeight:800, color:'#ff6a00', margin:0}}>{PLANTILLAS[plantilla].label}</h3>
 
           {fields.map((f:any)=>(
-            <label key={f.key} style={{fontSize:13}}>{f.label}
+            <label key={f.key} style={{fontSize:13, fontWeight:600}}>{f.label}
               {f.type==='textarea'?
-                <textarea value={form[f.key]||''} onChange={e=>setForm({...form, [f.key]: e.target.value})} placeholder={f.placeholder} style={{width:'100%', background:'#09090b', padding:10, borderRadius:8, marginTop:4, minHeight:80}} />
+                <textarea value={form[f.key]||''} onChange={e=>setForm({...form, [f.key]: e.target.value})} placeholder={f.placeholder} style={{...inputStyle, minHeight:80}} />
                 :
-                <input type={f.type||'text'} value={form[f.key]||''} onChange={e=>setForm({...form, [f.key]: e.target.value})} placeholder={f.placeholder} style={{width:'100%', background:'#09090b', padding:10, borderRadius:8, marginTop:4}} />
+                <input type={f.type||'text'} value={form[f.key]||''} onChange={e=>setForm({...form, [f.key]: e.target.value})} placeholder={f.placeholder} style={inputStyle} />
               }
             </label>
           ))}
 
-          <button onClick={save} disabled={saving} style={{marginTop:10, background:'#ff6a00', padding:14, borderRadius:10, fontWeight:900, fontSize:16}}>
+          <button onClick={save} disabled={saving} style={{marginTop:10, background:'#ff6a00', color:'white', padding:14, borderRadius:10, fontWeight:900, fontSize:16, border:'none', cursor:'pointer'}}>
             {saving?'Guardando...':'CREAR DPP + QR →'}
           </button>
-          <p style={{fontSize:11, opacity:0.5, textAlign:'center'}}>El QR apuntará a vinculab.cl/p/{codigo} - Genérico para 1000 clientes</p>
+          <p style={{fontSize:11, opacity:0.5, textAlign:'center', margin:0}}>El QR apuntará a vinculab.cl/p/{codigo} - Genérico para 1000 clientes</p>
         </div>
       </div>
     </div>

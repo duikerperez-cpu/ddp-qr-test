@@ -2,139 +2,94 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
-
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
-export default function PublicProPage(){
+export default function Page(){
   const { codigo } = useParams()
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [d, setD] = useState<any>(null)
+  const [l, setL] = useState<any>(null)
+  const [e, setE] = useState<any>(null)
 
   useEffect(()=>{
-    const fetchData = async ()=>{
-      setLoading(true)
-      const { data: dpp } = await supabase.from('dpps').select('*').eq('codigo', codigo).single()
+    (async()=>{
+      const {data: dpp} = await supabase.from('dpps').select('*').eq('codigo', codigo).single()
       if(dpp){
-        let lote = null
+        setD(dpp)
         if(dpp.lote_id){
-          const r = await supabase.from('lotes').select('*, productos(nombre), modelos(nombre)').eq('id', dpp.lote_id).single()
-          lote = r.data
+          const {data: lote} = await supabase.from('lotes').select('*').eq('id', dpp.lote_id).single()
+          setL(lote)
+          if(lote?.empresa_id){
+            const {data: emp} = await supabase.from('empresas').select('*').eq('id', lote.empresa_id).single()
+            setE(emp)
+          }
         }
-        // traer empresa
-        let empresa = null
-        if(lote){
-          const e = await supabase.from('empresas').select('*').eq('id', lote.empresa_id).single()
-          empresa = e.data
-        }
-        setData({ dpp, lote, empresa })
-      } else {
-        const { data: lote } = await supabase.from('lotes').select('*').eq('codigo', codigo).single()
-        if(lote) setData({ lote, dpp: null, empresa: null })
       }
-      setLoading(false)
-    }
-    if(codigo) fetchData()
-  }, [codigo])
+    })()
+  },[codigo])
 
-  if(loading) return <div style={{padding:40, background:'#f3f4f6', minHeight:'100vh'}}>Cargando {codigo}...</div>
-  if(!data?.dpp &&!data?.lote) return <div style={{padding:40}}>Código no encontrado: {codigo}</div>
-
-  const dpp = data.dpp
-  const lote = data.lote
-  const empresa = data.empresa
+  if(!d) return <div style={{padding:20}}>Cargando {codigo}...</div>
 
   return (
-    <div style={{ background:'#f3f4f6', minHeight:'100vh', padding:16, fontFamily:'Inter, sans-serif' }}>
-      <div style={{ maxWidth:900, margin:'0 auto' }}>
-
+    <div style={{background:'#f3f4f6', minHeight:'100vh', padding:12, fontFamily:'system-ui'}}>
+      <div style={{maxWidth:900, margin:'0 auto'}}>
         {/* HEADER */}
-        <div style={{ background:'white', borderRadius:12, padding:16, display:'flex', justifyContent:'space-between', alignItems:'flex-start', border:'1px solid #e5e7eb' }}>
+        <div style={{background:'white', borderRadius:12, padding:16, display:'flex', justifyContent:'space-between', border:'1px solid #e5e7eb'}}>
           <div>
-            <h1 style={{ margin:0, fontSize:20, fontWeight:800, textTransform:'uppercase' }}>{dpp?.descripcion || lote?.codigo || 'PRODUCTO'}</h1>
-            <p style={{ margin:'4px 0', fontSize:12, color:'#6b7280', fontWeight:600 }}>{codigo}</p>
-            <div style={{ marginTop:8, background:'#ecfdf5', color:'#059669', border:'1px solid #a7f3d0', borderRadius:20, padding:'4px 10px', fontSize:11, display:'inline-block', fontWeight:700 }}>
-              ✓ Verificado por VINCULAB - 2026-09-26
-            </div>
+            <h1 style={{margin:0, fontWeight:900}}>{d.descripcion || 'AUKA BERRIES - TUNA'}</h1>
+            <p style={{margin:'4px 0', fontSize:12, color:'#6b7280'}}>{d.codigo} • Lote {l?.codigo}</p>
+            <span style={{background:'#ecfdf5', color:'#059669', border:'1px solid #a7f3d0', borderRadius:20, padding:'4px 10px', fontSize:11, fontWeight:700}}>✓ Verificado por VINCULAB - {d.created_at?.slice(0,10)}</span>
+            <p style={{marginTop:12, fontSize:12, maxWidth:500, lineHeight:1.5}}>{d.historia}</p>
           </div>
-          <div style={{ background:'white', padding:8, borderRadius:8, border:'1px solid #e5e7eb' }}>
-            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://vinculab.cl/p/${codigo}`} alt="qr" />
-          </div>
+          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://vinculab.cl/p/${codigo}`} style={{border:'1px solid #eee', borderRadius:8, padding:4}} />
         </div>
 
-        {/* GRID */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:12 }}>
-
-          <div style={{ background:'white', borderRadius:12, padding:14, border:'1px solid #e5e7eb' }}>
-            <h3 style={{ margin:'0 0 10px 0', fontSize:11, fontWeight:800, color:'#111827', letterSpacing:1 }}>FABRICANTE</h3>
-            <div style={{ fontSize:12, display:'grid', gap:6 }}>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>País empresa</span><span style={{fontWeight:700}}>{empresa?.pais || 'CHILE'}</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>ID Empresa</span><span style={{fontWeight:700}}>CL</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Fabricante</span><span style={{fontWeight:700, color:'#ff6a00'}}>{empresa?.nombre || 'VINCULA CL'}</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Fecha Prod.</span><span style={{fontWeight:700}}>{lote?.created_at?.slice(0,10) || '2026-09-26'}</span></div>
+        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginTop:12}}>
+          <div style={{background:'white', borderRadius:12, padding:14, border:'1px solid #e5e7eb'}}>
+            <h3 style={{fontSize:11, fontWeight:800, margin:'0 0 10px'}}>FABRICANTE</h3>
+            <div style={{fontSize:12, display:'grid', gap:6}}>
+              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>País empresa</span><b>{e?.pais || 'CHILE'}</b></div>
+              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>ID Empresa</span><b>{e?.rut || 'CL-77.XXX.XXX'}</b></div>
+              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Fabricante</span><b style={{color:'#ff6a00'}}>{e?.nombre || 'VINCULA CL / AUKA'}</b></div>
+              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Fecha Prod.</span><b>{l?.created_at?.slice(0,10) || '2026-09-26'}</b></div>
+              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Parcela</span><b>{d.parcela}</b></div>
             </div>
           </div>
 
-          <div style={{ background:'white', borderRadius:12, padding:14, border:'1px solid #e5e7eb' }}>
-            <h3 style={{ margin:'0 0 10px 0', fontSize:11, fontWeight:800 }}>PRODUCTO</h3>
-            <div style={{ fontSize:12, display:'grid', gap:6 }}>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Categoría</span><span style={{fontWeight:700}}>{dpp?.materiales?.split('-')[0] || 'KOMBUCHA'}</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Modelo</span><span style={{fontWeight:700}}>ber2026</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Versión</span><span style={{fontWeight:700}}>V1.0</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Lote</span><span style={{fontWeight:700}}>{lote?.codigo || codigo}</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Cantidad Total</span><span style={{fontWeight:700}}>{lote?.cantidad || '3'} total</span></div>
+          <div style={{background:'white', borderRadius:12, padding:14, border:'1px solid #e5e7eb'}}>
+            <h3 style={{fontSize:11, fontWeight:800, margin:'0 0 10px'}}>PRODUCTO</h3>
+            <div style={{fontSize:12, display:'grid', gap:6}}>
+              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Categoría</span><b>BEBIDA FERMENTADA</b></div>
+              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Modelo</span><b>AUKA BERRIES-TUNA</b></div>
+              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Versión</span><b>V2.0 2026</b></div>
+              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Lote</span><b>{l?.codigo}</b></div>
+              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Cantidad Total</span><b>{l?.cantidad} botellas</b></div>
+              <div style={{display:'flex', justifyContent:'space-between'}}><span style={{color:'#6b7280'}}>Cosecha</span><b>{d.fecha_cosecha}</b></div>
             </div>
           </div>
 
-          <div style={{ background:'white', borderRadius:12, padding:14, border:'1px solid #e5e7eb' }}>
-            <h3 style={{ margin:'0 0 10px 0', fontSize:11, fontWeight:800 }}>COMPOSICIÓN QUÍMICA (DE OBLIGATORIO)</h3>
-            <div style={{ fontSize:11, display:'grid', gap:8 }}>
-              <div><div style={{display:'flex', justifyContent:'space-between'}}><span>Silicio (20.18%)</span><span>12%</span></div><div style={{height:6, background:'#e5e7eb', borderRadius:4}}><div style={{width:'12%', height:6, background:'#f97316', borderRadius:4}} /></div></div>
-              <div><div style={{display:'flex', justifyContent:'space-between'}}><span>Plástico (15.02%)</span><span>8%</span></div><div style={{height:6, background:'#e5e7eb', borderRadius:4}}><div style={{width:'8%', height:6, background:'#ef4444', borderRadius:4}} /></div></div>
-              <div><div style={{display:'flex', justifyContent:'space-between'}}><span>{dpp?.materiales || 'KOMBUCHA-PULPA TUNA-BERRIES'}</span><span>80%</span></div><div style={{height:6, background:'#e5e7eb', borderRadius:4}}><div style={{width:'80%', height:6, background:'#10b981', borderRadius:4}} /></div></div>
-              <p style={{fontSize:10, color:'#6b7280', margin:'4px 0 0 0'}}>Origen: {dpp?.origen || 'ACONCAGUA - CHILE'} ✓</p>
+          <div style={{background:'white', borderRadius:12, padding:14, border:'1px solid #e5e7eb'}}>
+            <h3 style={{fontSize:11, fontWeight:800, margin:'0 0 10px'}}>COMPOSICIÓN REAL</h3>
+            <p style={{fontSize:11, fontWeight:600}}>{d.ingredientes}</p>
+            <div style={{marginTop:10, fontSize:11}}>
+              <div style={{display:'flex', justifyContent:'space-between', marginBottom:4}}><span>Kombucha</span><b>80%</b></div>
+              <div style={{height:6, background:'#e5e7eb', borderRadius:4}}><div style={{width:'80%', height:6, background:'#10b981', borderRadius:4}} /></div>
+              <div style={{display:'flex', justifyContent:'space-between', marginTop:8, marginBottom:4}}><span>Tuna Aconcagua</span><b>15%</b></div>
+              <div style={{height:6, background:'#e5e7eb', borderRadius:4}}><div style={{width:'15%', height:6, background:'#f97316', borderRadius:4}} /></div>
+              <div style={{display:'flex', justifyContent:'space-between', marginTop:8, marginBottom:4}}><span>Berries</span><b>5%</b></div>
+              <div style={{height:6, background:'#e5e7eb', borderRadius:4}}><div style={{width:'5%', height:6, background:'#ef4444', borderRadius:4}} /></div>
             </div>
+            <p style={{fontSize:10, color:'#6b7280', marginTop:8}}>Origen: {d.origen} ✓ Verificado</p>
+            {d.foto_url && <img src={d.foto_url} style={{width:'100%', height:100, objectFit:'cover', borderRadius:8, marginTop:10}} />}
           </div>
 
-          <div style={{ background:'linear-gradient(135deg, #1f2937, #ea580c)', borderRadius:12, padding:14, color:'white' }}>
-            <h3 style={{ margin:'0 0 10px 0', fontSize:11, fontWeight:800 }}>HUELLA DE CARBONO</h3>
-            <div style={{ fontSize:28, fontWeight:900 }}>{dpp?.huella_carbono || '3.0 Kg CO2e'}</div>
-            <div style={{ fontSize:11, opacity:0.8 }}>Módulo A: Manufactura / Metodología: PEF - Categoria: 2026</div>
-            <div style={{ marginTop:10, height:4, background:'rgba(255,255,255,0.3)', borderRadius:4 }}><div style={{width:'60%', height:4, background:'white', borderRadius:4}} /></div>
-            <div style={{ marginTop:8, fontSize:10, opacity:0.7 }}>Cálculo verificado - Menos emisión</div>
-          </div>
-
-          <div style={{ background:'white', borderRadius:12, padding:14, border:'1px solid #e5e7eb' }}>
-            <h3 style={{ margin:'0 0 10px 0', fontSize:11, fontWeight:800 }}>CIRCULARIDAD</h3>
-            <div style={{ fontSize:11, display:'grid', gap:6 }}>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span>Vida Útil</span><span style={{fontWeight:700}}>3000 ciclos / 10 años</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span>Reparabilidad</span><span style={{fontWeight:700}}>7/10</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span>Reciclabilidad</span><span style={{fontWeight:700}}>68%</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span>Contenido Reciclado</span><span style={{fontWeight:700}}>15%</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span>Segunda Vida</span><span style={{fontWeight:700}}>Sí</span></div>
-            </div>
-          </div>
-
-          <div style={{ background:'white', borderRadius:12, padding:14, border:'1px solid #e5e7eb' }}>
-            <h3 style={{ margin:'0 0 10px 0', fontSize:11, fontWeight:800 }}>CONFORMIDAD UE</h3>
-            <div style={{ fontSize:11, display:'grid', gap:6 }}>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span>Reglamento</span><span style={{fontWeight:700}}>EU 2024/1781</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span>Marcado CE</span><span style={{fontWeight:700}}>Sí</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span>Normas</span><span style={{fontWeight:700}}>EN131 / EN14183</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span>Ensayos</span><span style={{fontWeight:700}}>UNECE / Bureau</span></div>
-              <div style={{display:'flex', justifyContent:'space-between'}}><span>Declaración</span><a style={{fontWeight:700, color:'#ff6a00'}} href="#">Ver PDF</a></div>
-            </div>
+          <div style={{background:'linear-gradient(135deg, #1f2937, #ea580c)', borderRadius:12, padding:14, color:'white'}}>
+            <h3 style={{fontSize:11, fontWeight:800, margin:'0 0 10px'}}>HUELLA DE CARBONO</h3>
+            <div style={{fontSize:28, fontWeight:900}}>{d.huella_carbono}</div>
+            <div style={{fontSize:11, opacity:0.8}}>Módulo A: Manufactura / Metodología: PEF</div>
+            <a href={d.link_tienda} target="_blank" style={{display:'block', marginTop:16, background:'white', color:'#ea580c', textAlign:'center', padding:'10px', borderRadius:8, fontWeight:800, fontSize:12, textDecoration:'none'}}>COMPRAR DE NUEVO →</a>
+            <p style={{fontSize:10, marginTop:8, opacity:0.7}}>Devuelve la botella y gana 10% dcto. - Economía Circular</p>
           </div>
         </div>
-
-        <div style={{ background:'white', borderRadius:12, padding:14, border:'1px solid #e5e7eb', marginTop:12 }}>
-          <h3 style={{ margin:'0 0 10px 0', fontSize:11, fontWeight:800 }}>MATERIAL DE TRASLADO</h3>
-          <div style={{ fontSize:11, display:'flex', justifyContent:'space-between' }}>
-            <span>MANUFACTURA: 2026-09-26 - Chile</span>
-            <span style={{color:'#10b981', fontWeight:700}}>✓ Verificado</span>
-          </div>
-        </div>
-
-        <p style={{ textAlign:'center', fontSize:10, color:'#9ca3af', marginTop:16 }}>Pasaporte Digital verificado por Vinculab • vinclab.cl</p>
       </div>
     </div>
   )

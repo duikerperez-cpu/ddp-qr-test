@@ -2,14 +2,16 @@
 import { Producto } from '../types'
 export function ProductosTable({ productos, onEdit, onDelete }: { productos: Producto[], onEdit: (p: Producto)=>void, onDelete: (id: string)=>void }) {
   return (
-    <table style={{ width:'100%', background:'white', borderRadius:8, borderCollapse:'collapse' }}>
-      <thead><tr style={{ textAlign:'left', opacity:0.5, fontSize:12 }}><th style={{padding:10}}>Nombre</th><th>Categoría</th><th>SKU</th><th></th></tr></thead>
-      <tbody>{productos.map(p=>(
-        <tr key={p.id} style={{ borderTop:'1px solid #eee' }}>
-          <td style={{padding:10, fontWeight:600}}>{p.nombre}</td><td>{p.Categoria}</td><td>{p.SKU}</td>
-          <td><button onClick={()=>onEdit(p)}>Editar</button> <button onClick={()=>onDelete(p.id)} style={{color:'red'}}>Borrar</button></td>
-        </tr>
-      ))}</tbody>
-    </table>
+    <div style={{ background: '#18181b', borderRadius: 12, border: '1px solid #232326' }}>
+      {productos.map(p=>(
+        <div key={p.id} style={{ display:'flex', justifyContent:'space-between', padding:'14px 18px', borderBottom:'1px solid #232326' }}>
+          <div><div style={{ fontWeight:600 }}>{p.nombre}</div><div style={{ opacity:0.4, fontSize:11 }}>{p.id}</div></div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={()=>onEdit(p)} style={{ background:'#27272a', border:0, borderRadius:6, padding:'6px 12px', color:'white', cursor:'pointer', fontSize:12 }}>Editar</button>
+            <button onClick={()=>onDelete(p.id)} style={{ background:'#7f1d1d', border:0, borderRadius:6, padding:'6px 12px', color:'white', cursor:'pointer', fontSize:12 }}>Borrar</button>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }

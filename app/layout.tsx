@@ -1,5 +1,3 @@
-import './globals.css'
-
 export const metadata = {
   title: 'VINCULAB - Pasaporte Digital',
   description: 'Plataforma de Identidad Digital',

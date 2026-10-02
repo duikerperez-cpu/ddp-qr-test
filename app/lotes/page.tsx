@@ -9,6 +9,7 @@ import {
   deleteLote
 } from './lib/queries'
 import { LoteForm } from './components/LoteForm'
+import { EventoForm } from './components/EventoForm'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,6 +21,7 @@ export default function LotesPage() {
   const [lotes, setLotes] = useState<any[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<any>(null)
+  const [unidadEvento, setUnidadEvento] = useState<any>(null)
 
   const [loteAbierto, setLoteAbierto] = useState<string | null>(null)
   const [unidades, setUnidades] = useState<Record<string, any[]>>({})
@@ -579,6 +581,16 @@ export default function LotesPage() {
                                 >
                                   Ver QR
                                 </a>
+                                <button
+  onClick={() => setUnidadEvento(u)}
+  style={{
+    ...boton,
+    background: '#14532d',
+    fontWeight: 700
+  }}
+>
+  + Evento
+</button>
 
                               </div>
 
@@ -619,7 +631,15 @@ export default function LotesPage() {
         />
 
       )}
-
+{unidadEvento && (
+  <EventoForm
+    unidad={unidadEvento}
+    onClose={() => setUnidadEvento(null)}
+    onSaved={() => {
+      console.log('Evento registrado')
+    }}
+  />
+)}
     </div>
 
   )

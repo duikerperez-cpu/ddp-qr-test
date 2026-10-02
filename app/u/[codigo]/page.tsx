@@ -836,6 +836,103 @@ export default function UnidadPublicaPage() {
                           )}
                         </div>
                       )}
+
+                      {/* EVIDENCIA DEL EVENTO */}
+                      {evento.archivo_url && (
+                        <div
+                          style={{
+                            marginTop: 16,
+                            paddingTop: 14,
+                            borderTop: '1px solid #e4e4e7'
+                          }}
+                        >
+                          <div
+                            style={{
+                              color: '#71717a',
+                              fontSize: 9,
+                              fontWeight: 900,
+                              letterSpacing: 0.8,
+                              marginBottom: 9
+                            }}
+                          >
+                            EVIDENCIA / DOCUMENTO
+                          </div>
+
+                          {String(evento.archivo_tipo || '').startsWith('image/') ? (
+                            <a
+                              href={evento.archivo_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ textDecoration: 'none' }}
+                            >
+                              <img
+                                src={evento.archivo_url}
+                                alt={evento.archivo_nombre || 'Evidencia del evento'}
+                                style={{
+                                  display: 'block',
+                                  width: '100%',
+                                  maxHeight: 320,
+                                  objectFit: 'cover',
+                                  borderRadius: 12,
+                                  border: '1px solid #e4e4e7',
+                                  background: '#f4f4f5'
+                                }}
+                              />
+                            </a>
+                          ) : (
+                            <div
+                              style={{
+                                background: 'white',
+                                border: '1px solid #e4e4e7',
+                                borderRadius: 12,
+                                padding: 12
+                              }}
+                            >
+                              <div
+                                style={{
+                                  color: '#27272a',
+                                  fontSize: 12,
+                                  fontWeight: 800,
+                                  wordBreak: 'break-word'
+                                }}
+                              >
+                                {evento.archivo_nombre || 'Documento adjunto'}
+                              </div>
+
+                              {evento.archivo_tipo && (
+                                <div
+                                  style={{
+                                    color: '#a1a1aa',
+                                    fontSize: 9,
+                                    marginTop: 4
+                                  }}
+                                >
+                                  {evento.archivo_tipo}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <a
+                            href={evento.archivo_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-block',
+                              marginTop: 10,
+                              background: '#09090b',
+                              color: 'white',
+                              padding: '8px 12px',
+                              borderRadius: 8,
+                              fontSize: 11,
+                              fontWeight: 900,
+                              textDecoration: 'none'
+                            }}
+                          >
+                            Ver evidencia
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -10,7 +10,6 @@ const supabase = createClient(
 )
 
 export default function UnidadPublicaPage() {
-
   const params = useParams()
   const codigo = decodeURIComponent(params?.codigo as string)
 
@@ -19,6 +18,7 @@ export default function UnidadPublicaPage() {
   const [empresa, setEmpresa] = useState<any>(null)
   const [producto, setProducto] = useState<any>(null)
   const [modelo, setModelo] = useState<any>(null)
+  const [eventos, setEventos] = useState<any[]>([])
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -28,113 +28,123 @@ export default function UnidadPublicaPage() {
   // =========================================================
 
   useEffect(() => {
-
     if (!codigo) return
 
     const cargar = async () => {
-
       setLoading(true)
       setError('')
 
-      // -------------------------------------------------------
-      // 1. UNIDAD
-      // -------------------------------------------------------
+      try {
+        // -----------------------------------------------------
+        // 1. UNIDAD
+        // -----------------------------------------------------
 
-      const { data: unidadData, error: unidadError } =
-        await supabase
-          .from('unidades')
+        const { data: unidadData, error: unidadError } =
+          await supabase
+            .from('unidades')
+            .select('*')
+            .eq('codigo', codigo)
+            .maybeSingle()
+
+        if (unidadError) {
+          console.error('Error unidad:', unidadError)
+          setError('No fue posible consultar la identidad digital.')
+          setLoading(false)
+          return
+        }
+
+        if (!unidadData) {
+          setError('IDENTIDAD NO ENCONTRADA')
+          setLoading(false)
+          return
+        }
+
+        setUnidad(unidadData)
+
+        // -----------------------------------------------------
+        // 2. CONSULTAS RELACIONADAS
+        // -----------------------------------------------------
+
+        const lotePromise = unidadData.lote_id
+          ? supabase
+              .from('lotes')
+              .select('*')
+              .eq('id', unidadData.lote_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null })
+
+        const empresaPromise = unidadData.empresa_id
+          ? supabase
+              .from('empresas')
+              .select('*')
+              .eq('id', unidadData.empresa_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null })
+
+        const productoPromise = unidadData.producto_id
+          ? supabase
+              .from('productos')
+              .select('*')
+              .eq('id', unidadData.producto_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null })
+
+        const modeloPromise = unidadData.modelo_id
+          ? supabase
+              .from('modelos')
+              .select('*')
+              .eq('id', unidadData.modelo_id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null })
+
+        // -----------------------------------------------------
+        // 3. HISTORIAL DE TRAZABILIDAD
+        // -----------------------------------------------------
+
+        const eventosPromise = supabase
+          .from('eventos_trazabilidad')
           .select('*')
-          .eq('codigo', codigo)
-          .maybeSingle()
+          .eq('unidad_id', unidadData.id)
+          .order('fecha_evento', { ascending: false })
 
-      if (unidadError) {
+        const [
+          loteResultado,
+          empresaResultado,
+          productoResultado,
+          modeloResultado,
+          eventosResultado
+        ] = await Promise.all([
+          lotePromise,
+          empresaPromise,
+          productoPromise,
+          modeloPromise,
+          eventosPromise
+        ])
 
-        console.error('Error unidad:', unidadError)
+        setLote(loteResultado.data || null)
+        setEmpresa(empresaResultado.data || null)
+        setProducto(productoResultado.data || null)
+        setModelo(modeloResultado.data || null)
 
+        if (eventosResultado.error) {
+          console.error(
+            'Error eventos trazabilidad:',
+            eventosResultado.error
+          )
+          setEventos([])
+        } else {
+          setEventos(eventosResultado.data || [])
+        }
+
+        setLoading(false)
+      } catch (err) {
+        console.error('Error cargando identidad:', err)
         setError('No fue posible consultar la identidad digital.')
         setLoading(false)
-
-        return
       }
-
-      if (!unidadData) {
-
-        setError('IDENTIDAD NO ENCONTRADA')
-        setLoading(false)
-
-        return
-      }
-
-      setUnidad(unidadData)
-
-      // -------------------------------------------------------
-      // 2. CONSULTAS RELACIONADAS
-      // -------------------------------------------------------
-
-      // -------------------------------------------------------
-// 2. CONSULTAS RELACIONADAS
-// -------------------------------------------------------
-
-const lotePromise = unidadData.lote_id
-  ? supabase
-      .from('lotes')
-      .select('*')
-      .eq('id', unidadData.lote_id)
-      .maybeSingle()
-  : Promise.resolve({ data: null, error: null })
-
-const empresaPromise = unidadData.empresa_id
-  ? supabase
-      .from('empresas')
-      .select('*')
-      .eq('id', unidadData.empresa_id)
-      .maybeSingle()
-  : Promise.resolve({ data: null, error: null })
-
-const productoPromise = unidadData.producto_id
-  ? supabase
-      .from('productos')
-      .select('*')
-      .eq('id', unidadData.producto_id)
-      .maybeSingle()
-  : Promise.resolve({ data: null, error: null })
-
-const modeloPromise = unidadData.modelo_id
-  ? supabase
-      .from('modelos')
-      .select('*')
-      .eq('id', unidadData.modelo_id)
-      .maybeSingle()
-  : Promise.resolve({ data: null, error: null })
-
-const [
-  loteResultado,
-  empresaResultado,
-  productoResultado,
-  modeloResultado
-] = await Promise.all([
-  lotePromise,
-  empresaPromise,
-  productoPromise,
-  modeloPromise
-])
-
-setLote(loteResultado.data || null)
-setEmpresa(empresaResultado.data || null)
-setProducto(productoResultado.data || null)
-setModelo(modeloResultado.data || null)
-
-setLoading(false)
-      setLote(loteResultado?.data || null)
-      setEmpresa(empresaResultado?.data || null)
-      setProducto(productoResultado?.data || null)
-      setModelo(modeloResultado?.data || null)
-
-      setLoading(false)
     }
 
     cargar()
-
   }, [codigo])
 
   // =========================================================
@@ -142,9 +152,7 @@ setLoading(false)
   // =========================================================
 
   if (loading) {
-
     return (
-
       <div
         style={{
           minHeight: '100vh',
@@ -156,9 +164,7 @@ setLoading(false)
           fontFamily: 'system-ui'
         }}
       >
-
         <div style={{ textAlign: 'center' }}>
-
           <div
             style={{
               fontSize: 13,
@@ -178,9 +184,7 @@ setLoading(false)
           >
             Verificando identidad digital...
           </div>
-
         </div>
-
       </div>
     )
   }
@@ -190,9 +194,7 @@ setLoading(false)
   // =========================================================
 
   if (error || !unidad) {
-
     return (
-
       <div
         style={{
           minHeight: '100vh',
@@ -204,7 +206,6 @@ setLoading(false)
           fontFamily: 'system-ui'
         }}
       >
-
         <div
           style={{
             maxWidth: 450,
@@ -217,7 +218,6 @@ setLoading(false)
             color: 'white'
           }}
         >
-
           <div
             style={{
               color: '#ff6a00',
@@ -268,9 +268,7 @@ setLoading(false)
           >
             {codigo}
           </div>
-
         </div>
-
       </div>
     )
   }
@@ -295,6 +293,26 @@ setLoading(false)
     String(unidad.estado || '').toLowerCase() === 'activo'
 
   // =========================================================
+  // FORMATEAR FECHA
+  // =========================================================
+
+  const formatearFecha = (fecha: string) => {
+    if (!fecha) return '-'
+
+    try {
+      return new Date(fecha).toLocaleString('es-CL', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch {
+      return fecha
+    }
+  }
+
+  // =========================================================
   // COMPONENTE CAMPO
   // =========================================================
 
@@ -305,7 +323,6 @@ setLoading(false)
     titulo: string
     valor: any
   }) => (
-
     <div
       style={{
         background: '#f4f4f5',
@@ -314,7 +331,6 @@ setLoading(false)
         minHeight: 70
       }}
     >
-
       <div
         style={{
           fontSize: 9,
@@ -338,9 +354,7 @@ setLoading(false)
       >
         {valor || '-'}
       </div>
-
     </div>
-
   )
 
   // =========================================================
@@ -348,7 +362,6 @@ setLoading(false)
   // =========================================================
 
   return (
-
     <div
       style={{
         minHeight: '100vh',
@@ -357,7 +370,6 @@ setLoading(false)
         fontFamily: 'system-ui'
       }}
     >
-
       <div
         style={{
           maxWidth: 560,
@@ -368,9 +380,7 @@ setLoading(false)
         }}
       >
 
-        {/* ===================================================
-            HEADER
-        =================================================== */}
+        {/* HEADER */}
 
         <div
           style={{
@@ -379,7 +389,6 @@ setLoading(false)
             color: 'white'
           }}
         >
-
           <div
             style={{
               color: '#ff6a00',
@@ -400,12 +409,7 @@ setLoading(false)
           >
             Identidad Digital de Producto
           </div>
-
         </div>
-
-        {/* ===================================================
-            CONTENIDO
-        =================================================== */}
 
         <div style={{ padding: 26 }}>
 
@@ -419,7 +423,6 @@ setLoading(false)
               marginBottom: 25
             }}
           >
-
             <div
               style={{
                 width: 58,
@@ -438,7 +441,6 @@ setLoading(false)
             </div>
 
             <div>
-
               <div
                 style={{
                   fontSize: 9,
@@ -460,12 +462,10 @@ setLoading(false)
               >
                 {empresa?.razon_social || 'Empresa registrada'}
               </div>
-
             </div>
-
           </div>
 
-          {/* ESTADO VERIFICADO */}
+          {/* ESTADO */}
 
           <div
             style={{
@@ -478,12 +478,12 @@ setLoading(false)
               borderRadius: 30,
               fontSize: 10,
               fontWeight: 900,
-              letterSpacing: .5
+              letterSpacing: 0.5
             }}
           >
-
-            {estadoActivo ? '✓ IDENTIDAD VERIFICADA' : '● IDENTIDAD REGISTRADA'}
-
+            {estadoActivo
+              ? '✓ IDENTIDAD VERIFICADA'
+              : '● IDENTIDAD REGISTRADA'}
           </div>
 
           {/* PRODUCTO */}
@@ -519,9 +519,7 @@ setLoading(false)
             }}
           />
 
-          {/* ===================================================
-              DATOS DE IDENTIDAD
-          =================================================== */}
+          {/* DATOS IDENTIDAD */}
 
           <div
             style={{
@@ -530,7 +528,6 @@ setLoading(false)
               gap: 10
             }}
           >
-
             <Campo
               titulo="Código de identidad"
               valor={unidad.codigo}
@@ -570,12 +567,9 @@ setLoading(false)
               titulo="Fabricante"
               valor={empresa?.razon_social}
             />
-
           </div>
 
-          {/* ===================================================
-              REGISTRO VERIFICADO
-          =================================================== */}
+          {/* REGISTRO VERIFICADO */}
 
           <div
             style={{
@@ -586,7 +580,6 @@ setLoading(false)
               padding: 15
             }}
           >
-
             <div
               style={{
                 color: '#047857',
@@ -605,16 +598,252 @@ setLoading(false)
                 lineHeight: 1.5
               }}
             >
-              Esta identidad existe en la plataforma de
-              trazabilidad Vinculab y corresponde a una unidad
-              individual registrada.
+              Esta identidad existe en la plataforma de trazabilidad
+              Vinculab y corresponde a una unidad individual registrada.
             </div>
-
           </div>
 
           {/* ===================================================
-              QR
+              HISTORIAL DE TRAZABILIDAD
           =================================================== */}
+
+          <div
+            style={{
+              marginTop: 32,
+              paddingTop: 24,
+              borderTop: '1px solid #e4e4e7'
+            }}
+          >
+            <div
+              style={{
+                fontSize: 10,
+                color: '#71717a',
+                fontWeight: 900,
+                letterSpacing: 1.5
+              }}
+            >
+              HISTORIAL DE TRAZABILIDAD
+            </div>
+
+            <h2
+              style={{
+                color: '#09090b',
+                fontSize: 21,
+                margin: '6px 0 6px',
+                fontWeight: 900
+              }}
+            >
+              Ciclo de vida del producto
+            </h2>
+
+            <p
+              style={{
+                margin: '0 0 22px',
+                color: '#71717a',
+                fontSize: 12,
+                lineHeight: 1.5
+              }}
+            >
+              Registro cronológico asociado a esta identidad digital.
+            </p>
+
+            {eventos.length === 0 ? (
+              <div
+                style={{
+                  background: '#f4f4f5',
+                  borderRadius: 12,
+                  padding: 18,
+                  color: '#71717a',
+                  fontSize: 12
+                }}
+              >
+                Esta unidad todavía no posee eventos de trazabilidad.
+              </div>
+            ) : (
+              <div>
+                {eventos.map((evento, index) => (
+                  <div
+                    key={evento.id || index}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '26px 1fr',
+                      gap: 10
+                    }}
+                  >
+                    {/* LÍNEA */}
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 14,
+                          height: 14,
+                          borderRadius: '50%',
+                          background: '#ff6a00',
+                          border: '3px solid #ffedd5',
+                          flexShrink: 0
+                        }}
+                      />
+
+                      {index < eventos.length - 1 && (
+                        <div
+                          style={{
+                            width: 2,
+                            background: '#e4e4e7',
+                            flex: 1,
+                            minHeight: 110
+                          }}
+                        />
+                      )}
+                    </div>
+
+                    {/* EVENTO */}
+
+                    <div
+                      style={{
+                        background: '#fafafa',
+                        border: '1px solid #e4e4e7',
+                        borderRadius: 14,
+                        padding: 16,
+                        marginBottom:
+                          index < eventos.length - 1 ? 14 : 0
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          gap: 10,
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'inline-block',
+                            background: '#ffedd5',
+                            color: '#c2410c',
+                            padding: '4px 8px',
+                            borderRadius: 20,
+                            fontSize: 9,
+                            fontWeight: 900,
+                            letterSpacing: 0.7,
+                            textTransform: 'uppercase'
+                          }}
+                        >
+                          {evento.tipo_evento || 'Evento'}
+                        </div>
+
+                        <div
+                          style={{
+                            color: '#a1a1aa',
+                            fontSize: 10,
+                            fontWeight: 700
+                          }}
+                        >
+                          {formatearFecha(evento.fecha_evento)}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: 12,
+                          color: '#09090b',
+                          fontSize: 16,
+                          fontWeight: 900
+                        }}
+                      >
+                        {evento.titulo || 'Evento de trazabilidad'}
+                      </div>
+
+                      {evento.descripcion && (
+                        <div
+                          style={{
+                            color: '#52525b',
+                            fontSize: 12,
+                            lineHeight: 1.6,
+                            marginTop: 7
+                          }}
+                        >
+                          {evento.descripcion}
+                        </div>
+                      )}
+
+                      {(evento.responsable || evento.ubicacion) && (
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 1fr',
+                            gap: 8,
+                            marginTop: 14
+                          }}
+                        >
+                          {evento.responsable && (
+                            <div>
+                              <div
+                                style={{
+                                  color: '#a1a1aa',
+                                  fontSize: 8,
+                                  fontWeight: 900,
+                                  letterSpacing: 0.8
+                                }}
+                              >
+                                RESPONSABLE
+                              </div>
+
+                              <div
+                                style={{
+                                  color: '#27272a',
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  marginTop: 3
+                                }}
+                              >
+                                {evento.responsable}
+                              </div>
+                            </div>
+                          )}
+
+                          {evento.ubicacion && (
+                            <div>
+                              <div
+                                style={{
+                                  color: '#a1a1aa',
+                                  fontSize: 8,
+                                  fontWeight: 900,
+                                  letterSpacing: 0.8
+                                }}
+                              >
+                                UBICACIÓN
+                              </div>
+
+                              <div
+                                style={{
+                                  color: '#27272a',
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  marginTop: 3
+                                }}
+                              >
+                                {evento.ubicacion}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* QR */}
 
           <div
             style={{
@@ -624,7 +853,6 @@ setLoading(false)
               borderTop: '1px solid #e4e4e7'
             }}
           >
-
             <div
               style={{
                 fontSize: 10,
@@ -646,7 +874,6 @@ setLoading(false)
                 padding: 12
               }}
             >
-
               <img
                 src={qrUrl}
                 alt={`QR ${unidad.codigo}`}
@@ -656,7 +883,6 @@ setLoading(false)
                   height: 180
                 }}
               />
-
             </div>
 
             <div
@@ -671,12 +897,9 @@ setLoading(false)
             >
               {unidad.codigo}
             </div>
-
           </div>
 
-          {/* ===================================================
-              PIE
-          =================================================== */}
+          {/* PIE */}
 
           <div
             style={{
@@ -686,7 +909,6 @@ setLoading(false)
               borderTop: '1px solid #e4e4e7'
             }}
           >
-
             <div
               style={{
                 fontSize: 9,
@@ -717,13 +939,10 @@ setLoading(false)
             >
               Plataforma de identidad y trazabilidad de productos
             </div>
-
           </div>
 
         </div>
-
       </div>
-
     </div>
   )
 }

@@ -368,25 +368,38 @@ export default function LotesPage() {
                       }}
                     >
 
-                      <button
-                        onClick={() => {
-                          setEditing(l)
-                          setShowForm(true)
-                        }}
-                        style={boton}
-                      >
-                        Editar
-                      </button>
+<a
+  href={`/lotes/${l.id}/qr`}
+  target="_blank"
+  rel="noreferrer"
+  style={{
+    ...boton,
+    background: '#ff6a00',
+    fontWeight: 700
+  }}
+>
+  Imprimir QR
+</a>
 
-                      <button
-                        onClick={() => borrar(l.id)}
-                        style={{
-                          ...boton,
-                          background: '#7f1d1d'
-                        }}
-                      >
-                        Borrar
-                      </button>
+<button
+  onClick={() => {
+    setEditing(l)
+    setShowForm(true)
+  }}
+  style={boton}
+>
+  Editar
+</button>
+
+<button
+  onClick={() => borrar(l.id)}
+  style={{
+    ...boton,
+    background: '#7f1d1d'
+  }}
+>
+  Borrar
+</button>
 
                     </div>
 

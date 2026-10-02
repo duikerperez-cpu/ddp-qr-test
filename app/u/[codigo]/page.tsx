@@ -71,55 +71,60 @@ export default function UnidadPublicaPage() {
       // 2. CONSULTAS RELACIONADAS
       // -------------------------------------------------------
 
-      const consultas: Promise<any>[] = []
+      // -------------------------------------------------------
+// 2. CONSULTAS RELACIONADAS
+// -------------------------------------------------------
 
-      consultas.push(
-        unidadData.lote_id
-          ? supabase
-              .from('lotes')
-              .select('*')
-              .eq('id', unidadData.lote_id)
-              .maybeSingle()
-          : Promise.resolve({ data: null })
-      )
+const lotePromise = unidadData.lote_id
+  ? supabase
+      .from('lotes')
+      .select('*')
+      .eq('id', unidadData.lote_id)
+      .maybeSingle()
+  : Promise.resolve({ data: null, error: null })
 
-      consultas.push(
-        unidadData.empresa_id
-          ? supabase
-              .from('empresas')
-              .select('*')
-              .eq('id', unidadData.empresa_id)
-              .maybeSingle()
-          : Promise.resolve({ data: null })
-      )
+const empresaPromise = unidadData.empresa_id
+  ? supabase
+      .from('empresas')
+      .select('*')
+      .eq('id', unidadData.empresa_id)
+      .maybeSingle()
+  : Promise.resolve({ data: null, error: null })
 
-      consultas.push(
-        unidadData.producto_id
-          ? supabase
-              .from('productos')
-              .select('*')
-              .eq('id', unidadData.producto_id)
-              .maybeSingle()
-          : Promise.resolve({ data: null })
-      )
+const productoPromise = unidadData.producto_id
+  ? supabase
+      .from('productos')
+      .select('*')
+      .eq('id', unidadData.producto_id)
+      .maybeSingle()
+  : Promise.resolve({ data: null, error: null })
 
-      consultas.push(
-        unidadData.modelo_id
-          ? supabase
-              .from('modelos')
-              .select('*')
-              .eq('id', unidadData.modelo_id)
-              .maybeSingle()
-          : Promise.resolve({ data: null })
-      )
+const modeloPromise = unidadData.modelo_id
+  ? supabase
+      .from('modelos')
+      .select('*')
+      .eq('id', unidadData.modelo_id)
+      .maybeSingle()
+  : Promise.resolve({ data: null, error: null })
 
-      const [
-        loteResultado,
-        empresaResultado,
-        productoResultado,
-        modeloResultado
-      ] = await Promise.all(consultas)
+const [
+  loteResultado,
+  empresaResultado,
+  productoResultado,
+  modeloResultado
+] = await Promise.all([
+  lotePromise,
+  empresaPromise,
+  productoPromise,
+  modeloPromise
+])
 
+setLote(loteResultado.data || null)
+setEmpresa(empresaResultado.data || null)
+setProducto(productoResultado.data || null)
+setModelo(modeloResultado.data || null)
+
+setLoading(false)
       setLote(loteResultado?.data || null)
       setEmpresa(empresaResultado?.data || null)
       setProducto(productoResultado?.data || null)

@@ -21,15 +21,9 @@ const supabase = createClient(
 export default function LotesPage() {
 
   const [lotes, setLotes] = useState<any[]>([])
-
-  const [showForm, setShowForm] =
-    useState(false)
-
-  const [editing, setEditing] =
-    useState<any>(null)
-
-  const [unidadEvento, setUnidadEvento] =
-    useState<any>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<any>(null)
+  const [unidadEvento, setUnidadEvento] = useState<any>(null)
 
   const [loteAbierto, setLoteAbierto] =
     useState<string | null>(null)
@@ -37,10 +31,8 @@ export default function LotesPage() {
   const [unidades, setUnidades] =
     useState<Record<string, any[]>>({})
 
-  const [
-    cargandoUnidades,
-    setCargandoUnidades
-  ] = useState<string | null>(null)
+  const [cargandoUnidades, setCargandoUnidades] =
+    useState<string | null>(null)
 
   /* =========================================================
      CARGAR LOTES
@@ -48,8 +40,7 @@ export default function LotesPage() {
 
   const load = async () => {
 
-    const { data, error } =
-      await getLotes()
+    const { data, error } = await getLotes()
 
     if (error) {
 
@@ -61,9 +52,7 @@ export default function LotesPage() {
       return
     }
 
-    if (data) {
-      setLotes(data)
-    }
+    setLotes(data || [])
   }
 
   useEffect(() => {
@@ -71,7 +60,7 @@ export default function LotesPage() {
   }, [])
 
   /* =========================================================
-     CONSULTAR UNIDADES DIRECTAMENTE
+     CARGAR UNIDADES DESDE SUPABASE
   ========================================================= */
 
   const cargarUnidades = async (
@@ -103,13 +92,21 @@ export default function LotesPage() {
         'No fue posible cargar las unidades del lote.'
       )
 
-      return
+      return false
     }
+
+    /*
+     * IMPORTANTE:
+     * reemplazamos completamente
+     * las unidades almacenadas.
+     */
 
     setUnidades(prev => ({
       ...prev,
       [loteId]: data || []
     }))
+
+    return true
   }
 
   /* =========================================================
@@ -122,88 +119,106 @@ export default function LotesPage() {
 
     let loteId: string | null = null
 
-    /* =========================
-       EDITAR LOTE
-    ========================= */
+    try {
 
-    if (editing) {
+      /* =====================================================
+         EDITAR LOTE
+      ===================================================== */
 
-      loteId = editing.id
+      if (editing) {
 
-      const resultado =
-        await updateLote(
-          editing.id,
-          data
-        )
+        loteId = editing.id
 
-      if (resultado?.error) {
-        return
+        const resultado =
+          await updateLote(
+            editing.id,
+            data
+          )
+
+        if (resultado?.error) {
+
+          console.error(
+            'Error actualizando lote:',
+            resultado.error
+          )
+
+          return
+        }
+
       }
 
-    }
+      /* =====================================================
+         CREAR LOTE
+      ===================================================== */
 
-    /* =========================
-       CREAR LOTE
-    ========================= */
+      else {
 
-    else {
+        const resultado =
+          await createLote(data)
 
-      const resultado =
-        await createLote(data)
+        if (resultado?.error) {
 
-      if (resultado?.error) {
-        return
+          console.error(
+            'Error creando lote:',
+            resultado.error
+          )
+
+          return
+        }
+
+        loteId =
+          resultado?.data?.id || null
       }
 
-      loteId =
-        resultado?.data?.id || null
-    }
+      /* =====================================================
+         CERRAR FORMULARIO
+      ===================================================== */
 
-    /* =========================
-       LIMPIAR CACHÉ DE UNIDADES
-    ========================= */
+      setShowForm(false)
+      setEditing(null)
 
-    if (loteId) {
+      /* =====================================================
+         ACTUALIZAR LISTADO DE LOTES
+      ===================================================== */
 
-      setUnidades(prev => {
+      await load()
 
-        const copia = { ...prev }
+      /* =====================================================
+         ACTUALIZAR UNIDADES SIEMPRE
+      ===================================================== */
 
-        delete copia[loteId!]
+      if (loteId) {
 
-        return copia
-      })
-    }
+        /*
+         * No utilizamos las unidades almacenadas.
+         * Consultamos nuevamente Supabase.
+         */
 
-    /* =========================
-       CERRAR FORMULARIO
-    ========================= */
+        await cargarUnidades(loteId)
 
-    setShowForm(false)
-    setEditing(null)
+        /*
+         * Dejamos automáticamente abierto
+         * el lote que acabamos de modificar.
+         */
 
-    /* =========================
-       RECARGAR LOTES
-    ========================= */
+        setLoteAbierto(loteId)
+      }
 
-    await load()
+    } catch (error) {
 
-    /* =========================
-       ACTUALIZAR UNIDADES
-       AUTOMÁTICAMENTE
-    ========================= */
+      console.error(
+        'Error inesperado guardando lote:',
+        error
+      )
 
-    if (
-      loteId &&
-      loteAbierto === loteId
-    ) {
-
-      await cargarUnidades(loteId)
+      alert(
+        'Ocurrió un error inesperado guardando el lote.'
+      )
     }
   }
 
   /* =========================================================
-     ABRIR / CERRAR UNIDADES
+     VER / OCULTAR UNIDADES
   ========================================================= */
 
   const verUnidades = async (
@@ -211,8 +226,8 @@ export default function LotesPage() {
   ) => {
 
     /*
-     * Si el lote ya está abierto,
-     * simplemente lo cerramos.
+     * Si está abierto:
+     * cerrar.
      */
 
     if (loteAbierto === loteId) {
@@ -229,17 +244,15 @@ export default function LotesPage() {
     setLoteAbierto(loteId)
 
     /*
-     * Si las unidades ya fueron
-     * cargadas anteriormente,
-     * no consultamos nuevamente.
-     */
-
-    if (unidades[loteId]) {
-      return
-    }
-
-    /*
-     * Consultar Supabase.
+     * IMPORTANTE:
+     * siempre consultar nuevamente Supabase.
+     *
+     * Eliminamos completamente la lógica:
+     *
+     * if (unidades[loteId]) return
+     *
+     * porque esa era la causa de mostrar
+     * información antigua.
      */
 
     await cargarUnidades(loteId)
@@ -277,14 +290,15 @@ export default function LotesPage() {
     }
 
     /*
-     * Cerrar lote abierto.
+     * Cerrar lote.
      */
 
-    setLoteAbierto(null)
+    if (loteAbierto === id) {
+      setLoteAbierto(null)
+    }
 
     /*
-     * Limpiar unidades guardadas
-     * en memoria.
+     * Eliminar unidades locales.
      */
 
     setUnidades(prev => {
@@ -295,6 +309,10 @@ export default function LotesPage() {
 
       return copia
     })
+
+    /*
+     * Actualizar listado.
+     */
 
     await load()
   }
@@ -656,7 +674,7 @@ export default function LotesPage() {
                 </tr>
 
                 {/* =============================================
-                    UNIDADES DEL LOTE
+                    UNIDADES
                 ============================================= */}
 
                 {
@@ -704,7 +722,7 @@ export default function LotesPage() {
                                   padding: 15
                                 }}
                               >
-                                Cargando unidades...
+                                Actualizando unidades...
                               </div>
 
                             )
@@ -788,9 +806,7 @@ export default function LotesPage() {
                                   }}
                                 >
 
-                                  {/* =============================
-                                      QR
-                                  ============================= */}
+                                  {/* QR */}
 
                                   <div
                                     style={{
@@ -821,9 +837,7 @@ export default function LotesPage() {
 
                                   </div>
 
-                                  {/* =============================
-                                      DATOS
-                                  ============================= */}
+                                  {/* DATOS */}
 
                                   <div>
 
@@ -864,9 +878,7 @@ export default function LotesPage() {
 
                                   </div>
 
-                                  {/* =============================
-                                      ACCIONES UNIDAD
-                                  ============================= */}
+                                  {/* ACCIONES */}
 
                                   <div
                                     style={{
@@ -1002,9 +1014,11 @@ export default function LotesPage() {
               setUnidadEvento(null)
             }
             onSaved={() => {
+
               console.log(
                 'Evento registrado'
               )
+
             }}
           />
 

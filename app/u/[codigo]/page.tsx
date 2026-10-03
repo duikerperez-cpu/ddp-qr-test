@@ -71,261 +71,88 @@ export default function UnidadPublicaPage() {
       try {
 
         /* =====================================================
-           1. UNIDAD
+           IDENTIDAD PÚBLICA SEGURA
+
+           Una sola llamada RPC.
+           Las tablas internas permanecen protegidas por RLS.
         ===================================================== */
 
         const {
-          data: unidadData,
-          error: unidadError
-        } =
-          await supabase
-            .from('unidades')
-            .select('*')
-            .eq('codigo', codigo)
-            .maybeSingle()
+          data,
+          error: rpcError
+        } = await supabase.rpc(
+          'get_identidad_publica',
+          { p_codigo: codigo }
+        )
 
-        if (unidadError) {
+        if (rpcError) {
 
           console.error(
-            'Error unidad:',
-            unidadError
+            'Error identidad pública:',
+            rpcError
           )
 
           setError(
             'No fue posible consultar la identidad digital.'
           )
 
-          setLoading(false)
-
           return
         }
 
-        if (!unidadData) {
+        if (!data) {
 
           setError(
             'IDENTIDAD NO ENCONTRADA'
           )
 
-          setLoading(false)
+          return
+        }
+
+        const identidad =
+          typeof data === 'string'
+            ? JSON.parse(data)
+            : data
+
+        if (!identidad?.unidad) {
+
+          setError(
+            'IDENTIDAD NO ENCONTRADA'
+          )
 
           return
         }
 
-        setUnidad(unidadData)
-
-        /* =====================================================
-           2. LOTE
-        ===================================================== */
-
-        const lotePromise =
-          unidadData.lote_id
-
-            ? supabase
-                .from('lotes')
-                .select('*')
-                .eq(
-                  'id',
-                  unidadData.lote_id
-                )
-                .maybeSingle()
-
-            : Promise.resolve({
-                data: null,
-                error: null
-              })
-
-        /* =====================================================
-           3. EMPRESA
-        ===================================================== */
-
-        const empresaPromise =
-          unidadData.empresa_id
-
-            ? supabase
-                .from('empresas')
-                .select('*')
-                .eq(
-                  'id',
-                  unidadData.empresa_id
-                )
-                .maybeSingle()
-
-            : Promise.resolve({
-                data: null,
-                error: null
-              })
-
-        /* =====================================================
-           4. PRODUCTO
-        ===================================================== */
-
-        const productoPromise =
-          unidadData.producto_id
-
-            ? supabase
-                .from('productos')
-                .select('*')
-                .eq(
-                  'id',
-                  unidadData.producto_id
-                )
-                .maybeSingle()
-
-            : Promise.resolve({
-                data: null,
-                error: null
-              })
-
-        /* =====================================================
-           5. MODELO
-        ===================================================== */
-
-        const modeloPromise =
-          unidadData.modelo_id
-
-            ? supabase
-                .from('modelos')
-                .select('*')
-                .eq(
-                  'id',
-                  unidadData.modelo_id
-                )
-                .maybeSingle()
-
-            : Promise.resolve({
-                data: null,
-                error: null
-              })
-
-        /* =====================================================
-           6. ATRIBUTOS TÉCNICOS DEL MODELO
-        ===================================================== */
-
-        const atributosPromise =
-          unidadData.modelo_id
-
-            ? supabase
-                .from(
-                  'modelo_atributos'
-                )
-                .select(
-                  'id, modelo_id, nombre, valor, unidad, grupo, orden, created_at'
-                )
-                .eq(
-                  'modelo_id',
-                  unidadData.modelo_id
-                )
-                .order(
-                  'orden',
-                  { ascending: true }
-                )
-
-            : Promise.resolve({
-                data: [],
-                error: null
-              })
-
-        /* =====================================================
-           7. HISTORIAL DE TRAZABILIDAD
-        ===================================================== */
-
-        const eventosPromise =
-          supabase
-            .from(
-              'eventos_trazabilidad'
-            )
-            .select('*')
-            .eq(
-              'unidad_id',
-              unidadData.id
-            )
-            .order(
-              'fecha_evento',
-              { ascending: false }
-            )
-
-        /* =====================================================
-           EJECUTAR CONSULTAS
-        ===================================================== */
-
-        const [
-          loteResultado,
-          empresaResultado,
-          productoResultado,
-          modeloResultado,
-          atributosResultado,
-          eventosResultado
-        ] =
-          await Promise.all([
-            lotePromise,
-            empresaPromise,
-            productoPromise,
-            modeloPromise,
-            atributosPromise,
-            eventosPromise
-          ])
+        setUnidad(
+          identidad.unidad
+        )
 
         setLote(
-          loteResultado.data || null
+          identidad.lote || null
         )
 
         setEmpresa(
-          empresaResultado.data || null
+          identidad.empresa || null
         )
 
         setProducto(
-          productoResultado.data || null
+          identidad.producto || null
         )
 
         setModelo(
-          modeloResultado.data || null
+          identidad.modelo || null
         )
 
-        /* =====================================================
-           ATRIBUTOS
-        ===================================================== */
+        setAtributos(
+          Array.isArray(identidad.atributos)
+            ? identidad.atributos
+            : []
+        )
 
-        if (
-          atributosResultado.error
-        ) {
-
-          console.error(
-            'Error atributos:',
-            atributosResultado.error
-          )
-
-          setAtributos([])
-
-        } else {
-
-          setAtributos(
-            atributosResultado.data || []
-          )
-        }
-
-        /* =====================================================
-           EVENTOS
-        ===================================================== */
-
-        if (
-          eventosResultado.error
-        ) {
-
-          console.error(
-            'Error eventos trazabilidad:',
-            eventosResultado.error
-          )
-
-          setEventos([])
-
-        } else {
-
-          setEventos(
-            eventosResultado.data || []
-          )
-        }
-
-        setLoading(false)
+        setEventos(
+          Array.isArray(identidad.eventos)
+            ? identidad.eventos
+            : []
+        )
 
       } catch (err) {
 
@@ -337,6 +164,8 @@ export default function UnidadPublicaPage() {
         setError(
           'No fue posible consultar la identidad digital.'
         )
+
+      } finally {
 
         setLoading(false)
       }

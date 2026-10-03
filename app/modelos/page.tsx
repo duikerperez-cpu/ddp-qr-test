@@ -1,8 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { ModelosTable } from './components/ModelosTable'
-import { ModeloForm } from './components/ModeloForm'
+import {
+  useEffect,
+  useState
+} from 'react'
+
+import {
+  ModelosTable
+} from './components/ModelosTable'
+
+import {
+  ModeloForm
+} from './components/ModeloForm'
+
+import {
+  AtributosModelo
+} from './components/AtributosModelo'
 
 import {
   getModelos,
@@ -20,48 +33,80 @@ import {
 } from './types'
 
 export default function ModelosPage() {
-  const [modelos, setModelos] = useState<Modelo[]>([])
-  const [empresas, setEmpresas] = useState<Empresa[]>([])
-  const [productos, setProductos] = useState<Producto[]>([])
+  const [modelos, setModelos] =
+    useState<Modelo[]>([])
 
-  const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<Modelo | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [empresas, setEmpresas] =
+    useState<Empresa[]>([])
+
+  const [productos, setProductos] =
+    useState<Producto[]>([])
+
+  const [showForm, setShowForm] =
+    useState(false)
+
+  const [editing, setEditing] =
+    useState<Modelo | null>(null)
+
+  const [
+    modeloAtributos,
+    setModeloAtributos
+  ] = useState<Modelo | null>(null)
+
+  const [loading, setLoading] =
+    useState(true)
+
+  const [error, setError] =
+    useState('')
 
   const cargar = async () => {
     setLoading(true)
     setError('')
 
     try {
-      const [modelosRes, empresasRes, productosRes] =
-        await Promise.all([
-          getModelos(),
-          getEmpresas(),
-          getProductos()
-        ])
+      const [
+        modelosRes,
+        empresasRes,
+        productosRes
+      ] = await Promise.all([
+        getModelos(),
+        getEmpresas(),
+        getProductos()
+      ])
 
       if (modelosRes.error) {
-        console.error(modelosRes.error)
-        setError('No fue posible cargar los modelos.')
+        console.error(
+          modelosRes.error
+        )
+        setError(
+          'No fue posible cargar los modelos.'
+        )
       } else {
-        setModelos((modelosRes.data || []) as Modelo[])
+        setModelos(
+          (modelosRes.data ||
+            []) as Modelo[]
+        )
       }
 
-      if (empresasRes.error) {
-        console.error(empresasRes.error)
-      } else {
-        setEmpresas((empresasRes.data || []) as Empresa[])
+      if (!empresasRes.error) {
+        setEmpresas(
+          (empresasRes.data ||
+            []) as Empresa[]
+        )
       }
 
-      if (productosRes.error) {
-        console.error(productosRes.error)
-      } else {
-        setProductos((productosRes.data || []) as Producto[])
+      if (!productosRes.error) {
+        setProductos(
+          (productosRes.data ||
+            []) as Producto[]
+        )
       }
     } catch (err) {
       console.error(err)
-      setError('Error cargando información.')
+
+      setError(
+        'Error cargando información.'
+      )
     } finally {
       setLoading(false)
     }
@@ -71,17 +116,29 @@ export default function ModelosPage() {
     cargar()
   }, [])
 
-  const handleSave = async (formData: any) => {
+  const handleSave = async (
+    formData: any
+  ) => {
     let resultado
 
     if (editing) {
-      resultado = await updateModelo(editing.id, formData)
+      resultado =
+        await updateModelo(
+          editing.id,
+          formData
+        )
     } else {
-      resultado = await createModelo(formData)
+      resultado =
+        await createModelo(
+          formData
+        )
     }
 
     if (resultado.error) {
-      alert('Error: ' + resultado.error.message)
+      alert(
+        'Error: ' +
+          resultado.error.message
+      )
       return
     }
 
@@ -91,17 +148,24 @@ export default function ModelosPage() {
     await cargar()
   }
 
-  const handleDelete = async (id: string) => {
-    const confirmar = window.confirm(
-      '¿Seguro que deseas borrar este modelo?'
-    )
+  const handleDelete = async (
+    id: string
+  ) => {
+    const confirmar =
+      window.confirm(
+        '¿Seguro que deseas borrar este modelo?'
+      )
 
     if (!confirmar) return
 
-    const resultado = await deleteModelo(id)
+    const resultado =
+      await deleteModelo(id)
 
     if (resultado.error) {
-      alert('Error al borrar: ' + resultado.error.message)
+      alert(
+        'Error al borrar: ' +
+          resultado.error.message
+      )
       return
     }
 
@@ -121,7 +185,8 @@ export default function ModelosPage() {
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent:
+            'space-between',
           alignItems: 'flex-start',
           gap: 20
         }}
@@ -155,7 +220,8 @@ export default function ModelosPage() {
               marginTop: 8
             }}
           >
-            Administra los modelos asociados a los productos de tu empresa.
+            Administra modelos y
+            especificaciones técnicas.
           </p>
         </div>
 
@@ -169,10 +235,9 @@ export default function ModelosPage() {
             border: 0,
             borderRadius: 9,
             padding: '12px 20px',
-            color: '#ffffff',
+            color: 'white',
             fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 8px 25px rgba(255,106,0,.18)'
+            cursor: 'pointer'
           }}
         >
           + Nuevo modelo
@@ -183,8 +248,7 @@ export default function ModelosPage() {
         {loading ? (
           <div
             style={{
-              color: '#71717a',
-              fontSize: 13
+              color: '#71717a'
             }}
           >
             Cargando modelos...
@@ -192,12 +256,7 @@ export default function ModelosPage() {
         ) : error ? (
           <div
             style={{
-              background: '#450a0a',
-              border: '1px solid #7f1d1d',
-              borderRadius: 10,
-              padding: 14,
-              color: '#fecaca',
-              fontSize: 13
+              color: '#fecaca'
             }}
           >
             {error}
@@ -209,7 +268,14 @@ export default function ModelosPage() {
               setEditing(modelo)
               setShowForm(true)
             }}
-            onDelete={handleDelete}
+            onAtributos={modelo =>
+              setModeloAtributos(
+                modelo
+              )
+            }
+            onDelete={
+              handleDelete
+            }
           />
         )}
       </div>
@@ -224,6 +290,17 @@ export default function ModelosPage() {
             setShowForm(false)
             setEditing(null)
           }}
+        />
+      )}
+
+      {modeloAtributos && (
+        <AtributosModelo
+          modelo={modeloAtributos}
+          onClose={() =>
+            setModeloAtributos(
+              null
+            )
+          }
         />
       )}
     </div>

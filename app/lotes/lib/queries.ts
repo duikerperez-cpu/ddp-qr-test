@@ -31,8 +31,44 @@ export const getProductos = () =>
 export const getModelos = () =>
   supabase
     .from('modelos')
-    .select('id, nombre, empresa_id, producto_id')
+    .select(
+      'id, nombre, empresa_id, producto_id'
+    )
     .order('nombre')
+
+/* =========================================================
+   NORMALIZAR CÓDIGO DE LOTE
+========================================================= */
+
+const normalizarCodigoLote = (
+  codigo: string
+) => {
+
+  return codigo
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^A-Z0-9-_]/g, '')
+    .replace(/-+/g, '-')
+}
+
+/* =========================================================
+   GENERAR CÓDIGO DE IDENTIDAD VINCULAB
+========================================================= */
+
+const generarCodigoUnidad = (
+  codigoLote: string,
+  numero: number
+) => {
+
+  const lote =
+    normalizarCodigoLote(codigoLote)
+
+  const numeroFormateado =
+    String(numero).padStart(4, '0')
+
+  return `VIN-${lote}-${numeroFormateado}`
+}
 
 /* =========================================================
    FUNCIÓN INTERNA
@@ -49,22 +85,33 @@ const generarUnidadesFaltantes = async (
     modelo_id: string
   }
 ) => {
+
   /*
-   * Primero consultamos las unidades que ya existen.
+   * Consultar las unidades que ya existen.
    *
-   * Esto evita duplicarlas si:
-   * - se vuelve a guardar el lote
-   * - aumenta la cantidad
-   * - hubo una generación anterior
+   * Esto permite:
+   *
+   * - volver a guardar un lote sin duplicar
+   * - aumentar la cantidad
+   * - generar solamente unidades faltantes
    */
 
-  const { data: existentes, error: errorConsulta } =
+  const {
+    data: existentes,
+    error: errorConsulta
+  } =
     await supabase
       .from('unidades')
-      .select('numero_unidad')
-      .eq('lote_id', lote.id)
+      .select(
+        'numero_unidad, codigo'
+      )
+      .eq(
+        'lote_id',
+        lote.id
+      )
 
   if (errorConsulta) {
+
     console.error(
       'Error consultando unidades existentes:',
       errorConsulta
@@ -76,38 +123,71 @@ const generarUnidadesFaltantes = async (
     }
   }
 
-  const numerosExistentes = new Set(
-    (existentes || []).map(
-      unidad => Number(unidad.numero_unidad)
-    )
-  )
-
   /*
-   * Construimos únicamente las unidades
-   * que todavía no existen.
+   * Crear conjunto con números
+   * que ya existen.
    */
 
-  const unidadesNuevas = []
+  const numerosExistentes =
+    new Set(
+      (existentes || []).map(
+        unidad =>
+          Number(
+            unidad.numero_unidad
+          )
+      )
+    )
+
+  /*
+   * Construir únicamente
+   * las unidades faltantes.
+   */
+
+  const unidadesNuevas: any[] = []
 
   for (
     let numero = 1;
     numero <= lote.cantidad;
     numero++
   ) {
-    if (numerosExistentes.has(numero)) {
+
+    /*
+     * Si el número ya existe
+     * no hacemos nada.
+     *
+     * IMPORTANTE:
+     * tampoco modificamos códigos
+     * antiguos.
+     */
+
+    if (
+      numerosExistentes.has(numero)
+    ) {
       continue
     }
 
-    const numeroFormateado =
-      String(numero).padStart(4, '0')
+    /*
+     * Código definitivo de identidad:
+     *
+     * VIN-CODIGOLOTE-0001
+     */
+
+    const codigoUnidad =
+      generarCodigoUnidad(
+        lote.codigo,
+        numero
+      )
 
     unidadesNuevas.push({
-      id: crypto.randomUUID(),
+
+      id:
+        crypto.randomUUID(),
 
       codigo:
-        `${lote.codigo}-${numeroFormateado}`,
+        codigoUnidad,
 
-      lote_id: lote.id,
+      lote_id:
+        lote.id,
 
       empresa_id:
         lote.empresa_id,
@@ -127,11 +207,14 @@ const generarUnidadesFaltantes = async (
   }
 
   /*
-   * Si ya existen todas las unidades,
-   * no hacemos ningún INSERT.
+   * Si todas las unidades
+   * ya existen, terminamos.
    */
 
-  if (unidadesNuevas.length === 0) {
+  if (
+    unidadesNuevas.length === 0
+  ) {
+
     return {
       data: [],
       error: null
@@ -139,15 +222,20 @@ const generarUnidadesFaltantes = async (
   }
 
   /*
-   * Insertamos las unidades faltantes.
+   * Insertar únicamente
+   * las unidades nuevas.
    */
 
-  const resultado = await supabase
-    .from('unidades')
-    .insert(unidadesNuevas)
-    .select()
+  const resultado =
+    await supabase
+      .from('unidades')
+      .insert(
+        unidadesNuevas
+      )
+      .select()
 
   if (resultado.error) {
+
     console.error(
       'Error generando unidades:',
       resultado.error
@@ -164,11 +252,13 @@ const generarUnidadesFaltantes = async (
 export const createLote = async (
   data: any
 ) => {
+
   /* ===============================
-     VALIDACIONES
+     VALIDAR CÓDIGO
   =============================== */
 
   if (!data.codigo?.trim()) {
+
     alert(
       'Debes ingresar un código de lote.'
     )
@@ -182,7 +272,12 @@ export const createLote = async (
     }
   }
 
+  /* ===============================
+     VALIDAR EMPRESA
+  =============================== */
+
   if (!data.empresa_id) {
+
     alert(
       'Debes seleccionar una empresa.'
     )
@@ -196,7 +291,12 @@ export const createLote = async (
     }
   }
 
+  /* ===============================
+     VALIDAR PRODUCTO
+  =============================== */
+
   if (!data.producto_id) {
+
     alert(
       'Debes seleccionar un producto.'
     )
@@ -210,7 +310,12 @@ export const createLote = async (
     }
   }
 
+  /* ===============================
+     VALIDAR MODELO
+  =============================== */
+
   if (!data.modelo_id) {
+
     alert(
       'Debes seleccionar un modelo.'
     )
@@ -224,6 +329,10 @@ export const createLote = async (
     }
   }
 
+  /* ===============================
+     VALIDAR CANTIDAD
+  =============================== */
+
   const cantidad =
     Number(data.cantidad)
 
@@ -231,6 +340,7 @@ export const createLote = async (
     !Number.isInteger(cantidad) ||
     cantidad < 1
   ) {
+
     alert(
       'La cantidad debe ser un número entero mayor o igual a 1.'
     )
@@ -245,43 +355,72 @@ export const createLote = async (
   }
 
   /* ===============================
-     CREAR LOTE
+     GENERAR ID DEL LOTE
   =============================== */
 
   const loteId =
     crypto.randomUUID()
 
+  /*
+   * Guardamos el código del lote
+   * normalizado.
+   */
+
   const codigo =
-    data.codigo.trim()
+    normalizarCodigoLote(
+      data.codigo
+    )
 
-  const res = await supabase
-    .from('lotes')
-    .insert([
-      {
-        id: loteId,
+  if (!codigo) {
 
-        codigo,
+    alert(
+      'El código del lote no es válido.'
+    )
 
-        cantidad,
+    return {
+      data: null,
+      error:
+        new Error(
+          'Código inválido'
+        )
+    }
+  }
 
-        empresa_id:
-          data.empresa_id,
+  /* ===============================
+     CREAR LOTE
+  =============================== */
 
-        producto_id:
-          data.producto_id,
+  const res =
+    await supabase
+      .from('lotes')
+      .insert([
+        {
+          id:
+            loteId,
 
-        modelo_id:
-          data.modelo_id,
+          codigo,
 
-        estado:
-          data.estado ||
-          'activo'
-      }
-    ])
-    .select()
-    .single()
+          cantidad,
+
+          empresa_id:
+            data.empresa_id,
+
+          producto_id:
+            data.producto_id,
+
+          modelo_id:
+            data.modelo_id,
+
+          estado:
+            data.estado ||
+            'activo'
+        }
+      ])
+      .select()
+      .single()
 
   if (res.error) {
+
     console.error(
       'Error creando lote:',
       res.error
@@ -303,10 +442,16 @@ export const createLote = async (
 
   const resultadoUnidades =
     await generarUnidadesFaltantes({
-      id: res.data.id,
-      codigo: res.data.codigo,
+      id:
+        res.data.id,
+
+      codigo:
+        res.data.codigo,
+
       cantidad:
-        Number(res.data.cantidad),
+        Number(
+          res.data.cantidad
+        ),
 
       empresa_id:
         res.data.empresa_id,
@@ -319,18 +464,17 @@ export const createLote = async (
     })
 
   /*
-   * Si el lote se creó pero ocurrió
-   * un problema creando las unidades,
-   * NO eliminamos automáticamente
-   * el lote.
-   *
-   * Así evitamos pérdida accidental
-   * de información.
+   * Si falla la creación de unidades,
+   * conservamos el lote.
    */
 
-  if (resultadoUnidades.error) {
+  if (
+    resultadoUnidades.error
+  ) {
+
     console.error(
-      'El lote fue creado, pero ocurrió un error generando las unidades.'
+      'El lote fue creado, pero ocurrió un error generando las unidades.',
+      resultadoUnidades.error
     )
 
     alert(
@@ -338,15 +482,20 @@ export const createLote = async (
     )
 
     return {
-      data: res.data,
+      data:
+        res.data,
+
       error:
         resultadoUnidades.error
     }
   }
 
   return {
-    data: res.data,
-    error: null
+    data:
+      res.data,
+
+    error:
+      null
   }
 }
 
@@ -358,11 +507,13 @@ export const updateLote = async (
   id: string,
   data: any
 ) => {
+
   /* ===============================
-     VALIDACIONES
+     VALIDAR ID
   =============================== */
 
   if (!id) {
+
     alert(
       'No se encontró el ID del lote.'
     )
@@ -376,7 +527,12 @@ export const updateLote = async (
     }
   }
 
+  /* ===============================
+     VALIDAR CÓDIGO
+  =============================== */
+
   if (!data.codigo?.trim()) {
+
     alert(
       'Debes ingresar un código de lote.'
     )
@@ -390,7 +546,12 @@ export const updateLote = async (
     }
   }
 
+  /* ===============================
+     VALIDAR EMPRESA
+  =============================== */
+
   if (!data.empresa_id) {
+
     alert(
       'Debes seleccionar una empresa.'
     )
@@ -404,7 +565,12 @@ export const updateLote = async (
     }
   }
 
+  /* ===============================
+     VALIDAR PRODUCTO
+  =============================== */
+
   if (!data.producto_id) {
+
     alert(
       'Debes seleccionar un producto.'
     )
@@ -418,7 +584,12 @@ export const updateLote = async (
     }
   }
 
+  /* ===============================
+     VALIDAR MODELO
+  =============================== */
+
   if (!data.modelo_id) {
+
     alert(
       'Debes seleccionar un modelo.'
     )
@@ -432,13 +603,20 @@ export const updateLote = async (
     }
   }
 
+  /* ===============================
+     VALIDAR CANTIDAD
+  =============================== */
+
   const cantidad =
-    Number(data.cantidad)
+    Number(
+      data.cantidad
+    )
 
   if (
     !Number.isInteger(cantidad) ||
     cantidad < 1
   ) {
+
     alert(
       'La cantidad debe ser un número entero mayor o igual a 1.'
     )
@@ -452,36 +630,66 @@ export const updateLote = async (
     }
   }
 
+  /*
+   * Normalizar código.
+   */
+
+  const codigo =
+    normalizarCodigoLote(
+      data.codigo
+    )
+
+  if (!codigo) {
+
+    alert(
+      'El código del lote no es válido.'
+    )
+
+    return {
+      data: null,
+      error:
+        new Error(
+          'Código inválido'
+        )
+    }
+  }
+
   /* ===============================
      ACTUALIZAR LOTE
   =============================== */
 
-  const res = await supabase
-    .from('lotes')
-    .update({
-      codigo:
-        data.codigo.trim(),
+  const res =
+    await supabase
+      .from('lotes')
+      .update({
 
-      cantidad,
+        codigo,
 
-      empresa_id:
-        data.empresa_id,
+        cantidad,
 
-      producto_id:
-        data.producto_id,
+        empresa_id:
+          data.empresa_id,
 
-      modelo_id:
-        data.modelo_id,
+        producto_id:
+          data.producto_id,
 
-      estado:
-        data.estado ||
-        'activo'
-    })
-    .eq('id', id)
-    .select()
-    .single()
+        modelo_id:
+          data.modelo_id,
+
+        estado:
+          data.estado ||
+          'activo'
+
+      })
+      .eq(
+        'id',
+        id
+      )
+      .select()
+      .single()
 
   if (res.error) {
+
     console.error(
       'Error actualizando lote:',
       res.error
@@ -493,7 +701,8 @@ export const updateLote = async (
 
     return {
       data: null,
-      error: res.error
+      error:
+        res.error
     }
   }
 
@@ -503,10 +712,17 @@ export const updateLote = async (
 
   const resultadoUnidades =
     await generarUnidadesFaltantes({
-      id: res.data.id,
-      codigo: res.data.codigo,
+
+      id:
+        res.data.id,
+
+      codigo:
+        res.data.codigo,
+
       cantidad:
-        Number(res.data.cantidad),
+        Number(
+          res.data.cantidad
+        ),
 
       empresa_id:
         res.data.empresa_id,
@@ -518,21 +734,34 @@ export const updateLote = async (
         res.data.modelo_id
     })
 
-  if (resultadoUnidades.error) {
+  if (
+    resultadoUnidades.error
+  ) {
+
+    console.error(
+      'Error generando unidades faltantes:',
+      resultadoUnidades.error
+    )
+
     alert(
       'El lote fue actualizado, pero ocurrió un error generando las unidades faltantes.'
     )
 
     return {
-      data: res.data,
+      data:
+        res.data,
+
       error:
         resultadoUnidades.error
     }
   }
 
   return {
-    data: res.data,
-    error: null
+    data:
+      res.data,
+
+    error:
+      null
   }
 }
 
@@ -543,12 +772,18 @@ export const updateLote = async (
 export const deleteLote = async (
   id: string
 ) => {
-  const res = await supabase
-    .from('lotes')
-    .delete()
-    .eq('id', id)
+
+  const res =
+    await supabase
+      .from('lotes')
+      .delete()
+      .eq(
+        'id',
+        id
+      )
 
   if (res.error) {
+
     console.error(
       'Error eliminando lote:',
       res.error

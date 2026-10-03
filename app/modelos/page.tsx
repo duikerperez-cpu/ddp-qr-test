@@ -1,41 +1,231 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import { ModelosTable } from './components/ModelosTable'
 import { ModeloForm } from './components/ModeloForm'
-import { getModelos, getEmpresas, getProductos, createModelo, updateModelo, deleteModelo } from './lib/queries'
-import { Modelo } from './types'
+
+import {
+  getModelos,
+  getEmpresas,
+  getProductos,
+  createModelo,
+  updateModelo,
+  deleteModelo
+} from './lib/queries'
+
+import {
+  Modelo,
+  Empresa,
+  Producto
+} from './types'
 
 export default function ModelosPage() {
   const [modelos, setModelos] = useState<Modelo[]>([])
-  const [empresas, setEmpresas] = useState<any[]>([])
-  const [productos, setProductos] = useState<any[]>([])
+  const [empresas, setEmpresas] = useState<Empresa[]>([])
+  const [productos, setProductos] = useState<Producto[]>([])
+
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Modelo | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const cargar = async () => {
-    const { data } = await getModelos()
-    if (data) setModelos(data as any)
-    const e = await getEmpresas()
-    if (e.data) setEmpresas(e.data)
-    const p = await getProductos()
-    if (p.data) setProductos(p.data)
+    setLoading(true)
+    setError('')
+
+    try {
+      const [modelosRes, empresasRes, productosRes] =
+        await Promise.all([
+          getModelos(),
+          getEmpresas(),
+          getProductos()
+        ])
+
+      if (modelosRes.error) {
+        console.error(modelosRes.error)
+        setError('No fue posible cargar los modelos.')
+      } else {
+        setModelos((modelosRes.data || []) as Modelo[])
+      }
+
+      if (empresasRes.error) {
+        console.error(empresasRes.error)
+      } else {
+        setEmpresas((empresasRes.data || []) as Empresa[])
+      }
+
+      if (productosRes.error) {
+        console.error(productosRes.error)
+      } else {
+        setProductos((productosRes.data || []) as Producto[])
+      }
+    } catch (err) {
+      console.error(err)
+      setError('Error cargando información.')
+    } finally {
+      setLoading(false)
+    }
   }
-  useEffect(() => { cargar() }, [])
+
+  useEffect(() => {
+    cargar()
+  }, [])
 
   const handleSave = async (formData: any) => {
-    if (editing) await updateModelo(editing.id, formData)
-    else await createModelo(formData)
-    setShowForm(false); setEditing(null); cargar()
+    let resultado
+
+    if (editing) {
+      resultado = await updateModelo(editing.id, formData)
+    } else {
+      resultado = await createModelo(formData)
+    }
+
+    if (resultado.error) {
+      alert('Error: ' + resultado.error.message)
+      return
+    }
+
+    setShowForm(false)
+    setEditing(null)
+
+    await cargar()
+  }
+
+  const handleDelete = async (id: string) => {
+    const confirmar = window.confirm(
+      '¿Seguro que deseas borrar este modelo?'
+    )
+
+    if (!confirmar) return
+
+    const resultado = await deleteModelo(id)
+
+    if (resultado.error) {
+      alert('Error al borrar: ' + resultado.error.message)
+      return
+    }
+
+    await cargar()
   }
 
   return (
-    <div style={{ padding: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Modelos</h1>
-        <button onClick={() => { setEditing(null); setShowForm(true) }} style={{ background: '#ff6a00', border: 0, borderRadius: 8, padding: '10px 18px', color: 'white', fontWeight: 700, cursor: 'pointer' }}>+ Nuevo</button>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#09090b',
+        color: '#f4f4f5',
+        padding: '36px 40px',
+        fontFamily: 'system-ui'
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 20
+        }}
+      >
+        <div>
+          <div
+            style={{
+              color: '#ff6a00',
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: 1.5
+            }}
+          >
+            VINCULAB
+          </div>
+
+          <h1
+            style={{
+              fontSize: 30,
+              fontWeight: 700,
+              margin: '7px 0 0'
+            }}
+          >
+            Modelos
+          </h1>
+
+          <p
+            style={{
+              color: '#a1a1aa',
+              fontSize: 13,
+              marginTop: 8
+            }}
+          >
+            Administra los modelos asociados a los productos de tu empresa.
+          </p>
+        </div>
+
+        <button
+          onClick={() => {
+            setEditing(null)
+            setShowForm(true)
+          }}
+          style={{
+            background: '#ff6a00',
+            border: 0,
+            borderRadius: 9,
+            padding: '12px 20px',
+            color: '#ffffff',
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 8px 25px rgba(255,106,0,.18)'
+          }}
+        >
+          + Nuevo modelo
+        </button>
       </div>
-      <div style={{ marginTop: 20 }}><ModelosTable modelos={modelos} onEdit={(m) => { setEditing(m); setShowForm(true) }} onDelete={async (id) => { if (confirm('¿Borrar?')) { await deleteModelo(id); cargar() } }} /></div>
-      {showForm && <ModeloForm initial={editing} empresas={empresas} productos={productos} onSave={handleSave} onClose={() => { setShowForm(false); setEditing(null) }} />}
+
+      <div style={{ marginTop: 30 }}>
+        {loading ? (
+          <div
+            style={{
+              color: '#71717a',
+              fontSize: 13
+            }}
+          >
+            Cargando modelos...
+          </div>
+        ) : error ? (
+          <div
+            style={{
+              background: '#450a0a',
+              border: '1px solid #7f1d1d',
+              borderRadius: 10,
+              padding: 14,
+              color: '#fecaca',
+              fontSize: 13
+            }}
+          >
+            {error}
+          </div>
+        ) : (
+          <ModelosTable
+            modelos={modelos}
+            onEdit={modelo => {
+              setEditing(modelo)
+              setShowForm(true)
+            }}
+            onDelete={handleDelete}
+          />
+        )}
+      </div>
+
+      {showForm && (
+        <ModeloForm
+          initial={editing}
+          empresas={empresas}
+          productos={productos}
+          onSave={handleSave}
+          onClose={() => {
+            setShowForm(false)
+            setEditing(null)
+          }}
+        />
+      )}
     </div>
   )
 }

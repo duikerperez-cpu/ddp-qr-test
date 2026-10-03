@@ -18,3 +18,14 @@ export type Producto = {
   nombre: string
   empresa_id: string
 }
+
+export type ModeloAtributo = {
+  id: string
+  modelo_id: string
+  nombre: string
+  valor?: string | null
+  unidad?: string | null
+  grupo?: string | null
+  orden?: number | null
+  created_at?: string
+}

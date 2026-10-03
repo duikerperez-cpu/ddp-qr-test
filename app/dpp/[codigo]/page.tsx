@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
+import QRCode from 'qrcode'
 
 export const dynamic = 'force-dynamic'
 
@@ -225,6 +226,13 @@ export default async function DPPPage({ params }: Props) {
   const urlPublica =
     identidad.url_dpp ||
     `https://vinculab.cl/dpp/${encodeURIComponent(codigoLimpio)}`
+
+  const qrDataUrl = await QRCode.toDataURL(urlPublica, {
+    width: 420,
+    margin: 2,
+    errorCorrectionLevel: 'H',
+    color: { dark: '#071018', light: '#ffffff' },
+  })
 
   return (
     <main className="page">
@@ -723,6 +731,23 @@ export default async function DPPPage({ params }: Props) {
 
           </div>
 
+        </div>
+
+        <div className="qrPanel">
+          <div className="qrFrame">
+            <img src={qrDataUrl} alt={`Código QR del pasaporte digital ${codigoLimpio}`} className="qrImage" />
+          </div>
+          <div className="qrContent">
+            <span className="qrEyebrow">ACCESO AL PASAPORTE DIGITAL</span>
+            <h2>Escanea para verificar esta unidad</h2>
+            <p>Este QR abre directamente el Pasaporte Digital de Producto de esta unidad física registrada en VINCULAB.</p>
+            <div className="qrMeta">
+              <div><span>IDENTIDAD</span><strong>{codigoLimpio}</strong></div>
+              <div><span>UNIDAD</span><strong>{numeroUnidad}</strong></div>
+              <div><span>ESTADO</span><strong className={activo ? 'qrStatusActive' : 'qrStatusInactive'}>{String(estado).toUpperCase()}</strong></div>
+            </div>
+            <a href={urlPublica} className="qrOpenButton" target="_blank" rel="noreferrer">Abrir pasaporte digital ↗</a>
+          </div>
         </div>
 
         {/* ===================================================
@@ -1983,6 +2008,36 @@ export default async function DPPPage({ params }: Props) {
           font-size: 11px;
         }
 
+
+        .qrPanel {
+          display:grid; grid-template-columns:240px minmax(0,1fr); gap:32px;
+          align-items:center; margin-top:18px; padding:28px;
+          border:1px solid #25323d; border-radius:12px;
+          background:radial-gradient(circle at 0 0,rgba(255,102,0,.10),transparent 34%),#10171f;
+        }
+        .qrFrame {
+          width:210px; height:210px; padding:12px; margin:auto;
+          border:1px solid #354552; border-radius:16px; background:#fff;
+          box-shadow:0 20px 55px rgba(0,0,0,.28);
+        }
+        .qrImage { display:block; width:100%; height:100%; object-fit:contain; }
+        .qrEyebrow { color:#ff6600; font-size:9px; font-weight:900; letter-spacing:2px; }
+        .qrContent h2 { margin:10px 0 12px; font-size:25px; letter-spacing:-.5px; }
+        .qrContent p { max-width:760px; margin:0; color:#7f94a6; font-size:12px; line-height:1.7; }
+        .qrMeta { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:22px; }
+        .qrMeta>div { min-width:0; padding:13px 15px; border:1px solid #273540; border-radius:9px; background:#0c1319; }
+        .qrMeta span { display:block; margin-bottom:6px; color:#617b90; font-size:8px; font-weight:900; letter-spacing:1.4px; }
+        .qrMeta strong { display:block; overflow-wrap:anywhere; font-size:11px; }
+        .qrStatusActive { color:#2ae590; }
+        .qrStatusInactive { color:#ff9a43; }
+        .qrOpenButton {
+          display:inline-flex; margin-top:20px; padding:11px 15px;
+          border:1px solid rgba(255,102,0,.42); border-radius:8px;
+          background:rgba(255,102,0,.08); color:#ff7417;
+          font-size:11px; font-weight:900; text-decoration:none;
+        }
+        .qrOpenButton:hover { background:rgba(255,102,0,.14); }
+
         /* ==============================================
            COMPANY
         ============================================== */
@@ -2429,6 +2484,19 @@ export default async function DPPPage({ params }: Props) {
             text-align: left;
           }
 
+        }
+
+
+        @media (max-width: 1000px) {
+          .qrPanel { grid-template-columns: 210px minmax(0,1fr); }
+          .qrFrame { width:185px; height:185px; }
+        }
+        @media (max-width: 650px) {
+          .qrPanel { grid-template-columns:1fr; padding:22px; }
+          .qrFrame { width:min(240px,72vw); height:min(240px,72vw); }
+          .qrContent { text-align:center; }
+          .qrMeta { grid-template-columns:1fr; text-align:left; }
+          .qrOpenButton { width:100%; justify-content:center; }
         }
 
       `}</style>

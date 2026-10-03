@@ -6,12 +6,14 @@ type Props = {
   modelos: Modelo[]
   onEdit: (modelo: Modelo) => void
   onDelete: (id: string) => void
+  onAtributos: (modelo: Modelo) => void
 }
 
 export function ModelosTable({
   modelos,
   onEdit,
-  onDelete
+  onDelete,
+  onAtributos
 }: Props) {
   if (modelos.length === 0) {
     return (
@@ -22,8 +24,7 @@ export function ModelosTable({
           border: '1px solid #27272a',
           padding: 35,
           textAlign: 'center',
-          color: '#71717a',
-          fontSize: 13
+          color: '#71717a'
         }}
       >
         No hay modelos registrados.
@@ -45,14 +46,16 @@ export function ModelosTable({
           key={modelo.id}
           style={{
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent:
+              'space-between',
             alignItems: 'center',
             gap: 20,
             padding: '18px 22px',
-            borderBottom: '1px solid #27272a'
+            borderBottom:
+              '1px solid #27272a'
           }}
         >
-          <div style={{ minWidth: 0 }}>
+          <div>
             <div
               style={{
                 color: '#f4f4f5',
@@ -81,7 +84,8 @@ export function ModelosTable({
                   marginTop: 6
                 }}
               >
-                Categoría: {modelo.categoria}
+                Categoría:{' '}
+                {modelo.categoria}
               </div>
             )}
 
@@ -102,36 +106,59 @@ export function ModelosTable({
             style={{
               display: 'flex',
               gap: 8,
-              flexShrink: 0
+              flexWrap: 'wrap',
+              justifyContent:
+                'flex-end'
             }}
           >
             <button
-              onClick={() => onEdit(modelo)}
+              onClick={() =>
+                onAtributos(modelo)
+              }
               style={{
-                background: '#27272a',
-                border: '1px solid #3f3f46',
+                background: '#ff6a00',
+                border: 0,
                 borderRadius: 7,
-                padding: '8px 14px',
-                color: '#ffffff',
+                padding: '8px 13px',
+                color: 'white',
                 cursor: 'pointer',
                 fontSize: 12,
-                fontWeight: 400
+                fontWeight: 600
+              }}
+            >
+              Especificaciones
+            </button>
+
+            <button
+              onClick={() =>
+                onEdit(modelo)
+              }
+              style={{
+                background: '#27272a',
+                border:
+                  '1px solid #3f3f46',
+                borderRadius: 7,
+                padding: '8px 13px',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: 12
               }}
             >
               Editar
             </button>
 
             <button
-              onClick={() => onDelete(modelo.id)}
+              onClick={() =>
+                onDelete(modelo.id)
+              }
               style={{
                 background: '#7f1d1d',
-                border: '1px solid #991b1b',
+                border: 0,
                 borderRadius: 7,
-                padding: '8px 14px',
-                color: '#ffffff',
+                padding: '8px 13px',
+                color: 'white',
                 cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 400
+                fontSize: 12
               }}
             >
               Borrar

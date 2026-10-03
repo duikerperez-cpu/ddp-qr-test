@@ -10,257 +10,129 @@ const supabase = createClient(
 
 type Empresa = {
   id: string
-  nombre: string
-  created_at?: string
-  [key: string]: any
+  razon_social?: string | null
+  pais?: string | null
+  sector?: string | null
+  estado?: string | null
+  nombre?: string | null
+  name?: string | null
+  empresa_nombre?: string | null
+  rut?: string | null
 }
-
-/* =========================================================
-   ICONOS SVG
-========================================================= */
-
-function Icon({
-  type,
-  size = 16
-}: {
-  type: 'empresa' | 'buscar' | 'editar' | 'eliminar' | 'cerrar'
-  size?: number
-}) {
-  const common = {
-    width: size,
-    height: size,
-    viewBox: '0 0 24 24',
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeWidth: 1.8,
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const
-  }
-
-  if (type === 'empresa') {
-    return (
-      <svg {...common}>
-        <rect x="4" y="3" width="16" height="18" />
-        <path d="M8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2" />
-        <path d="M9 21v-3h6v3" />
-      </svg>
-    )
-  }
-
-  if (type === 'buscar') {
-    return (
-      <svg {...common}>
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-4-4" />
-      </svg>
-    )
-  }
-
-  if (type === 'editar') {
-    return (
-      <svg {...common}>
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" />
-      </svg>
-    )
-  }
-
-  if (type === 'eliminar') {
-    return (
-      <svg {...common}>
-        <path d="M3 6h18" />
-        <path d="M8 6V4h8v2" />
-        <path d="M19 6l-1 15H6L5 6" />
-        <path d="M10 11v6M14 11v6" />
-      </svg>
-    )
-  }
-
-  return (
-    <svg {...common}>
-      <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  )
-}
-
-/* =========================================================
-   PÁGINA
-========================================================= */
 
 export default function EmpresasPage() {
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [busqueda, setBusqueda] = useState('')
   const [cargando, setCargando] = useState(true)
-
-  const [modal, setModal] = useState(false)
-  const [editando, setEditando] = useState<Empresa | null>(null)
-  const [nombre, setNombre] = useState('')
-  const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
+  const [mostrarFormulario, setMostrarFormulario] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+
+  const [form, setForm] = useState({
+    razon_social: '',
+    rut: '',
+    pais: 'Chile',
+    sector: '',
+  })
+
+  const cargarEmpresas = async () => {
+    setCargando(true)
+    setError('')
+
+    const { data, error } = await supabase
+      .from('empresas')
+      .select('*')
+
+    if (error) {
+      console.error(error)
+      setError(error.message)
+      setEmpresas([])
+    } else {
+      setEmpresas(data || [])
+    }
+
+    setCargando(false)
+  }
 
   useEffect(() => {
     cargarEmpresas()
   }, [])
 
-  /* =====================================================
-     CARGAR
-  ===================================================== */
-
-  async function cargarEmpresas() {
-    try {
-      setCargando(true)
-
-      const { data, error } = await supabase
-        .from('empresas')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        console.error(error)
-        setError(error.message)
-        return
-      }
-
-      setEmpresas(data || [])
-    } finally {
-      setCargando(false)
-    }
+  const nombreEmpresa = (empresa: Empresa) => {
+    return (
+      empresa.razon_social ||
+      empresa.nombre ||
+      empresa.name ||
+      empresa.empresa_nombre ||
+      'Empresa sin nombre'
+    )
   }
 
-  /* =====================================================
-     FILTRO
-  ===================================================== */
-
   const empresasFiltradas = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase()
+    const texto = busqueda.toLowerCase().trim()
 
     if (!texto) return empresas
 
-    return empresas.filter((empresa) =>
-      String(empresa.nombre || '')
+    return empresas.filter((empresa) => {
+      const contenido = [
+        empresa.razon_social,
+        empresa.nombre,
+        empresa.name,
+        empresa.empresa_nombre,
+        empresa.rut,
+        empresa.pais,
+        empresa.sector,
+      ]
+        .filter(Boolean)
+        .join(' ')
         .toLowerCase()
-        .includes(texto)
-    )
+
+      return contenido.includes(texto)
+    })
   }, [empresas, busqueda])
 
-  /* =====================================================
-     NUEVA EMPRESA
-  ===================================================== */
-
-  function nuevaEmpresa() {
-    setEditando(null)
-    setNombre('')
-    setError('')
-    setModal(true)
-  }
-
-  /* =====================================================
-     EDITAR
-  ===================================================== */
-
-  function editarEmpresa(empresa: Empresa) {
-    setEditando(empresa)
-    setNombre(empresa.nombre || '')
-    setError('')
-    setModal(true)
-  }
-
-  /* =====================================================
-     GUARDAR
-  ===================================================== */
-
-  async function guardarEmpresa() {
-    const nombreLimpio = nombre.trim()
-
-    if (!nombreLimpio) {
-      setError('Debes ingresar el nombre de la empresa.')
+  const crearEmpresa = async () => {
+    if (!form.razon_social.trim()) {
+      alert('Debes ingresar la razón social.')
       return
     }
 
-    try {
-      setGuardando(true)
-      setError('')
-
-      if (editando) {
-        const { error } = await supabase
-          .from('empresas')
-          .update({
-            nombre: nombreLimpio
-          })
-          .eq('id', editando.id)
-
-        if (error) {
-          setError(error.message)
-          return
-        }
-      } else {
-        const { error } = await supabase
-          .from('empresas')
-          .insert({
-            nombre: nombreLimpio
-          })
-
-        if (error) {
-          setError(error.message)
-          return
-        }
-      }
-
-      setModal(false)
-      setEditando(null)
-      setNombre('')
-
-      await cargarEmpresas()
-
-    } catch (err: any) {
-      console.error(err)
-      setError(
-        err?.message ||
-        'No fue posible guardar la empresa.'
-      )
-    } finally {
-      setGuardando(false)
-    }
-  }
-
-  /* =====================================================
-     ELIMINAR
-  ===================================================== */
-
-  async function eliminarEmpresa(empresa: Empresa) {
-    const confirmar = window.confirm(
-      `¿Eliminar la empresa "${empresa.nombre}"?\n\n` +
-      'Esta acción puede fallar si la empresa tiene productos, modelos o lotes asociados.'
-    )
-
-    if (!confirmar) return
+    setGuardando(true)
 
     const { error } = await supabase
       .from('empresas')
-      .delete()
-      .eq('id', empresa.id)
+      .insert({
+        razon_social: form.razon_social.trim(),
+        nombre: form.razon_social.trim(),
+        name: form.razon_social.trim(),
+        empresa_nombre: form.razon_social.trim(),
+        rut: form.rut.trim() || null,
+        pais: form.pais.trim() || null,
+        sector: form.sector.trim() || null,
+        estado: 'activa',
+      })
+
+    setGuardando(false)
 
     if (error) {
-      alert(
-        `No fue posible eliminar la empresa:\n${error.message}`
-      )
+      console.error(error)
+      alert(`No fue posible crear la empresa: ${error.message}`)
       return
     }
 
+    setForm({
+      razon_social: '',
+      rut: '',
+      pais: 'Chile',
+      sector: '',
+    })
+
+    setMostrarFormulario(false)
     await cargarEmpresas()
   }
 
-  /* =====================================================
-     INTERFAZ
-  ===================================================== */
-
   return (
-    <div
-      style={{
-        width: '100%',
-        color: '#ffffff'
-      }}
-    >
+    <div style={{ width: '100%' }}>
 
       {/* CABECERA */}
 
@@ -270,18 +142,17 @@ export default function EmpresasPage() {
           justifyContent: 'space-between',
           alignItems: 'flex-start',
           gap: 20,
-          marginBottom: 24
+          marginBottom: 26,
         }}
       >
-
         <div>
           <div
             style={{
               color: '#ff6a00',
-              fontSize: 9,
-              fontWeight: 800,
-              letterSpacing: 1.4,
-              marginBottom: 6
+              fontSize: 10,
+              fontWeight: 900,
+              letterSpacing: 1.5,
+              marginBottom: 8,
             }}
           >
             GESTIÓN
@@ -290,143 +161,134 @@ export default function EmpresasPage() {
           <h1
             style={{
               margin: 0,
-              fontSize: 24,
-              fontWeight: 800
+              fontSize: 26,
+              fontWeight: 900,
             }}
           >
             Empresas
           </h1>
 
-          <p
+          <div
             style={{
-              margin: '6px 0 0',
-              color: '#768088',
-              fontSize: 12
+              color: '#7d8b99',
+              fontSize: 13,
+              marginTop: 6,
             }}
           >
             Organizaciones registradas en Vinculab.
-          </p>
+          </div>
         </div>
 
         <button
-          onClick={nuevaEmpresa}
+          onClick={() => setMostrarFormulario(true)}
           style={{
             background: '#ff6a00',
-            border: 0,
-            color: '#ffffff',
-            borderRadius: 6,
-            padding: '10px 15px',
-            fontSize: 11,
-            fontWeight: 800,
-            cursor: 'pointer'
+            color: 'white',
+            border: 'none',
+            borderRadius: 7,
+            padding: '11px 17px',
+            fontSize: 12,
+            fontWeight: 900,
+            cursor: 'pointer',
           }}
         >
           + Nueva empresa
         </button>
-
       </div>
 
-      {/* RESUMEN */}
+      {/* TARJETA TOTAL */}
 
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns:
-            'repeat(auto-fit, minmax(180px, 240px))',
-          gap: 12,
-          marginBottom: 18
+          width: 260,
+          background: '#111820',
+          border: '1px solid #25303a',
+          borderLeft: '3px solid #ff6a00',
+          borderRadius: 8,
+          padding: '18px 18px',
+          marginBottom: 20,
         }}
       >
-
         <div
           style={{
-            background: '#11161d',
-            border: '1px solid #1e2731',
-            borderLeft: '3px solid #ff6a00',
-            borderRadius: 8,
-            padding: 16
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
           }}
         >
           <div
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              color: '#768088',
               fontSize: 9,
-              fontWeight: 800,
-              letterSpacing: 1
+              color: '#778899',
+              fontWeight: 900,
+              letterSpacing: 1.2,
             }}
           >
             EMPRESAS REGISTRADAS
-
-            <span style={{ color: '#ff6a00' }}>
-              <Icon type="empresa" />
-            </span>
           </div>
 
           <div
             style={{
-              fontSize: 27,
-              fontWeight: 900,
-              marginTop: 12
+              color: '#ff6a00',
+              fontSize: 18,
             }}
           >
-            {cargando ? '—' : empresas.length}
+            ▥
           </div>
         </div>
 
+        <div
+          style={{
+            marginTop: 18,
+            fontSize: 29,
+            fontWeight: 900,
+          }}
+        >
+          {empresas.length}
+        </div>
       </div>
 
       {/* BUSCADOR */}
 
       <div
         style={{
-          background: '#0d1117',
-          border: '1px solid #1e2731',
+          background: '#0d1218',
+          border: '1px solid #202a34',
           borderRadius: 8,
           padding: 12,
-          marginBottom: 14
+          marginBottom: 14,
         }}
       >
-        <div
-          style={{
-            position: 'relative',
-            maxWidth: 420
-          }}
-        >
-
+        <div style={{ position: 'relative' }}>
           <span
             style={{
               position: 'absolute',
-              left: 12,
+              left: 14,
               top: '50%',
               transform: 'translateY(-50%)',
-              color: '#5a6570',
-              display: 'flex'
+              color: '#697684',
+              fontSize: 15,
             }}
           >
-            <Icon type="buscar" size={15} />
+            ⌕
           </span>
 
           <input
             value={busqueda}
-            onChange={(e) =>
-              setBusqueda(e.target.value)
-            }
+            onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar empresa..."
             style={{
               width: '100%',
-              boxSizing: 'border-box',
-              background: '#090a0f',
-              border: '1px solid #27303a',
+              maxWidth: 440,
+              background: '#080b10',
+              border: '1px solid #29333e',
               borderRadius: 6,
-              color: '#ffffff',
-              padding: '10px 12px 10px 38px',
+              padding: '10px 12px 10px 40px',
+              color: 'white',
               outline: 'none',
-              fontSize: 12
+              fontSize: 12,
             }}
           />
-
         </div>
       </div>
 
@@ -434,396 +296,344 @@ export default function EmpresasPage() {
 
       <div
         style={{
-          background: '#11161d',
-          border: '1px solid #1e2731',
+          background: '#0d1218',
+          border: '1px solid #202a34',
           borderRadius: 8,
-          overflow: 'hidden'
+          overflow: 'hidden',
         }}
       >
-
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns:
-              'minmax(220px, 1fr) 180px 150px',
-            padding: '10px 16px',
-            background: '#0d1117',
-            borderBottom: '1px solid #1e2731',
-            color: '#5a6570',
+            gridTemplateColumns: '2fr 1fr 1fr 1fr 120px',
+            padding: '12px 16px',
+            borderBottom: '1px solid #202a34',
             fontSize: 8,
-            fontWeight: 800,
-            letterSpacing: 1
+            color: '#657382',
+            fontWeight: 900,
+            letterSpacing: 1.2,
           }}
         >
           <div>EMPRESA</div>
-          <div>IDENTIFICADOR</div>
-          <div style={{ textAlign: 'right' }}>
-            ACCIONES
-          </div>
+          <div>RUT</div>
+          <div>SECTOR</div>
+          <div>PAÍS</div>
+          <div>ESTADO</div>
         </div>
 
-        {cargando ? (
-
+        {cargando && (
           <div
             style={{
-              padding: 30,
+              padding: 35,
               textAlign: 'center',
-              color: '#768088',
-              fontSize: 12
+              color: '#71808f',
+              fontSize: 12,
             }}
           >
             Cargando empresas...
           </div>
+        )}
 
-        ) : empresasFiltradas.length === 0 ? (
-
+        {!cargando && error && (
           <div
             style={{
-              padding: 34,
+              padding: 35,
               textAlign: 'center',
-              color: '#768088',
-              fontSize: 12
+              color: '#ef4444',
+              fontSize: 12,
             }}
           >
-            No se encontraron empresas.
+            Error al cargar empresas: {error}
           </div>
+        )}
 
-        ) : (
+        {!cargando &&
+          !error &&
+          empresasFiltradas.length === 0 && (
+            <div
+              style={{
+                padding: 35,
+                textAlign: 'center',
+                color: '#71808f',
+                fontSize: 12,
+              }}
+            >
+              No se encontraron empresas.
+            </div>
+          )}
 
+        {!cargando &&
+          !error &&
           empresasFiltradas.map((empresa) => (
-
             <div
               key={empresa.id}
               style={{
                 display: 'grid',
                 gridTemplateColumns:
-                  'minmax(220px, 1fr) 180px 150px',
+                  '2fr 1fr 1fr 1fr 120px',
                 alignItems: 'center',
-                padding: '13px 16px',
-                borderBottom: '1px solid #1e2731'
+                padding: '14px 16px',
+                borderBottom: '1px solid #1c252e',
+                fontSize: 12,
               }}
             >
-
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10
-                }}
-              >
-
+              <div>
                 <div
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 6,
-                    background: 'rgba(255,106,0,.09)',
-                    border: '1px solid rgba(255,106,0,.20)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#ff6a00',
-                    flexShrink: 0
+                    fontWeight: 800,
+                    color: '#f3f4f6',
                   }}
                 >
-                  <Icon
-                    type="empresa"
-                    size={15}
-                  />
+                  {nombreEmpresa(empresa)}
                 </div>
 
                 <div
                   style={{
-                    fontSize: 12,
-                    fontWeight: 700
+                    marginTop: 4,
+                    color: '#596674',
+                    fontSize: 9,
                   }}
                 >
-                  {empresa.nombre}
+                  ID: {empresa.id?.slice(0, 8)}
                 </div>
-
               </div>
 
-              <div
-                style={{
-                  color: '#768088',
-                  fontSize: 10,
-                  fontFamily: 'monospace'
-                }}
-              >
-                {empresa.id?.slice(0, 12)}
+              <div style={{ color: '#a8b3be' }}>
+                {empresa.rut || '—'}
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: 6
-                }}
-              >
+              <div style={{ color: '#a8b3be' }}>
+                {empresa.sector || '—'}
+              </div>
 
-                <button
-                  onClick={() =>
-                    editarEmpresa(empresa)
-                  }
-                  title="Editar"
+              <div style={{ color: '#a8b3be' }}>
+                {empresa.pais || '—'}
+              </div>
+
+              <div>
+                <span
                   style={{
-                    width: 31,
-                    height: 31,
-                    background: '#181f27',
-                    border: '1px solid #27303a',
-                    borderRadius: 6,
-                    color: '#ff6a00',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer'
+                    display: 'inline-block',
+                    padding: '5px 9px',
+                    borderRadius: 20,
+                    background:
+                      empresa.estado === 'activa'
+                        ? 'rgba(34,197,94,.12)'
+                        : '#1b222a',
+                    color:
+                      empresa.estado === 'activa'
+                        ? '#4ade80'
+                        : '#8b98a5',
+                    fontSize: 9,
+                    fontWeight: 900,
+                    textTransform: 'uppercase',
                   }}
                 >
-                  <Icon
-                    type="editar"
-                    size={14}
-                  />
-                </button>
-
-                <button
-                  onClick={() =>
-                    eliminarEmpresa(empresa)
-                  }
-                  title="Eliminar"
-                  style={{
-                    width: 31,
-                    height: 31,
-                    background: '#181f27',
-                    border: '1px solid #27303a',
-                    borderRadius: 6,
-                    color: '#ef4444',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Icon
-                    type="eliminar"
-                    size={14}
-                  />
-                </button>
-
+                  {empresa.estado || 'Sin estado'}
+                </span>
               </div>
-
             </div>
-
-          ))
-
-        )}
-
+          ))}
       </div>
 
-      {/* ===================================================
-          MODAL
-      ==================================================== */}
+      {/* MODAL NUEVA EMPRESA */}
 
-      {modal && (
-
+      {mostrarFormulario && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 9999,
             background: 'rgba(0,0,0,.75)',
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'center',
-            padding: 20
+            alignItems: 'center',
+            zIndex: 9999,
+            padding: 20,
           }}
         >
-
           <div
             style={{
               width: '100%',
-              maxWidth: 440,
+              maxWidth: 480,
               background: '#11161d',
-              border: '1px solid #27303a',
-              borderRadius: 10,
-              boxShadow: '0 25px 60px rgba(0,0,0,.5)'
+              border: '1px solid #29333e',
+              borderRadius: 12,
+              padding: 24,
+              boxShadow: '0 25px 80px rgba(0,0,0,.6)',
             }}
           >
+            <div
+              style={{
+                color: '#ff6a00',
+                fontSize: 9,
+                fontWeight: 900,
+                letterSpacing: 1.4,
+              }}
+            >
+              VINCULAB
+            </div>
+
+            <h2
+              style={{
+                margin: '7px 0 4px',
+                fontSize: 20,
+              }}
+            >
+              Nueva empresa
+            </h2>
+
+            <div
+              style={{
+                color: '#778491',
+                fontSize: 12,
+                marginBottom: 22,
+              }}
+            >
+              Registra una nueva organización en la plataforma.
+            </div>
+
+            <Campo
+              label="Razón social"
+              value={form.razon_social}
+              placeholder="Ej: Hercom Chile"
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  razon_social: value,
+                })
+              }
+            />
+
+            <Campo
+              label="RUT"
+              value={form.rut}
+              placeholder="Ej: 76.123.456-7"
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  rut: value,
+                })
+              }
+            />
+
+            <Campo
+              label="Sector"
+              value={form.sector}
+              placeholder="Ej: Industrial"
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  sector: value,
+                })
+              }
+            />
+
+            <Campo
+              label="País"
+              value={form.pais}
+              placeholder="Chile"
+              onChange={(value) =>
+                setForm({
+                  ...form,
+                  pais: value,
+                })
+              }
+            />
 
             <div
               style={{
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '16px 18px',
-                borderBottom: '1px solid #1e2731'
+                justifyContent: 'flex-end',
+                gap: 10,
+                marginTop: 8,
               }}
             >
-
-              <div>
-                <div
-                  style={{
-                    color: '#ff6a00',
-                    fontSize: 8,
-                    fontWeight: 800,
-                    letterSpacing: 1.3
-                  }}
-                >
-                  VINCULAB
-                </div>
-
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 800,
-                    marginTop: 4
-                  }}
-                >
-                  {editando
-                    ? 'Editar empresa'
-                    : 'Nueva empresa'}
-                </div>
-              </div>
-
               <button
-                onClick={() => setModal(false)}
+                onClick={() => setMostrarFormulario(false)}
+                disabled={guardando}
                 style={{
-                  background: 'transparent',
+                  background: '#20262d',
+                  color: 'white',
                   border: 0,
-                  color: '#768088',
+                  borderRadius: 6,
+                  padding: '10px 15px',
                   cursor: 'pointer',
-                  display: 'flex'
                 }}
               >
-                <Icon
-                  type="cerrar"
-                  size={18}
-                />
+                Cancelar
               </button>
 
-            </div>
-
-            <div
-              style={{
-                padding: 18
-              }}
-            >
-
-              <label
+              <button
+                onClick={crearEmpresa}
+                disabled={guardando}
                 style={{
-                  display: 'block',
-                  color: '#768088',
-                  fontSize: 9,
-                  fontWeight: 800,
-                  letterSpacing: 1,
-                  marginBottom: 7
-                }}
-              >
-                NOMBRE DE LA EMPRESA
-              </label>
-
-              <input
-                autoFocus
-                value={nombre}
-                onChange={(e) =>
-                  setNombre(e.target.value)
-                }
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    guardarEmpresa()
-                  }
-                }}
-                placeholder="Ej: HERCOM CHILE"
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  background: '#090a0f',
-                  border: '1px solid #27303a',
+                  background: guardando
+                    ? '#8a3c00'
+                    : '#ff6a00',
+                  color: 'white',
+                  border: 0,
                   borderRadius: 6,
-                  padding: '11px 12px',
-                  color: '#ffffff',
-                  fontSize: 13,
-                  outline: 'none'
-                }}
-              />
-
-              {error && (
-                <div
-                  style={{
-                    marginTop: 12,
-                    padding: 10,
-                    background: '#2a1010',
-                    border: '1px solid #5f1d1d',
-                    borderRadius: 6,
-                    color: '#fca5a5',
-                    fontSize: 11
-                  }}
-                >
-                  {error}
-                </div>
-              )}
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: 8,
-                  marginTop: 20
+                  padding: '10px 17px',
+                  fontWeight: 900,
+                  cursor: guardando
+                    ? 'wait'
+                    : 'pointer',
                 }}
               >
-
-                <button
-                  onClick={() =>
-                    setModal(false)
-                  }
-                  disabled={guardando}
-                  style={{
-                    background: '#181f27',
-                    border: '1px solid #27303a',
-                    color: '#ffffff',
-                    borderRadius: 6,
-                    padding: '9px 14px',
-                    fontSize: 11,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  onClick={guardarEmpresa}
-                  disabled={guardando}
-                  style={{
-                    background: guardando
-                      ? '#7c3a0a'
-                      : '#ff6a00',
-                    border: 0,
-                    color: '#ffffff',
-                    borderRadius: 6,
-                    padding: '9px 15px',
-                    fontSize: 11,
-                    fontWeight: 800,
-                    cursor: guardando
-                      ? 'wait'
-                      : 'pointer'
-                  }}
-                >
-                  {guardando
-                    ? 'Guardando...'
-                    : editando
-                      ? 'Guardar cambios'
-                      : 'Crear empresa'}
-                </button>
-
-              </div>
-
+                {guardando
+                  ? 'Guardando...'
+                  : 'Crear empresa'}
+              </button>
             </div>
-
           </div>
-
         </div>
-
       )}
+    </div>
+  )
+}
 
+function Campo({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string
+  value: string
+  placeholder: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div style={{ marginBottom: 15 }}>
+      <label
+        style={{
+          display: 'block',
+          fontSize: 9,
+          color: '#7c8996',
+          fontWeight: 900,
+          letterSpacing: 1,
+          marginBottom: 7,
+        }}
+      >
+        {label.toUpperCase()}
+      </label>
+
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          width: '100%',
+          boxSizing: 'border-box',
+          background: '#080b10',
+          border: '1px solid #29333e',
+          borderRadius: 6,
+          padding: '11px 12px',
+          color: 'white',
+          outline: 'none',
+          fontSize: 12,
+        }}
+      />
     </div>
   )
 }

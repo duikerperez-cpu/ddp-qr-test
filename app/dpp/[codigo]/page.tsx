@@ -52,6 +52,26 @@ function fecha(valor: any) {
   }
 }
 
+function formatEventDate(valor: any) {
+  if (!valor) return 'Fecha no informada'
+
+  try {
+    const d = new Date(valor)
+
+    if (Number.isNaN(d.getTime())) return String(valor)
+
+    return new Intl.DateTimeFormat('es-CL', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d)
+  } catch {
+    return String(valor)
+  }
+}
+
 async function buscarPorId(tabla: string, id: any) {
   if (!id) return null
 
@@ -233,6 +253,38 @@ export default async function DPPPage({ params }: Props) {
     errorCorrectionLevel: 'H',
     color: { dark: '#071018', light: '#ffffff' },
   })
+
+  /* =========================================================
+     6. HISTORIAL DE TRAZABILIDAD
+  ========================================================= */
+
+  let eventosTrazabilidad: any[] = []
+
+  const { data: eventosPorUnidad, error: eventosUnidadError } = await supabase
+    .from('eventos_trazabilidad')
+    .select('*')
+    .eq('unidad_id', identidad.id)
+    .order('fecha_evento', { ascending: true })
+
+  if (eventosUnidadError) {
+    console.error('Error consultando trazabilidad por unidad:', eventosUnidadError)
+  } else {
+    eventosTrazabilidad = eventosPorUnidad || []
+  }
+
+  if (eventosTrazabilidad.length === 0) {
+    const { data: eventosPorCodigo, error: eventosCodigoError } = await supabase
+      .from('eventos_trazabilidad')
+      .select('*')
+      .eq('codigo_unidad', codigoLimpio)
+      .order('fecha_evento', { ascending: true })
+
+    if (eventosCodigoError) {
+      console.error('Error consultando trazabilidad por código:', eventosCodigoError)
+    } else {
+      eventosTrazabilidad = eventosPorCodigo || []
+    }
+  }
 
   return (
     <main className="page">
@@ -2126,6 +2178,15 @@ export default async function DPPPage({ params }: Props) {
         ============================================== */
 
         .traceHistorySection { margin-top:28px; }
+        .sectionTop {
+          display:flex; align-items:flex-end; justify-content:space-between;
+          gap:24px; margin-bottom:18px;
+        }
+        .sectionTop h2 { margin:0; font-size:25px; letter-spacing:-.5px; }
+        .sectionMeta {
+          color:#6f879a; font-size:10px; font-weight:800;
+          letter-spacing:.5px; text-align:right;
+        }
         .traceTimeline { margin-top:18px; }
         .traceEvent { display:grid; grid-template-columns:52px minmax(0,1fr); gap:15px; }
         .traceRail { position:relative; display:flex; flex-direction:column; align-items:center; }

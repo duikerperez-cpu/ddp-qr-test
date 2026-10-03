@@ -8,12 +8,16 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+/* =========================================================
+   TIPOS
+========================================================= */
+
 type Empresa = {
   id: string
-  razon_social?: string | null
   nombre?: string | null
-  name?: string | null
+  razon_social?: string | null
   empresa_nombre?: string | null
+  name?: string | null
 }
 
 type Producto = {
@@ -39,40 +43,91 @@ type Lote = {
   cantidad: number | null
   modelo_id: string | null
   empresa_id: string | null
-  estado: string | null
-  created_at: string | null
   producto_id: string | null
-  fecha_produccion: string | null
-  fecha_vencimiento: string | null
-  ubicacion: string | null
-  observaciones: string | null
+  estado: string | null
+  created_at?: string | null
+  fecha_produccion?: string | null
+  fecha_vencimiento?: string | null
+  ubicacion?: string | null
+  observaciones?: string | null
 }
 
-type FormLote = {
-  empresa_id: string
-  producto_id: string
-  modelo_id: string
-  codigo: string
-  cantidad: string
-  fecha_produccion: string
-  fecha_vencimiento: string
-  ubicacion: string
-  estado: string
-  observaciones: string
+type ProductoIndividual = {
+  id: string
+  lote_id: string | null
+  empresa_id: string | null
+  modelo_id: string | null
+  producto_id: string | null
+  numero_unidad: number | null
+  codigo_publico: string | null
+  codigo_qr: string | null
+  url_dpp: string | null
+  nfc_uid: string | null
+  estado: string | null
+  created_at?: string | null
 }
 
-const formInicial: FormLote = {
-  empresa_id: '',
-  producto_id: '',
-  modelo_id: '',
-  codigo: '',
-  cantidad: '1',
-  fecha_produccion: '',
-  fecha_vencimiento: '',
-  ubicacion: '',
-  estado: 'activo',
-  observaciones: '',
+/* =========================================================
+   UTILIDADES
+========================================================= */
+
+function nombreEmpresa(e?: Empresa) {
+  return (
+    e?.razon_social ||
+    e?.nombre ||
+    e?.empresa_nombre ||
+    e?.name ||
+    'Empresa'
+  )
 }
+
+function fechaCL(value?: string | null) {
+  if (!value) return '—'
+
+  try {
+    const d = new Date(value)
+
+    if (Number.isNaN(d.getTime())) {
+      return value
+    }
+
+    return d.toLocaleDateString('es-CL')
+  } catch {
+    return value
+  }
+}
+
+function generarCodigoPublico() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+  let codigo = ''
+
+  for (let i = 0; i < 12; i++) {
+    codigo += chars.charAt(
+      Math.floor(Math.random() * chars.length)
+    )
+  }
+
+  return codigo
+}
+
+function generarCodigoLote() {
+  const ahora = new Date()
+
+  const yyyy = ahora.getFullYear()
+  const mm = String(ahora.getMonth() + 1).padStart(2, '0')
+  const dd = String(ahora.getDate()).padStart(2, '0')
+
+  const hh = String(ahora.getHours()).padStart(2, '0')
+  const mi = String(ahora.getMinutes()).padStart(2, '0')
+  const ss = String(ahora.getSeconds()).padStart(2, '0')
+
+  return `LOT-${yyyy}${mm}${dd}-${hh}${mi}${ss}`
+}
+
+/* =========================================================
+   COMPONENTE
+========================================================= */
 
 export default function LotesPage() {
   const [lotes, setLotes] = useState<Lote[]>([])
@@ -80,235 +135,218 @@ export default function LotesPage() {
   const [productos, setProductos] = useState<Producto[]>([])
   const [modelos, setModelos] = useState<Modelo[]>([])
 
-  const [form, setForm] = useState<FormLote>(formInicial)
-
   const [busqueda, setBusqueda] = useState('')
-  const [modal, setModal] = useState(false)
-  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const [cargando, setCargando] = useState(true)
+  const [modal, setModal] = useState(false)
   const [guardando, setGuardando] = useState(false)
-  const [error, setError] = useState('')
+
   const [mensaje, setMensaje] = useState('')
+  const [error, setError] = useState('')
+
+  const [empresaId, setEmpresaId] = useState('')
+  const [productoId, setProductoId] = useState('')
+  const [modeloId, setModeloId] = useState('')
+
+  const [codigo, setCodigo] = useState('')
+  const [cantidad, setCantidad] = useState('1')
+
+  const [fechaProduccion, setFechaProduccion] = useState('')
+  const [fechaVencimiento, setFechaVencimiento] = useState('')
+  const [ubicacion, setUbicacion] = useState('')
+  const [observaciones, setObservaciones] = useState('')
+
+  /* =======================================================
+     CARGA DE DATOS
+  ======================================================= */
+
+  async function cargarTodo() {
+    setLoading(true)
+    setError('')
+
+    try {
+      const [
+        empresasRes,
+        productosRes,
+        modelosRes,
+        lotesRes
+      ] = await Promise.all([
+        supabase.from('empresas').select('*'),
+
+        supabase
+          .from('productos')
+          .select('*')
+          .order('created_at', { ascending: false }),
+
+        supabase
+          .from('modelos')
+          .select('*')
+          .order('created_at', { ascending: false }),
+
+        supabase
+          .from('lotes')
+          .select('*')
+          .order('created_at', { ascending: false })
+      ])
+
+      if (empresasRes.error) {
+        throw empresasRes.error
+      }
+
+      if (productosRes.error) {
+        throw productosRes.error
+      }
+
+      if (modelosRes.error) {
+        throw modelosRes.error
+      }
+
+      if (lotesRes.error) {
+        throw lotesRes.error
+      }
+
+      setEmpresas(empresasRes.data || [])
+      setProductos(productosRes.data || [])
+      setModelos(modelosRes.data || [])
+      setLotes(lotesRes.data || [])
+    } catch (err: any) {
+      console.error(err)
+
+      setError(
+        err?.message ||
+        'No fue posible cargar los datos.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     cargarTodo()
   }, [])
 
-  async function cargarTodo() {
-    setCargando(true)
-    setError('')
-
-    try {
-      const [
-        lotesResult,
-        empresasResult,
-        productosResult,
-        modelosResult,
-      ] = await Promise.all([
-        supabase.from('lotes').select('*'),
-        supabase.from('empresas').select('*'),
-        supabase.from('productos').select('*'),
-        supabase.from('modelos').select('*'),
-      ])
-
-      if (lotesResult.error) throw lotesResult.error
-      if (empresasResult.error) throw empresasResult.error
-      if (productosResult.error) throw productosResult.error
-      if (modelosResult.error) throw modelosResult.error
-
-      const lotesOrdenados = [...(lotesResult.data || [])].sort(
-        (a: any, b: any) => {
-          const fechaA = a.created_at
-            ? new Date(a.created_at).getTime()
-            : 0
-
-          const fechaB = b.created_at
-            ? new Date(b.created_at).getTime()
-            : 0
-
-          return fechaB - fechaA
-        }
-      )
-
-      setLotes(lotesOrdenados as Lote[])
-      setEmpresas((empresasResult.data || []) as Empresa[])
-      setProductos((productosResult.data || []) as Producto[])
-      setModelos((modelosResult.data || []) as Modelo[])
-    } catch (err: any) {
-      console.error(err)
-      setError(err?.message || 'No fue posible cargar la información.')
-    } finally {
-      setCargando(false)
-    }
-  }
-
-  function nombreEmpresa(empresa?: Empresa) {
-    if (!empresa) return '—'
-
-    return (
-      empresa.razon_social ||
-      empresa.nombre ||
-      empresa.name ||
-      empresa.empresa_nombre ||
-      'Empresa sin nombre'
-    )
-  }
-
-  function buscarEmpresa(id: string | null) {
-    if (!id) return undefined
-    return empresas.find((empresa) => empresa.id === id)
-  }
-
-  function buscarProducto(id: string | null) {
-    if (!id) return undefined
-    return productos.find((producto) => producto.id === id)
-  }
-
-  function buscarModelo(id: string | null) {
-    if (!id) return undefined
-    return modelos.find((modelo) => modelo.id === id)
-  }
+  /* =======================================================
+     FILTROS FORMULARIO
+  ======================================================= */
 
   const productosEmpresa = useMemo(() => {
-    if (!form.empresa_id) return []
+    if (!empresaId) return []
 
     return productos.filter(
-      (producto) => producto.empresa_id === form.empresa_id
+      p => p.empresa_id === empresaId
     )
-  }, [productos, form.empresa_id])
+  }, [productos, empresaId])
 
   const modelosProducto = useMemo(() => {
-    if (!form.producto_id) return []
+    if (!productoId) return []
 
     return modelos.filter(
-      (modelo) =>
-        modelo.producto_id === form.producto_id &&
-        (!form.empresa_id || modelo.empresa_id === form.empresa_id)
+      m =>
+        m.producto_id === productoId &&
+        (!empresaId || m.empresa_id === empresaId)
     )
-  }, [modelos, form.producto_id, form.empresa_id])
+  }, [modelos, productoId, empresaId])
+
+  /* =======================================================
+     MAPAS
+  ======================================================= */
+
+  const empresaMap = useMemo(() => {
+    const map = new Map<string, Empresa>()
+
+    empresas.forEach(e => {
+      map.set(e.id, e)
+    })
+
+    return map
+  }, [empresas])
+
+  const productoMap = useMemo(() => {
+    const map = new Map<string, Producto>()
+
+    productos.forEach(p => {
+      map.set(p.id, p)
+    })
+
+    return map
+  }, [productos])
+
+  const modeloMap = useMemo(() => {
+    const map = new Map<string, Modelo>()
+
+    modelos.forEach(m => {
+      map.set(m.id, m)
+    })
+
+    return map
+  }, [modelos])
+
+  /* =======================================================
+     BUSCADOR
+  ======================================================= */
 
   const lotesFiltrados = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase()
+    const q = busqueda.trim().toLowerCase()
 
-    if (!texto) return lotes
+    if (!q) return lotes
 
-    return lotes.filter((lote) => {
-      const empresa = buscarEmpresa(lote.empresa_id)
-      const producto = buscarProducto(lote.producto_id)
-      const modelo = buscarModelo(lote.modelo_id)
+    return lotes.filter(lote => {
+      const empresa = lote.empresa_id
+        ? empresaMap.get(lote.empresa_id)
+        : undefined
 
-      const contenido = [
+      const producto = lote.producto_id
+        ? productoMap.get(lote.producto_id)
+        : undefined
+
+      const modelo = lote.modelo_id
+        ? modeloMap.get(lote.modelo_id)
+        : undefined
+
+      return [
         lote.codigo,
         nombreEmpresa(empresa),
         producto?.nombre,
         producto?.sku,
+        producto?.categoria,
         modelo?.nombre,
+        modelo?.categoria,
         lote.estado,
-        lote.ubicacion,
+        lote.ubicacion
       ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
-
-      return contenido.includes(texto)
+        .includes(q)
     })
-  }, [busqueda, lotes, empresas, productos, modelos])
+  }, [
+    lotes,
+    busqueda,
+    empresaMap,
+    productoMap,
+    modeloMap
+  ])
 
-  function cambiarCampo(
-    campo: keyof FormLote,
-    valor: string
-  ) {
-    setForm((anterior) => ({
-      ...anterior,
-      [campo]: valor,
-    }))
-  }
+  /* =======================================================
+     MODAL
+  ======================================================= */
 
-  function seleccionarEmpresa(empresaId: string) {
-    setForm((anterior) => ({
-      ...anterior,
-      empresa_id: empresaId,
-      producto_id: '',
-      modelo_id: '',
-    }))
-  }
+  function abrirModal() {
+    setEmpresaId('')
+    setProductoId('')
+    setModeloId('')
 
-  function seleccionarProducto(productoId: string) {
-    setForm((anterior) => ({
-      ...anterior,
-      producto_id: productoId,
-      modelo_id: '',
-    }))
-  }
+    setCodigo(generarCodigoLote())
+    setCantidad('1')
 
-  function generarCodigo() {
-    const empresa = buscarEmpresa(form.empresa_id)
-    const producto = buscarProducto(form.producto_id)
+    setFechaProduccion('')
+    setFechaVencimiento('')
+    setUbicacion('')
+    setObservaciones('')
 
-    const empresaTexto = nombreEmpresa(empresa)
-      .replace(/[^a-zA-Z0-9]/g, '')
-      .substring(0, 3)
-      .toUpperCase()
-
-    const productoTexto = (producto?.nombre || 'PRO')
-      .replace(/[^a-zA-Z0-9]/g, '')
-      .substring(0, 3)
-      .toUpperCase()
-
-    const ahora = new Date()
-
-    const fecha =
-      String(ahora.getFullYear()) +
-      String(ahora.getMonth() + 1).padStart(2, '0') +
-      String(ahora.getDate()).padStart(2, '0')
-
-    const aleatorio = Math.floor(100 + Math.random() * 900)
-
-    cambiarCampo(
-      'codigo',
-      `LOT-${empresaTexto || 'VIN'}-${productoTexto}-${fecha}-${aleatorio}`
-    )
-  }
-
-  function nuevoLote() {
-    setEditandoId(null)
-    setForm(formInicial)
-    setError('')
     setMensaje('')
-    setModal(true)
-  }
-
-  function editarLote(lote: Lote) {
-    let productoId = lote.producto_id || ''
-
-    // Compatibilidad con lotes antiguos:
-    // si no tienen producto_id, intentamos obtenerlo desde el modelo.
-    if (!productoId && lote.modelo_id) {
-      const modelo = buscarModelo(lote.modelo_id)
-
-      if (modelo?.producto_id) {
-        productoId = modelo.producto_id
-      }
-    }
-
-    setEditandoId(lote.id)
-
-    setForm({
-      empresa_id: lote.empresa_id || '',
-      producto_id: productoId,
-      modelo_id: lote.modelo_id || '',
-      codigo: lote.codigo || '',
-      cantidad: String(lote.cantidad || 1),
-      fecha_produccion: lote.fecha_produccion || '',
-      fecha_vencimiento: lote.fecha_vencimiento || '',
-      ubicacion: lote.ubicacion || '',
-      estado: lote.estado || 'activo',
-      observaciones: lote.observaciones || '',
-    })
-
     setError('')
-    setMensaje('')
+
     setModal(true)
   }
 
@@ -316,172 +354,400 @@ export default function LotesPage() {
     if (guardando) return
 
     setModal(false)
-    setEditandoId(null)
-    setForm(formInicial)
-    setError('')
   }
+
+  /* =======================================================
+     CREAR IDENTIDADES
+  ======================================================= */
+
+  async function crearIdentidades(
+    lote: Lote,
+    total: number
+  ) {
+    /*
+      IMPORTANTE:
+
+      Cada unidad física obtiene:
+
+      lote_id
+      empresa_id
+      producto_id
+      modelo_id
+      numero_unidad
+      codigo_publico
+      codigo_qr
+      url_dpp
+      nfc_uid = null
+      estado = activo
+    */
+
+    const unidades: any[] = []
+
+    for (let i = 1; i <= total; i++) {
+      const codigoPublico = generarCodigoPublico()
+
+      unidades.push({
+        id: `${lote.codigo}-${String(i).padStart(4, '0')}`,
+
+        lote_id: lote.id,
+
+        empresa_id: lote.empresa_id,
+
+        producto_id: lote.producto_id,
+
+        modelo_id: lote.modelo_id,
+
+        numero_unidad: i,
+
+        codigo_publico: codigoPublico,
+
+        codigo_qr: codigoPublico,
+
+        url_dpp:
+          `https://vinculab.cl/dpp/${codigoPublico}`,
+
+        nfc_uid: null,
+
+        estado: 'activo'
+      })
+    }
+
+    /*
+      Supabase permite insertar varias filas.
+
+      Lo hacemos por bloques para que un lote grande
+      no mande una solicitud excesivamente grande.
+    */
+
+    const TAMANO_BLOQUE = 250
+
+    for (
+      let inicio = 0;
+      inicio < unidades.length;
+      inicio += TAMANO_BLOQUE
+    ) {
+      const bloque = unidades.slice(
+        inicio,
+        inicio + TAMANO_BLOQUE
+      )
+
+      const { error } = await supabase
+        .from('productos_individuales')
+        .insert(bloque)
+
+      if (error) {
+        throw error
+      }
+    }
+  }
+
+  /* =======================================================
+     GUARDAR LOTE
+  ======================================================= */
 
   async function guardarLote() {
     setError('')
     setMensaje('')
 
-    if (!form.empresa_id) {
+    if (!empresaId) {
       setError('Selecciona una empresa.')
       return
     }
 
-    if (!form.producto_id) {
+    if (!productoId) {
       setError('Selecciona un producto.')
       return
     }
 
-    if (!form.modelo_id) {
+    if (!modeloId) {
       setError('Selecciona un modelo.')
       return
     }
 
-    if (!form.codigo.trim()) {
-      setError('Ingresa o genera un código de lote.')
-      return
-    }
-
-    const cantidad = Number(form.cantidad)
-
-    if (!Number.isFinite(cantidad) || cantidad < 1) {
-      setError('La cantidad debe ser mayor o igual a 1.')
-      return
-    }
-
-    const producto = productos.find(
-      (item) => item.id === form.producto_id
-    )
-
-    const modelo = modelos.find(
-      (item) => item.id === form.modelo_id
-    )
-
-    if (!producto) {
-      setError('El producto seleccionado no existe.')
-      return
-    }
-
-    if (producto.empresa_id !== form.empresa_id) {
-      setError('El producto no pertenece a la empresa seleccionada.')
-      return
-    }
-
-    if (!modelo) {
-      setError('El modelo seleccionado no existe.')
-      return
-    }
-
-    if (modelo.producto_id !== form.producto_id) {
-      setError('El modelo no pertenece al producto seleccionado.')
-      return
-    }
+    const total = Number(cantidad)
 
     if (
-      form.fecha_produccion &&
-      form.fecha_vencimiento &&
-      form.fecha_vencimiento < form.fecha_produccion
+      !Number.isInteger(total) ||
+      total <= 0
     ) {
       setError(
-        'La fecha de vencimiento no puede ser anterior a la fecha de producción.'
+        'La cantidad debe ser un número entero mayor que 0.'
+      )
+      return
+    }
+
+    /*
+      Protección simple para evitar crear accidentalmente
+      miles de identidades desde el navegador.
+    */
+
+    if (total > 5000) {
+      setError(
+        'Por seguridad, crea lotes de hasta 5.000 unidades por operación.'
       )
       return
     }
 
     setGuardando(true)
 
-    const payload = {
-      codigo: form.codigo.trim(),
-      cantidad,
-      empresa_id: form.empresa_id,
-      producto_id: form.producto_id,
-      modelo_id: form.modelo_id,
-      fecha_produccion: form.fecha_produccion || null,
-      fecha_vencimiento: form.fecha_vencimiento || null,
-      ubicacion: form.ubicacion.trim() || null,
-      estado: form.estado || 'activo',
-      observaciones: form.observaciones.trim() || null,
-    }
+    let loteCreado: Lote | null = null
 
     try {
-      if (editandoId) {
-        const { error } = await supabase
+      /*
+        1. Evitamos duplicar código de lote.
+      */
+
+      const { data: loteExistente, error: checkError } =
+        await supabase
           .from('lotes')
-          .update(payload)
-          .eq('id', editandoId)
+          .select('id')
+          .eq('codigo', codigo.trim())
+          .maybeSingle()
 
-        if (error) throw error
-
-        setMensaje('Lote actualizado correctamente.')
-      } else {
-        const { error } = await supabase
-          .from('lotes')
-          .insert(payload)
-
-        if (error) throw error
-
-        setMensaje('Lote creado correctamente.')
+      if (checkError) {
+        throw checkError
       }
 
+      if (loteExistente) {
+        throw new Error(
+          'Ya existe un lote con ese código.'
+        )
+      }
+
+      /*
+        2. Creamos el lote.
+      */
+
+      const payload = {
+        codigo: codigo.trim(),
+
+        empresa_id: empresaId,
+        producto_id: productoId,
+        modelo_id: modeloId,
+
+        cantidad: total,
+
+        fecha_produccion:
+          fechaProduccion || null,
+
+        fecha_vencimiento:
+          fechaVencimiento || null,
+
+        ubicacion:
+          ubicacion.trim() || null,
+
+        observaciones:
+          observaciones.trim() || null,
+
+        estado: 'activo'
+      }
+
+      const { data, error: loteError } =
+        await supabase
+          .from('lotes')
+          .insert(payload)
+          .select('*')
+          .single()
+
+      if (loteError) {
+        throw loteError
+      }
+
+      loteCreado = data as Lote
+
+      /*
+        3. Comprobamos que no existan identidades
+           para ese lote.
+
+           Esto evita duplicaciones accidentales.
+      */
+
+      const {
+        count,
+        error: countError
+      } = await supabase
+        .from('productos_individuales')
+        .select('*', {
+          count: 'exact',
+          head: true
+        })
+        .eq('lote_id', loteCreado.id)
+
+      if (countError) {
+        throw countError
+      }
+
+      if ((count || 0) > 0) {
+        throw new Error(
+          'El lote ya posee productos individuales. Se canceló la generación para evitar duplicados.'
+        )
+      }
+
+      /*
+        4. Generamos las identidades digitales.
+      */
+
+      await crearIdentidades(
+        loteCreado,
+        total
+      )
+
+      /*
+        5. Verificación final.
+      */
+
+      const {
+        count: creadas,
+        error: verifyError
+      } = await supabase
+        .from('productos_individuales')
+        .select('*', {
+          count: 'exact',
+          head: true
+        })
+        .eq('lote_id', loteCreado.id)
+
+      if (verifyError) {
+        throw verifyError
+      }
+
+      if ((creadas || 0) !== total) {
+        throw new Error(
+          `El lote fue creado, pero se esperaban ${total} identidades y se encontraron ${creadas || 0}.`
+        )
+      }
+
+      setMensaje(
+        `Lote ${loteCreado.codigo} creado correctamente con ${total} identidades digitales.`
+      )
+
       setModal(false)
-      setEditandoId(null)
-      setForm(formInicial)
 
       await cargarTodo()
     } catch (err: any) {
-      console.error(err)
+      console.error(
+        'Error creando lote:',
+        err
+      )
 
-      if (err?.code === '23505') {
-        setError('Ya existe un lote con ese código.')
+      /*
+        Si el lote alcanzó a crearse pero fallaron
+        las identidades, NO ocultamos el problema.
+
+        Tampoco generamos nuevamente automáticamente
+        porque podríamos duplicar unidades.
+      */
+
+      if (loteCreado) {
+        setError(
+          `El lote ${loteCreado.codigo} fue creado, pero ocurrió un problema generando sus identidades: ${
+            err?.message || 'Error desconocido'
+          }`
+        )
       } else {
         setError(
           err?.message ||
-            'No fue posible guardar el lote.'
+          'No fue posible crear el lote.'
         )
       }
+
+      await cargarTodo()
     } finally {
       setGuardando(false)
     }
   }
 
-  function fechaBonita(fecha: string | null) {
-    if (!fecha) return '—'
+  /* =======================================================
+     ESTILOS
+  ======================================================= */
 
-    const partes = fecha.substring(0, 10).split('-')
-
-    if (partes.length !== 3) return fecha
-
-    return `${partes[2]}-${partes[1]}-${partes[0]}`
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    background: '#090d12',
+    border: '1px solid #28323d',
+    color: '#fff',
+    borderRadius: 7,
+    padding: '11px 13px',
+    outline: 'none',
+    fontSize: 13
   }
 
-  function estadoBonito(estado: string | null) {
-    if (!estado) return 'SIN ESTADO'
-
-    return estado.replaceAll('_', ' ').toUpperCase()
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: 9,
+    color: '#7892ad',
+    letterSpacing: 1.2,
+    fontWeight: 800,
+    marginBottom: 7
   }
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
-    <div style={styles.pagina}>
+    <div
+      style={{
+        maxWidth: 1500,
+        margin: '0 auto'
+      }}
+    >
       {/* CABECERA */}
 
-      <div style={styles.cabecera}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 20,
+          alignItems: 'flex-start',
+          marginBottom: 28
+        }}
+      >
         <div>
-          <div style={styles.seccion}>GESTIÓN</div>
+          <div
+            style={{
+              color: '#ff6a00',
+              fontSize: 10,
+              fontWeight: 900,
+              letterSpacing: 1.3,
+              marginBottom: 8
+            }}
+          >
+            GESTIÓN
+          </div>
 
-          <h1 style={styles.titulo}>Lotes</h1>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 27,
+              fontWeight: 900
+            }}
+          >
+            Lotes
+          </h1>
 
-          <p style={styles.subtitulo}>
+          <p
+            style={{
+              margin: '8px 0 0',
+              color: '#7892ad',
+              fontSize: 13
+            }}
+          >
             Gestión de lotes de producción y trazabilidad.
           </p>
         </div>
 
         <button
-          type="button"
-          onClick={nuevoLote}
-          style={styles.botonPrincipal}
+          onClick={abrirModal}
+          style={{
+            background: '#ff6a00',
+            border: 'none',
+            color: '#fff',
+            padding: '12px 18px',
+            borderRadius: 7,
+            fontWeight: 900,
+            cursor: 'pointer'
+          }}
         >
           + Nuevo lote
         </button>
@@ -489,464 +755,841 @@ export default function LotesPage() {
 
       {/* MENSAJES */}
 
-      {error && !modal && (
-        <div style={styles.alertaError}>
+      {mensaje && (
+        <div
+          style={{
+            background: 'rgba(0,200,120,.08)',
+            border: '1px solid rgba(0,200,120,.25)',
+            color: '#43df9a',
+            padding: 13,
+            borderRadius: 8,
+            marginBottom: 18,
+            fontSize: 12
+          }}
+        >
+          {mensaje}
+        </div>
+      )}
+
+      {error && (
+        <div
+          style={{
+            background: 'rgba(255,70,70,.08)',
+            border: '1px solid rgba(255,70,70,.25)',
+            color: '#ff8585',
+            padding: 13,
+            borderRadius: 8,
+            marginBottom: 18,
+            fontSize: 12
+          }}
+        >
           {error}
         </div>
       )}
 
-      {mensaje && (
-        <div style={styles.alertaExito}>
-          ● {mensaje}
-        </div>
-      )}
+      {/* TARJETA TOTAL */}
 
-      {/* TARJETA CONTADOR */}
-
-      <div style={styles.tarjetaContador}>
-        <div>
-          <div style={styles.etiqueta}>
+      <div
+        style={{
+          width: 350,
+          minHeight: 155,
+          background: '#111820',
+          border: '1px solid #27313b',
+          borderLeft: '3px solid #ff6a00',
+          borderRadius: 9,
+          padding: 22,
+          marginBottom: 20
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between'
+          }}
+        >
+          <span
+            style={{
+              color: '#7892ad',
+              fontSize: 9,
+              fontWeight: 900,
+              letterSpacing: 1.4
+            }}
+          >
             LOTES REGISTRADOS
-          </div>
+          </span>
 
-          <div style={styles.numero}>
-            {lotes.length}
-          </div>
+          <span
+            style={{
+              color: '#ff6a00',
+              fontSize: 18
+            }}
+          >
+            ▤
+          </span>
         </div>
 
-        <div style={styles.iconoNaranja}>
-          ▤
+        <div
+          style={{
+            fontSize: 34,
+            fontWeight: 900,
+            marginTop: 30
+          }}
+        >
+          {lotes.length}
         </div>
       </div>
 
       {/* BUSCADOR */}
 
-      <div style={styles.buscadorCaja}>
-        <span style={styles.lupa}>⌕</span>
-
+      <div
+        style={{
+          background: '#0f151c',
+          border: '1px solid #26313b',
+          borderRadius: 9,
+          padding: 14,
+          marginBottom: 14
+        }}
+      >
         <input
           value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
+          onChange={e =>
+            setBusqueda(e.target.value)
+          }
           placeholder="Buscar lote, producto, modelo, empresa o código..."
-          style={styles.buscador}
+          style={{
+            ...inputStyle,
+            maxWidth: 600
+          }}
         />
       </div>
 
       {/* TABLA */}
 
-      <div style={styles.tablaCaja}>
-        <div style={styles.tablaCabecera}>
-          <div>LOTE</div>
-          <div>PRODUCTO / MODELO</div>
-          <div>EMPRESA</div>
-          <div>CANTIDAD</div>
-          <div>PRODUCCIÓN</div>
-          <div>ESTADO</div>
-          <div>ACCIONES</div>
+      <div
+        style={{
+          background: '#0f151c',
+          border: '1px solid #26313b',
+          borderRadius: 9,
+          overflow: 'hidden'
+        }}
+      >
+        <div
+          style={{
+            overflowX: 'auto'
+          }}
+        >
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              minWidth: 1050
+            }}
+          >
+            <thead>
+              <tr>
+                {[
+                  'LOTE',
+                  'PRODUCTO / MODELO',
+                  'EMPRESA',
+                  'CANTIDAD',
+                  'PRODUCCIÓN',
+                  'ESTADO',
+                  'ACCIONES'
+                ].map(t => (
+                  <th
+                    key={t}
+                    style={{
+                      textAlign: 'left',
+                      padding: '14px 16px',
+                      fontSize: 8,
+                      color: '#7892ad',
+                      letterSpacing: 1.3,
+                      borderBottom:
+                        '1px solid #26313b'
+                    }}
+                  >
+                    {t}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    style={{
+                      padding: 40,
+                      textAlign: 'center',
+                      color: '#7892ad'
+                    }}
+                  >
+                    Cargando lotes...
+                  </td>
+                </tr>
+              ) : lotesFiltrados.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    style={{
+                      padding: 40,
+                      textAlign: 'center',
+                      color: '#7892ad'
+                    }}
+                  >
+                    No se encontraron lotes.
+                  </td>
+                </tr>
+              ) : (
+                lotesFiltrados.map(lote => {
+                  const empresa =
+                    lote.empresa_id
+                      ? empresaMap.get(
+                          lote.empresa_id
+                        )
+                      : undefined
+
+                  const producto =
+                    lote.producto_id
+                      ? productoMap.get(
+                          lote.producto_id
+                        )
+                      : undefined
+
+                  const modelo =
+                    lote.modelo_id
+                      ? modeloMap.get(
+                          lote.modelo_id
+                        )
+                      : undefined
+
+                  return (
+                    <tr key={lote.id}>
+                      <td
+                        style={{
+                          padding: 16,
+                          borderBottom:
+                            '1px solid #26313b'
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: 900,
+                            fontSize: 12
+                          }}
+                        >
+                          {lote.codigo || '—'}
+                        </div>
+
+                        <div
+                          style={{
+                            color: '#58708a',
+                            fontSize: 9,
+                            marginTop: 5
+                          }}
+                        >
+                          ID: {lote.id.slice(0, 8)}
+                        </div>
+                      </td>
+
+                      <td
+                        style={{
+                          padding: 16,
+                          borderBottom:
+                            '1px solid #26313b'
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 12
+                          }}
+                        >
+                          {producto?.nombre || '—'}
+                        </div>
+
+                        <div
+                          style={{
+                            color: '#66819c',
+                            fontSize: 9,
+                            marginTop: 5
+                          }}
+                        >
+                          {modelo?.nombre ||
+                            'Modelo no identificado'}
+                        </div>
+                      </td>
+
+                      <td
+                        style={{
+                          padding: 16,
+                          borderBottom:
+                            '1px solid #26313b'
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            background:
+                              'rgba(255,106,0,.08)',
+                            border:
+                              '1px solid rgba(255,106,0,.35)',
+                            color: '#ff7b22',
+                            borderRadius: 6,
+                            padding: '6px 9px',
+                            fontSize: 10,
+                            fontWeight: 900
+                          }}
+                        >
+                          {nombreEmpresa(empresa)}
+                        </span>
+                      </td>
+
+                      <td
+                        style={{
+                          padding: 16,
+                          borderBottom:
+                            '1px solid #26313b',
+                          fontWeight: 900
+                        }}
+                      >
+                        {lote.cantidad || 0}
+                      </td>
+
+                      <td
+                        style={{
+                          padding: 16,
+                          borderBottom:
+                            '1px solid #26313b',
+                          fontSize: 11
+                        }}
+                      >
+                        {fechaCL(
+                          lote.fecha_produccion
+                        )}
+
+                        {lote.fecha_vencimiento && (
+                          <div
+                            style={{
+                              color: '#66819c',
+                              fontSize: 9,
+                              marginTop: 5
+                            }}
+                          >
+                            Vence:{' '}
+                            {fechaCL(
+                              lote.fecha_vencimiento
+                            )}
+                          </div>
+                        )}
+                      </td>
+
+                      <td
+                        style={{
+                          padding: 16,
+                          borderBottom:
+                            '1px solid #26313b'
+                        }}
+                      >
+                        <span
+                          style={{
+                            background:
+                              'rgba(0,200,120,.12)',
+                            color: '#31df8c',
+                            padding: '6px 10px',
+                            borderRadius: 20,
+                            fontSize: 8,
+                            fontWeight: 900
+                          }}
+                        >
+                          {(
+                            lote.estado || 'activo'
+                          ).toUpperCase()}
+                        </span>
+                      </td>
+
+                      <td
+                        style={{
+                          padding: 16,
+                          borderBottom:
+                            '1px solid #26313b'
+                        }}
+                      >
+                        <button
+                          style={{
+                            background: '#15202a',
+                            border:
+                              '1px solid #2b3946',
+                            color: '#fff',
+                            padding: '8px 12px',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            fontWeight: 800,
+                            fontSize: 10
+                          }}
+                        >
+                          Editar
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-
-        {cargando ? (
-          <div style={styles.vacio}>
-            Cargando lotes...
-          </div>
-        ) : lotesFiltrados.length === 0 ? (
-          <div style={styles.vacio}>
-            No se encontraron lotes.
-          </div>
-        ) : (
-          lotesFiltrados.map((lote) => {
-            const empresa = buscarEmpresa(lote.empresa_id)
-
-            let producto = buscarProducto(lote.producto_id)
-
-            const modelo = buscarModelo(lote.modelo_id)
-
-            // Lotes antiguos sin producto_id
-            if (!producto && modelo?.producto_id) {
-              producto = buscarProducto(modelo.producto_id)
-            }
-
-            return (
-              <div
-                key={lote.id}
-                style={styles.fila}
-              >
-                <div>
-                  <div style={styles.nombrePrincipal}>
-                    {lote.codigo || 'SIN CÓDIGO'}
-                  </div>
-
-                  <div style={styles.idTexto}>
-                    ID: {lote.id.substring(0, 8)}
-                  </div>
-                </div>
-
-                <div>
-                  <div style={styles.textoNormal}>
-                    {producto?.nombre || '—'}
-                  </div>
-
-                  <div style={styles.textoSecundario}>
-                    {modelo?.nombre || 'Modelo no identificado'}
-                  </div>
-                </div>
-
-                <div>
-                  <span style={styles.badgeEmpresa}>
-                    {nombreEmpresa(empresa)}
-                  </span>
-                </div>
-
-                <div style={styles.cantidad}>
-                  {lote.cantidad ?? 0}
-                </div>
-
-                <div>
-                  <div style={styles.textoNormal}>
-                    {fechaBonita(lote.fecha_produccion)}
-                  </div>
-
-                  {lote.fecha_vencimiento && (
-                    <div style={styles.textoSecundario}>
-                      Vence: {fechaBonita(lote.fecha_vencimiento)}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <span
-                    style={
-                      lote.estado === 'activo'
-                        ? styles.badgeActivo
-                        : styles.badgeNeutro
-                    }
-                  >
-                    {estadoBonito(lote.estado)}
-                  </span>
-                </div>
-
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => editarLote(lote)}
-                    style={styles.botonEditar}
-                  >
-                    Editar
-                  </button>
-                </div>
-              </div>
-            )
-          })
-        )}
       </div>
 
-      {/* MODAL */}
+      {/* ===================================================
+          MODAL NUEVO LOTE
+      =================================================== */}
 
       {modal && (
-        <div style={styles.overlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <div>
-                <h2 style={styles.modalTitulo}>
-                  {editandoId
-                    ? 'Editar lote'
-                    : 'Nuevo lote'}
-                </h2>
-
-                <div style={styles.modalSubtitulo}>
-                  Vincula empresa, producto y modelo.
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={cerrarModal}
-                style={styles.cerrar}
+        <div
+          onMouseDown={e => {
+            if (
+              e.target === e.currentTarget
+            ) {
+              cerrarModal()
+            }
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,.82)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 720,
+              maxHeight: '92vh',
+              overflowY: 'auto',
+              background: '#111820',
+              border: '1px solid #2a3540',
+              borderRadius: 12
+            }}
+          >
+            <div
+              style={{
+                padding: '18px 22px',
+                borderBottom:
+                  '1px solid #28323d'
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: 21
+                }}
               >
-                ×
-              </button>
+                Nuevo lote
+              </h2>
+
+              <div
+                style={{
+                  color: '#7892ad',
+                  fontSize: 11,
+                  marginTop: 5
+                }}
+              >
+                Al crear el lote se generará
+                automáticamente una identidad digital
+                para cada unidad.
+              </div>
             </div>
 
-            <div style={styles.modalContenido}>
+            <div
+              style={{
+                padding: 22
+              }}
+            >
               {error && (
-                <div style={styles.alertaError}>
+                <div
+                  style={{
+                    background:
+                      'rgba(255,70,70,.08)',
+                    border:
+                      '1px solid rgba(255,70,70,.25)',
+                    color: '#ff8585',
+                    padding: 12,
+                    borderRadius: 7,
+                    marginBottom: 18,
+                    fontSize: 11
+                  }}
+                >
                   {error}
                 </div>
               )}
 
               {/* EMPRESA */}
 
-              <Campo label="EMPRESA *">
+              <div
+                style={{
+                  marginBottom: 17
+                }}
+              >
+                <label style={labelStyle}>
+                  EMPRESA *
+                </label>
+
                 <select
-                  value={form.empresa_id}
-                  onChange={(e) =>
-                    seleccionarEmpresa(e.target.value)
-                  }
-                  style={styles.input}
+                  value={empresaId}
+                  onChange={e => {
+                    setEmpresaId(
+                      e.target.value
+                    )
+
+                    setProductoId('')
+                    setModeloId('')
+                  }}
+                  style={inputStyle}
                 >
                   <option value="">
-                    Seleccionar empresa...
+                    Seleccionar empresa
                   </option>
 
-                  {empresas.map((empresa) => (
+                  {empresas.map(e => (
                     <option
-                      key={empresa.id}
-                      value={empresa.id}
+                      key={e.id}
+                      value={e.id}
                     >
-                      {nombreEmpresa(empresa)}
+                      {nombreEmpresa(e)}
                     </option>
                   ))}
                 </select>
-              </Campo>
+              </div>
 
               {/* PRODUCTO */}
 
-              <Campo label="PRODUCTO *">
+              <div
+                style={{
+                  marginBottom: 17
+                }}
+              >
+                <label style={labelStyle}>
+                  PRODUCTO *
+                </label>
+
                 <select
-                  value={form.producto_id}
-                  disabled={!form.empresa_id}
-                  onChange={(e) =>
-                    seleccionarProducto(e.target.value)
-                  }
+                  value={productoId}
+                  disabled={!empresaId}
+                  onChange={e => {
+                    setProductoId(
+                      e.target.value
+                    )
+
+                    setModeloId('')
+                  }}
                   style={{
-                    ...styles.input,
-                    opacity: form.empresa_id ? 1 : 0.5,
+                    ...inputStyle,
+                    opacity: empresaId
+                      ? 1
+                      : 0.5
                   }}
                 >
                   <option value="">
-                    {form.empresa_id
-                      ? 'Seleccionar producto...'
-                      : 'Primero selecciona una empresa'}
+                    Seleccionar producto
                   </option>
 
-                  {productosEmpresa.map((producto) => (
+                  {productosEmpresa.map(p => (
                     <option
-                      key={producto.id}
-                      value={producto.id}
+                      key={p.id}
+                      value={p.id}
                     >
-                      {producto.nombre || 'Producto sin nombre'}
-                      {producto.sku
-                        ? ` · ${producto.sku}`
+                      {p.nombre}
+                      {p.sku
+                        ? ` · ${p.sku}`
                         : ''}
                     </option>
                   ))}
                 </select>
-              </Campo>
+              </div>
 
               {/* MODELO */}
 
-              <Campo label="MODELO *">
+              <div
+                style={{
+                  marginBottom: 17
+                }}
+              >
+                <label style={labelStyle}>
+                  MODELO *
+                </label>
+
                 <select
-                  value={form.modelo_id}
-                  disabled={!form.producto_id}
-                  onChange={(e) =>
-                    cambiarCampo(
-                      'modelo_id',
+                  value={modeloId}
+                  disabled={!productoId}
+                  onChange={e =>
+                    setModeloId(
                       e.target.value
                     )
                   }
                   style={{
-                    ...styles.input,
-                    opacity: form.producto_id ? 1 : 0.5,
+                    ...inputStyle,
+                    opacity: productoId
+                      ? 1
+                      : 0.5
                   }}
                 >
                   <option value="">
-                    {form.producto_id
-                      ? 'Seleccionar modelo...'
-                      : 'Primero selecciona un producto'}
+                    Seleccionar modelo
                   </option>
 
-                  {modelosProducto.map((modelo) => (
+                  {modelosProducto.map(m => (
                     <option
-                      key={modelo.id}
-                      value={modelo.id}
+                      key={m.id}
+                      value={m.id}
                     >
-                      {modelo.nombre || 'Modelo sin nombre'}
-                      {modelo.version
-                        ? ` · ${modelo.version}`
-                        : ''}
+                      {m.nombre}
                     </option>
                   ))}
                 </select>
-              </Campo>
+              </div>
 
-              {/* CÓDIGO */}
+              {/* CODIGO + CANTIDAD */}
 
-              <Campo label="CÓDIGO DEL LOTE *">
-                <div style={styles.codigoFila}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    '2fr 1fr',
+                  gap: 14,
+                  marginBottom: 17
+                }}
+              >
+                <div>
+                  <label style={labelStyle}>
+                    CÓDIGO DEL LOTE *
+                  </label>
+
                   <input
-                    value={form.codigo}
-                    onChange={(e) =>
-                      cambiarCampo(
-                        'codigo',
+                    value={codigo}
+                    onChange={e =>
+                      setCodigo(
                         e.target.value
                           .toUpperCase()
-                          .replace(/\s+/g, '-')
                       )
                     }
-                    placeholder="Ej: AUK-KOM-20261002-001"
-                    style={{
-                      ...styles.input,
-                      flex: 1,
-                    }}
+                    style={inputStyle}
                   />
-
-                  <button
-                    type="button"
-                    onClick={generarCodigo}
-                    style={styles.botonSecundario}
-                  >
-                    Generar
-                  </button>
                 </div>
-              </Campo>
 
-              <div style={styles.dosColumnas}>
-                <Campo label="CANTIDAD *">
+                <div>
+                  <label style={labelStyle}>
+                    CANTIDAD *
+                  </label>
+
                   <input
                     type="number"
                     min="1"
-                    value={form.cantidad}
-                    onChange={(e) =>
-                      cambiarCampo(
-                        'cantidad',
+                    max="5000"
+                    value={cantidad}
+                    onChange={e =>
+                      setCantidad(
                         e.target.value
                       )
                     }
-                    style={styles.input}
+                    style={inputStyle}
                   />
-                </Campo>
-
-                <Campo label="ESTADO">
-                  <select
-                    value={form.estado}
-                    onChange={(e) =>
-                      cambiarCampo(
-                        'estado',
-                        e.target.value
-                      )
-                    }
-                    style={styles.input}
-                  >
-                    <option value="activo">
-                      Activo
-                    </option>
-
-                    <option value="en_produccion">
-                      En producción
-                    </option>
-
-                    <option value="liberado">
-                      Liberado
-                    </option>
-
-                    <option value="bloqueado">
-                      Bloqueado
-                    </option>
-
-                    <option value="agotado">
-                      Agotado
-                    </option>
-
-                    <option value="retirado">
-                      Retirado
-                    </option>
-                  </select>
-                </Campo>
+                </div>
               </div>
 
-              <div style={styles.dosColumnas}>
-                <Campo label="FECHA DE PRODUCCIÓN">
+              {/* FECHAS */}
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    '1fr 1fr',
+                  gap: 14,
+                  marginBottom: 17
+                }}
+              >
+                <div>
+                  <label style={labelStyle}>
+                    FECHA PRODUCCIÓN
+                  </label>
+
                   <input
                     type="date"
-                    value={form.fecha_produccion}
-                    onChange={(e) =>
-                      cambiarCampo(
-                        'fecha_produccion',
+                    value={fechaProduccion}
+                    onChange={e =>
+                      setFechaProduccion(
                         e.target.value
                       )
                     }
-                    style={styles.input}
+                    style={inputStyle}
                   />
-                </Campo>
+                </div>
 
-                <Campo label="FECHA DE VENCIMIENTO">
+                <div>
+                  <label style={labelStyle}>
+                    FECHA VENCIMIENTO
+                  </label>
+
                   <input
                     type="date"
-                    value={form.fecha_vencimiento}
-                    onChange={(e) =>
-                      cambiarCampo(
-                        'fecha_vencimiento',
+                    value={fechaVencimiento}
+                    onChange={e =>
+                      setFechaVencimiento(
                         e.target.value
                       )
                     }
-                    style={styles.input}
+                    style={inputStyle}
                   />
-
-                  <div style={styles.ayuda}>
-                    Opcional. Úsala solo cuando aplique al producto.
-                  </div>
-                </Campo>
+                </div>
               </div>
 
-              <Campo label="UBICACIÓN">
+              {/* UBICACIÓN */}
+
+              <div
+                style={{
+                  marginBottom: 17
+                }}
+              >
+                <label style={labelStyle}>
+                  UBICACIÓN
+                </label>
+
                 <input
-                  value={form.ubicacion}
-                  onChange={(e) =>
-                    cambiarCampo(
-                      'ubicacion',
+                  value={ubicacion}
+                  onChange={e =>
+                    setUbicacion(
                       e.target.value
                     )
                   }
-                  placeholder="Ej: Planta San Felipe, Bodega 1, Taller..."
-                  style={styles.input}
+                  placeholder="Ej: Bodega principal"
+                  style={inputStyle}
                 />
-              </Campo>
+              </div>
 
-              <Campo label="OBSERVACIONES">
+              {/* OBSERVACIONES */}
+
+              <div>
+                <label style={labelStyle}>
+                  OBSERVACIONES
+                </label>
+
                 <textarea
-                  value={form.observaciones}
-                  onChange={(e) =>
-                    cambiarCampo(
-                      'observaciones',
+                  value={observaciones}
+                  onChange={e =>
+                    setObservaciones(
                       e.target.value
                     )
                   }
                   placeholder="Información adicional del lote..."
                   rows={4}
                   style={{
-                    ...styles.input,
-                    resize: 'vertical',
-                    minHeight: 90,
+                    ...inputStyle,
+                    resize: 'vertical'
                   }}
                 />
-              </Campo>
+              </div>
+
+              {/* INFORMACIÓN AUTOMATIZACIÓN */}
+
+              <div
+                style={{
+                  marginTop: 20,
+                  background: '#0b1117',
+                  border: '1px solid #26313b',
+                  borderRadius: 8,
+                  padding: 14
+                }}
+              >
+                <div
+                  style={{
+                    color: '#ff7b22',
+                    fontWeight: 900,
+                    fontSize: 10,
+                    marginBottom: 7
+                  }}
+                >
+                  IDENTIDAD DIGITAL AUTOMÁTICA
+                </div>
+
+                <div
+                  style={{
+                    color: '#7892ad',
+                    fontSize: 11,
+                    lineHeight: 1.7
+                  }}
+                >
+                  Este lote generará{' '}
+                  <strong
+                    style={{
+                      color: '#fff'
+                    }}
+                  >
+                    {Number(cantidad) || 0}
+                  </strong>{' '}
+                  productos individuales con código
+                  público, QR y dirección DPP únicos.
+                  El NFC podrá asociarse posteriormente
+                  a cada unidad física.
+                </div>
+              </div>
             </div>
 
-            <div style={styles.modalFooter}>
+            {/* BOTONES */}
+
+            <div
+              style={{
+                padding: '16px 22px',
+                borderTop:
+                  '1px solid #28323d',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 10
+              }}
+            >
               <button
-                type="button"
-                onClick={cerrarModal}
                 disabled={guardando}
-                style={styles.botonCancelar}
+                onClick={cerrarModal}
+                style={{
+                  background: '#19232d',
+                  border:
+                    '1px solid #303d49',
+                  color: '#fff',
+                  padding: '10px 17px',
+                  borderRadius: 7,
+                  cursor: guardando
+                    ? 'not-allowed'
+                    : 'pointer'
+                }}
               >
                 Cancelar
               </button>
 
               <button
-                type="button"
-                onClick={guardarLote}
                 disabled={guardando}
+                onClick={guardarLote}
                 style={{
-                  ...styles.botonPrincipal,
-                  opacity: guardando ? 0.6 : 1,
+                  background: '#ff6a00',
+                  border: 'none',
+                  color: '#fff',
+                  padding: '10px 18px',
+                  borderRadius: 7,
+                  fontWeight: 900,
+                  cursor: guardando
+                    ? 'wait'
+                    : 'pointer',
+                  opacity: guardando
+                    ? 0.65
+                    : 1
                 }}
               >
                 {guardando
-                  ? 'Guardando...'
-                  : editandoId
-                    ? 'Guardar cambios'
-                    : 'Crear lote'}
+                  ? 'Creando identidades...'
+                  : `Crear lote + ${
+                      Number(cantidad) || 0
+                    } identidades`}
               </button>
             </div>
           </div>
@@ -954,377 +1597,4 @@ export default function LotesPage() {
       )}
     </div>
   )
-}
-
-function Campo({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div style={{ marginBottom: 18 }}>
-      <div style={styles.labelCampo}>
-        {label}
-      </div>
-
-      {children}
-    </div>
-  )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  pagina: {
-    width: '100%',
-    color: '#ffffff',
-  },
-
-  cabecera: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 20,
-    marginBottom: 28,
-  },
-
-  seccion: {
-    fontSize: 10,
-    fontWeight: 900,
-    color: '#ff6a00',
-    letterSpacing: 1.5,
-    marginBottom: 10,
-  },
-
-  titulo: {
-    margin: 0,
-    fontSize: 28,
-    fontWeight: 900,
-    letterSpacing: -0.5,
-  },
-
-  subtitulo: {
-    margin: '8px 0 0',
-    color: '#7890aa',
-    fontSize: 13,
-  },
-
-  botonPrincipal: {
-    border: 'none',
-    background: '#ff6a00',
-    color: '#ffffff',
-    borderRadius: 7,
-    padding: '12px 18px',
-    fontWeight: 900,
-    fontSize: 13,
-    cursor: 'pointer',
-  },
-
-  tarjetaContador: {
-    width: 320,
-    minHeight: 125,
-    padding: 20,
-    borderRadius: 9,
-    background: '#111820',
-    border: '1px solid #26303b',
-    borderLeft: '3px solid #ff6a00',
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-
-  etiqueta: {
-    color: '#7590ad',
-    fontSize: 9,
-    fontWeight: 900,
-    letterSpacing: 1.4,
-  },
-
-  numero: {
-    fontSize: 32,
-    fontWeight: 900,
-    marginTop: 28,
-  },
-
-  iconoNaranja: {
-    color: '#ff6a00',
-    fontSize: 19,
-  },
-
-  buscadorCaja: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    background: '#0e141b',
-    border: '1px solid #26303b',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 14,
-  },
-
-  lupa: {
-    color: '#6f89a3',
-    fontSize: 17,
-  },
-
-  buscador: {
-    width: '100%',
-    maxWidth: 520,
-    background: '#080c11',
-    border: '1px solid #293440',
-    borderRadius: 6,
-    padding: '10px 12px',
-    color: '#ffffff',
-    outline: 'none',
-    fontSize: 13,
-  },
-
-  tablaCaja: {
-    background: '#0e141b',
-    border: '1px solid #26303b',
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-
-  tablaCabecera: {
-    display: 'grid',
-    gridTemplateColumns:
-      '1.4fr 1.5fr 1fr .65fr .9fr .75fr .6fr',
-    gap: 16,
-    padding: '14px 16px',
-    color: '#7089a4',
-    fontSize: 8,
-    fontWeight: 900,
-    letterSpacing: 1.2,
-    borderBottom: '1px solid #26303b',
-  },
-
-  fila: {
-    display: 'grid',
-    gridTemplateColumns:
-      '1.4fr 1.5fr 1fr .65fr .9fr .75fr .6fr',
-    gap: 16,
-    padding: '15px 16px',
-    alignItems: 'center',
-    borderBottom: '1px solid #222b35',
-    fontSize: 12,
-  },
-
-  nombrePrincipal: {
-    fontWeight: 900,
-    color: '#ffffff',
-  },
-
-  idTexto: {
-    marginTop: 4,
-    color: '#53687c',
-    fontSize: 9,
-  },
-
-  textoNormal: {
-    color: '#b9cee2',
-    fontSize: 12,
-  },
-
-  textoSecundario: {
-    color: '#62788d',
-    fontSize: 9,
-    marginTop: 4,
-  },
-
-  cantidad: {
-    fontWeight: 900,
-    fontSize: 15,
-  },
-
-  badgeEmpresa: {
-    display: 'inline-block',
-    background: 'rgba(255,106,0,.10)',
-    border: '1px solid rgba(255,106,0,.35)',
-    color: '#ff7a20',
-    borderRadius: 5,
-    padding: '6px 9px',
-    fontWeight: 800,
-    fontSize: 10,
-  },
-
-  badgeActivo: {
-    display: 'inline-block',
-    background: 'rgba(0,190,100,.12)',
-    color: '#43dd8b',
-    borderRadius: 20,
-    padding: '6px 10px',
-    fontWeight: 900,
-    fontSize: 8,
-  },
-
-  badgeNeutro: {
-    display: 'inline-block',
-    background: '#18222d',
-    color: '#8fa6bb',
-    borderRadius: 20,
-    padding: '6px 10px',
-    fontWeight: 900,
-    fontSize: 8,
-  },
-
-  botonEditar: {
-    background: '#17212b',
-    color: '#ffffff',
-    border: '1px solid #293440',
-    borderRadius: 6,
-    padding: '7px 11px',
-    fontWeight: 800,
-    cursor: 'pointer',
-    fontSize: 11,
-  },
-
-  vacio: {
-    textAlign: 'center',
-    padding: 45,
-    color: '#63788d',
-    fontSize: 12,
-  },
-
-  alertaError: {
-    background: 'rgba(180,30,30,.15)',
-    border: '1px solid rgba(255,70,70,.35)',
-    color: '#ff8d8d',
-    padding: '11px 13px',
-    borderRadius: 7,
-    fontSize: 12,
-    marginBottom: 15,
-  },
-
-  alertaExito: {
-    background: 'rgba(0,180,90,.10)',
-    border: '1px solid rgba(0,210,100,.25)',
-    color: '#52dc94',
-    padding: '11px 13px',
-    borderRadius: 7,
-    fontSize: 12,
-    marginBottom: 15,
-  },
-
-  overlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,.78)',
-    zIndex: 9999,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-
-  modal: {
-    width: 'min(760px, 96vw)',
-    maxHeight: '92vh',
-    background: '#111820',
-    border: '1px solid #303b47',
-    borderRadius: 10,
-    overflow: 'hidden',
-    boxShadow: '0 30px 100px rgba(0,0,0,.65)',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: '18px 24px',
-    borderBottom: '1px solid #28323c',
-  },
-
-  modalTitulo: {
-    margin: 0,
-    fontSize: 21,
-    fontWeight: 900,
-  },
-
-  modalSubtitulo: {
-    marginTop: 5,
-    color: '#71869b',
-    fontSize: 11,
-  },
-
-  cerrar: {
-    border: 'none',
-    background: 'transparent',
-    color: '#9caec0',
-    fontSize: 25,
-    cursor: 'pointer',
-  },
-
-  modalContenido: {
-    padding: 24,
-    overflowY: 'auto',
-  },
-
-  modalFooter: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: 10,
-    padding: '16px 24px',
-    borderTop: '1px solid #28323c',
-    background: '#10161d',
-  },
-
-  labelCampo: {
-    color: '#8199b4',
-    fontSize: 9,
-    fontWeight: 900,
-    letterSpacing: 1.2,
-    marginBottom: 8,
-  },
-
-  input: {
-    width: '100%',
-    boxSizing: 'border-box',
-    background: '#080d12',
-    color: '#ffffff',
-    border: '1px solid #34404d',
-    borderRadius: 6,
-    padding: '11px 13px',
-    fontSize: 13,
-    outline: 'none',
-  },
-
-  dosColumnas: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 16,
-  },
-
-  codigoFila: {
-    display: 'flex',
-    gap: 8,
-  },
-
-  botonSecundario: {
-    background: '#17212b',
-    color: '#ffffff',
-    border: '1px solid #34404d',
-    borderRadius: 6,
-    padding: '0 16px',
-    fontWeight: 800,
-    cursor: 'pointer',
-  },
-
-  botonCancelar: {
-    background: '#1a232d',
-    color: '#ffffff',
-    border: '1px solid #34404d',
-    borderRadius: 7,
-    padding: '11px 18px',
-    fontWeight: 800,
-    cursor: 'pointer',
-  },
-
-  ayuda: {
-    marginTop: 6,
-    color: '#5f7489',
-    fontSize: 9,
-  },
 }

@@ -275,43 +275,39 @@ export async function getUnidadesNfcQr(): Promise<UnidadNfcQr[]> {
 }
 
 /* ============================================================
-   GENERADOR DE ID CARRIER
+   GENERADOR GLOBAL DE ID CARRIER
 ============================================================ */
 
 async function generarIdCarrier(): Promise<string> {
   /*
-   * Los carriers legacy utilizan:
-   * CARR-000001
+   * El ID se genera en PostgreSQL mediante una secuencia global.
    *
-   * Conservamos el mismo formato para no crear dos
-   * convenciones diferentes.
+   * Esto evita depender de las filas visibles por RLS.
+   * Un admin_empresa no necesita ver carriers de otras empresas
+   * para obtener el siguiente identificador.
    */
 
-  const { data, error } = await supabase
-    .from('nfc_qr')
-    .select('id_carrier')
-    .like('id_carrier', 'CARR-%')
-    .order('id_carrier', { ascending: false })
-    .limit(1)
+  const { data, error } = await supabase.rpc(
+    'generar_id_carrier'
+  )
 
   if (error) {
-    throw new Error(error.message)
-  }
-
-  let siguiente = 1
-
-  if (data && data.length > 0) {
-    const actual = data[0].id_carrier
-    const numero = Number(
-      actual.replace('CARR-', '')
+    throw new Error(
+      `No fue posible generar el ID del carrier: ${error.message}`
     )
-
-    if (!Number.isNaN(numero)) {
-      siguiente = numero + 1
-    }
   }
 
-  return `CARR-${String(siguiente).padStart(6, '0')}`
+  if (
+    !data ||
+    typeof data !== 'string' ||
+    !data.startsWith('CARR-')
+  ) {
+    throw new Error(
+      'La base de datos devolvió un ID de carrier no válido.'
+    )
+  }
+
+  return data
 }
 
 /* ============================================================
@@ -366,7 +362,7 @@ export async function asignarCarrier(
 
   /*
    * Verificamos que todavía no tenga carrier.
-   * Además existe UNIQUE(unidad_id) en PostgreSQL.
+   * UNIQUE(unidad_id) en PostgreSQL es la protección definitiva.
    */
 
   const { data: existente, error: existenteError } =
@@ -387,7 +383,7 @@ export async function asignarCarrier(
   }
 
   const uidNfc =
-    input.uid_nfc?.trim() || null
+    input.uid_nfc?.trim().toUpperCase() || null
 
   /*
    * UNIQUE(uid_nfc) protege también esta condición en BD.
@@ -412,11 +408,17 @@ export async function asignarCarrier(
     }
   }
 
+  /*
+   * ID global generado por PostgreSQL.
+   *
+   * La secuencia no depende de RLS y evita colisiones
+   * entre empresas.
+   */
+
   const idCarrier = await generarIdCarrier()
 
   /*
-   * El QR apunta a la identidad pública que ya tenemos
-   * funcionando.
+   * El QR apunta a la identidad pública de la unidad.
    */
 
   const qrUrl =
@@ -437,7 +439,7 @@ export async function asignarCarrier(
     uid_nfc: uidNfc,
 
     /*
-     * UPI queda reservado para la siguiente evolución:
+     * UPI queda reservado para una evolución posterior:
      * identificador público opaco/no predecible.
      */
     upi: null,
@@ -468,14 +470,13 @@ export async function asignarCarrier(
 
   if (error) {
     /*
-     * Si dos usuarios intentan asignar simultáneamente,
-     * PostgreSQL UNIQUE(unidad_id) y UNIQUE(uid_nfc)
-     * siguen siendo la protección definitiva.
+     * Las restricciones UNIQUE siguen siendo la protección
+     * definitiva frente a asignaciones simultáneas.
      */
 
     if (error.code === '23505') {
       throw new Error(
-        'La unidad o el UID NFC ya fueron asignados por otro proceso.'
+        'La unidad, el UID NFC o el identificador del carrier ya están registrados.'
       )
     }
 
@@ -496,7 +497,7 @@ export async function actualizarUidNfc(
   await getPerfilActual()
 
   const uid =
-    uidNfc?.trim() || null
+    uidNfc?.trim().toUpperCase() || null
 
   const { error } = await supabase
     .from('nfc_qr')

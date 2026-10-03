@@ -1,13 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
+
 import {
   getLotes,
   createLote,
   updateLote,
   deleteLote
 } from './lib/queries'
+
 import { LoteForm } from './components/LoteForm'
 import { EventoForm } from './components/EventoForm'
 
@@ -19,24 +21,43 @@ const supabase = createClient(
 export default function LotesPage() {
 
   const [lotes, setLotes] = useState<any[]>([])
-  const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<any>(null)
-  const [unidadEvento, setUnidadEvento] = useState<any>(null)
 
-  const [loteAbierto, setLoteAbierto] = useState<string | null>(null)
-  const [unidades, setUnidades] = useState<Record<string, any[]>>({})
-  const [cargandoUnidades, setCargandoUnidades] = useState<string | null>(null)
+  const [showForm, setShowForm] =
+    useState(false)
 
-  // =========================================================
-  // CARGAR LOTES
-  // =========================================================
+  const [editing, setEditing] =
+    useState<any>(null)
+
+  const [unidadEvento, setUnidadEvento] =
+    useState<any>(null)
+
+  const [loteAbierto, setLoteAbierto] =
+    useState<string | null>(null)
+
+  const [unidades, setUnidades] =
+    useState<Record<string, any[]>>({})
+
+  const [
+    cargandoUnidades,
+    setCargandoUnidades
+  ] = useState<string | null>(null)
+
+  /* =========================================================
+     CARGAR LOTES
+  ========================================================= */
 
   const load = async () => {
 
-    const { data, error } = await getLotes()
+    const { data, error } =
+      await getLotes()
 
     if (error) {
-      console.error('Error cargando lotes:', error)
+
+      console.error(
+        'Error cargando lotes:',
+        error
+      )
+
       return
     }
 
@@ -49,56 +70,39 @@ export default function LotesPage() {
     load()
   }, [])
 
-  // =========================================================
-  // GUARDAR LOTE
-  // =========================================================
+  /* =========================================================
+     CONSULTAR UNIDADES DIRECTAMENTE
+  ========================================================= */
 
-  const handleSave = async (data: any) => {
-
-    if (editing) {
-      await updateLote(editing.id, data)
-    } else {
-      await createLote(data)
-    }
-
-    setShowForm(false)
-    setEditing(null)
-
-    await load()
-  }
-
-  // =========================================================
-  // CARGAR UNIDADES DEL LOTE
-  // =========================================================
-
-  const verUnidades = async (loteId: string) => {
-
-    // Si está abierto, cerrarlo
-    if (loteAbierto === loteId) {
-      setLoteAbierto(null)
-      return
-    }
-
-    setLoteAbierto(loteId)
-
-    // Si ya fueron cargadas, no consultar nuevamente
-    if (unidades[loteId]) {
-      return
-    }
+  const cargarUnidades = async (
+    loteId: string
+  ) => {
 
     setCargandoUnidades(loteId)
 
-    const { data, error } = await supabase
-      .from('unidades')
-      .select('*')
-      .eq('lote_id', loteId)
-      .order('numero_unidad', { ascending: true })
+    const { data, error } =
+      await supabase
+        .from('unidades')
+        .select('*')
+        .eq('lote_id', loteId)
+        .order(
+          'numero_unidad',
+          { ascending: true }
+        )
 
     setCargandoUnidades(null)
 
     if (error) {
-      console.error('Error cargando unidades:', error)
-      alert('No fue posible cargar las unidades del lote.')
+
+      console.error(
+        'Error cargando unidades:',
+        error
+      )
+
+      alert(
+        'No fue posible cargar las unidades del lote.'
+      )
+
       return
     }
 
@@ -108,55 +112,220 @@ export default function LotesPage() {
     }))
   }
 
-  // =========================================================
-  // BORRAR LOTE
-  // =========================================================
+  /* =========================================================
+     GUARDAR LOTE
+  ========================================================= */
 
-  const borrar = async (id: string) => {
+  const handleSave = async (
+    data: any
+  ) => {
 
-    const confirmar = confirm(
-      '¿Seguro que deseas borrar este lote?'
-    )
+    let loteId: string | null = null
 
-    if (!confirmar) return
+    /* =========================
+       EDITAR LOTE
+    ========================= */
 
-    const { error } = await deleteLote(id)
+    if (editing) {
 
-    if (error) {
-      console.error(error)
-      alert('No fue posible borrar el lote.')
+      loteId = editing.id
+
+      const resultado =
+        await updateLote(
+          editing.id,
+          data
+        )
+
+      if (resultado?.error) {
+        return
+      }
+
+    }
+
+    /* =========================
+       CREAR LOTE
+    ========================= */
+
+    else {
+
+      const resultado =
+        await createLote(data)
+
+      if (resultado?.error) {
+        return
+      }
+
+      loteId =
+        resultado?.data?.id || null
+    }
+
+    /* =========================
+       LIMPIAR CACHÉ DE UNIDADES
+    ========================= */
+
+    if (loteId) {
+
+      setUnidades(prev => {
+
+        const copia = { ...prev }
+
+        delete copia[loteId!]
+
+        return copia
+      })
+    }
+
+    /* =========================
+       CERRAR FORMULARIO
+    ========================= */
+
+    setShowForm(false)
+    setEditing(null)
+
+    /* =========================
+       RECARGAR LOTES
+    ========================= */
+
+    await load()
+
+    /* =========================
+       ACTUALIZAR UNIDADES
+       AUTOMÁTICAMENTE
+    ========================= */
+
+    if (
+      loteId &&
+      loteAbierto === loteId
+    ) {
+
+      await cargarUnidades(loteId)
+    }
+  }
+
+  /* =========================================================
+     ABRIR / CERRAR UNIDADES
+  ========================================================= */
+
+  const verUnidades = async (
+    loteId: string
+  ) => {
+
+    /*
+     * Si el lote ya está abierto,
+     * simplemente lo cerramos.
+     */
+
+    if (loteAbierto === loteId) {
+
+      setLoteAbierto(null)
+
       return
     }
 
+    /*
+     * Abrimos el lote.
+     */
+
+    setLoteAbierto(loteId)
+
+    /*
+     * Si las unidades ya fueron
+     * cargadas anteriormente,
+     * no consultamos nuevamente.
+     */
+
+    if (unidades[loteId]) {
+      return
+    }
+
+    /*
+     * Consultar Supabase.
+     */
+
+    await cargarUnidades(loteId)
+  }
+
+  /* =========================================================
+     BORRAR LOTE
+  ========================================================= */
+
+  const borrar = async (
+    id: string
+  ) => {
+
+    const confirmar =
+      confirm(
+        '¿Seguro que deseas borrar este lote?'
+      )
+
+    if (!confirmar) {
+      return
+    }
+
+    const { error } =
+      await deleteLote(id)
+
+    if (error) {
+
+      console.error(error)
+
+      alert(
+        'No fue posible borrar el lote.'
+      )
+
+      return
+    }
+
+    /*
+     * Cerrar lote abierto.
+     */
+
     setLoteAbierto(null)
 
+    /*
+     * Limpiar unidades guardadas
+     * en memoria.
+     */
+
     setUnidades(prev => {
+
       const copia = { ...prev }
+
       delete copia[id]
+
       return copia
     })
 
     await load()
   }
 
-  // =========================================================
-  // ESTILOS
-  // =========================================================
+  /* =========================================================
+     ESTILOS
+  ========================================================= */
 
   const boton = {
+
     background: '#27272a',
+
     border: 0,
+
     borderRadius: 6,
+
     padding: '7px 11px',
+
     color: 'white',
+
     cursor: 'pointer',
+
     textDecoration: 'none',
+
     fontSize: 14
+
   } as any
 
-  // =========================================================
-  // INTERFAZ
-  // =========================================================
+  /* =========================================================
+     INTERFAZ
+  ========================================================= */
 
   return (
 
@@ -169,12 +338,15 @@ export default function LotesPage() {
       }}
     >
 
-      {/* CABECERA */}
+      {/* =====================================================
+          CABECERA
+      ===================================================== */}
 
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent:
+            'space-between',
           alignItems: 'center',
           gap: 20,
           flexWrap: 'wrap'
@@ -183,7 +355,11 @@ export default function LotesPage() {
 
         <div>
 
-          <h1 style={{ marginBottom: 5 }}>
+          <h1
+            style={{
+              marginBottom: 5
+            }}
+          >
             Lotes / QR - Trazabilidad
           </h1>
 
@@ -200,8 +376,11 @@ export default function LotesPage() {
 
         <button
           onClick={() => {
+
             setEditing(null)
+
             setShowForm(true)
+
           }}
           style={{
             background: '#ff6a00',
@@ -218,12 +397,15 @@ export default function LotesPage() {
 
       </div>
 
-      {/* TABLA */}
+      {/* =====================================================
+          TABLA LOTES
+      ===================================================== */}
 
       <div
         style={{
           marginTop: 25,
-          border: '1px solid #27272a',
+          border:
+            '1px solid #27272a',
           borderRadius: 12,
           overflowX: 'auto'
         }}
@@ -232,7 +414,8 @@ export default function LotesPage() {
         <table
           style={{
             width: '100%',
-            borderCollapse: 'collapse',
+            borderCollapse:
+              'collapse',
             minWidth: 900
           }}
         >
@@ -245,23 +428,44 @@ export default function LotesPage() {
 
             <tr>
 
-              <th style={{ padding: 12, textAlign: 'left' }}>
+              <th
+                style={{
+                  padding: 12,
+                  textAlign: 'left'
+                }}
+              >
                 Código
               </th>
 
-              <th style={{ padding: 12 }}>
+              <th
+                style={{
+                  padding: 12
+                }}
+              >
                 Cantidad
               </th>
 
-              <th style={{ padding: 12 }}>
+              <th
+                style={{
+                  padding: 12
+                }}
+              >
                 Estado
               </th>
 
-              <th style={{ padding: 12 }}>
+              <th
+                style={{
+                  padding: 12
+                }}
+              >
                 Unidades
               </th>
 
-              <th style={{ padding: 12 }}>
+              <th
+                style={{
+                  padding: 12
+                }}
+              >
                 Acciones
               </th>
 
@@ -273,17 +477,26 @@ export default function LotesPage() {
 
             {lotes.map(l => (
 
-              <>
-                {/* ================= LOTE ================= */}
+              <Fragment key={l.id}>
+
+                {/* =============================================
+                    LOTE
+                ============================================= */}
 
                 <tr
-                  key={l.id}
                   style={{
-                    borderTop: '1px solid #27272a'
+                    borderTop:
+                      '1px solid #27272a'
                   }}
                 >
 
-                  <td style={{ padding: 12 }}>
+                  {/* CÓDIGO */}
+
+                  <td
+                    style={{
+                      padding: 12
+                    }}
+                  >
 
                     <a
                       href={`/p/${l.codigo}`}
@@ -299,6 +512,8 @@ export default function LotesPage() {
 
                   </td>
 
+                  {/* CANTIDAD */}
+
                   <td
                     style={{
                       padding: 12,
@@ -307,6 +522,8 @@ export default function LotesPage() {
                   >
                     {l.cantidad}
                   </td>
+
+                  {/* ESTADO */}
 
                   <td
                     style={{
@@ -322,9 +539,13 @@ export default function LotesPage() {
                             ? '#14532d'
                             : '#27272a',
 
-                        padding: '5px 10px',
+                        padding:
+                          '5px 10px',
+
                         borderRadius: 20,
+
                         fontSize: 12,
+
                         fontWeight: 700
                       }}
                     >
@@ -332,6 +553,8 @@ export default function LotesPage() {
                     </span>
 
                   </td>
+
+                  {/* UNIDADES */}
 
                   <td
                     style={{
@@ -341,9 +564,12 @@ export default function LotesPage() {
                   >
 
                     <button
-                      onClick={() => verUnidades(l.id)}
+                      onClick={() =>
+                        verUnidades(l.id)
+                      }
                       style={{
                         ...boton,
+
                         background:
                           loteAbierto === l.id
                             ? '#ff6a00'
@@ -351,16 +577,23 @@ export default function LotesPage() {
                       }}
                     >
 
-                      {loteAbierto === l.id
-                        ? 'Ocultar unidades'
-                        : `Ver unidades (${l.cantidad})`
+                      {
+                        loteAbierto === l.id
+                          ? 'Ocultar unidades'
+                          : `Ver unidades (${l.cantidad})`
                       }
 
                     </button>
 
                   </td>
 
-                  <td style={{ padding: 12 }}>
+                  {/* ACCIONES */}
+
+                  <td
+                    style={{
+                      padding: 12
+                    }}
+                  >
 
                     <div
                       style={{
@@ -370,38 +603,51 @@ export default function LotesPage() {
                       }}
                     >
 
-<a
-  href={`/lotes/${l.id}/qr`}
-  target="_blank"
-  rel="noreferrer"
-  style={{
-    ...boton,
-    background: '#ff6a00',
-    fontWeight: 700
-  }}
->
-  Imprimir QR
-</a>
+                      {/* IMPRIMIR QR */}
 
-<button
-  onClick={() => {
-    setEditing(l)
-    setShowForm(true)
-  }}
-  style={boton}
->
-  Editar
-</button>
+                      <a
+                        href={`/lotes/${l.id}/qr`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          ...boton,
+                          background:
+                            '#ff6a00',
+                          fontWeight: 700
+                        }}
+                      >
+                        Imprimir QR
+                      </a>
 
-<button
-  onClick={() => borrar(l.id)}
-  style={{
-    ...boton,
-    background: '#7f1d1d'
-  }}
->
-  Borrar
-</button>
+                      {/* EDITAR */}
+
+                      <button
+                        onClick={() => {
+
+                          setEditing(l)
+
+                          setShowForm(true)
+
+                        }}
+                        style={boton}
+                      >
+                        Editar
+                      </button>
+
+                      {/* BORRAR */}
+
+                      <button
+                        onClick={() =>
+                          borrar(l.id)
+                        }
+                        style={{
+                          ...boton,
+                          background:
+                            '#7f1d1d'
+                        }}
+                      >
+                        Borrar
+                      </button>
 
                     </div>
 
@@ -409,205 +655,309 @@ export default function LotesPage() {
 
                 </tr>
 
-                {/* ================= UNIDADES ================= */}
+                {/* =============================================
+                    UNIDADES DEL LOTE
+                ============================================= */}
 
-                {loteAbierto === l.id && (
+                {
+                  loteAbierto === l.id && (
 
-                  <tr key={`${l.id}-unidades`}>
+                    <tr>
 
-                    <td
-                      colSpan={5}
-                      style={{
-                        padding: 0,
-                        background: '#111113'
-                      }}
-                    >
-
-                      <div
+                      <td
+                        colSpan={5}
                         style={{
-                          padding: 20
+                          padding: 0,
+                          background:
+                            '#111113'
                         }}
                       >
 
                         <div
                           style={{
-                            fontSize: 12,
-                            fontWeight: 800,
-                            color: '#a1a1aa',
-                            marginBottom: 14,
-                            letterSpacing: 1
+                            padding: 20
                           }}
                         >
-                          IDENTIDADES DIGITALES DEL LOTE
+
+                          <div
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 800,
+                              color: '#a1a1aa',
+                              marginBottom: 14,
+                              letterSpacing: 1
+                            }}
+                          >
+                            IDENTIDADES DIGITALES DEL LOTE
+                          </div>
+
+                          {/* CARGANDO */}
+
+                          {
+                            cargandoUnidades ===
+                              l.id && (
+
+                              <div
+                                style={{
+                                  color:
+                                    '#a1a1aa',
+                                  padding: 15
+                                }}
+                              >
+                                Cargando unidades...
+                              </div>
+
+                            )
+                          }
+
+                          {/* SIN UNIDADES */}
+
+                          {
+                            cargandoUnidades !==
+                              l.id &&
+
+                            (unidades[l.id] || [])
+                              .length === 0 && (
+
+                              <div
+                                style={{
+                                  color:
+                                    '#a1a1aa',
+                                  padding: 15
+                                }}
+                              >
+                                Este lote no tiene unidades individuales.
+                              </div>
+
+                            )
+                          }
+
+                          {/* =====================================
+                              LISTADO UNIDADES
+                          ===================================== */}
+
+                          {
+                            (
+                              unidades[l.id] ||
+                              []
+                            ).map(u => {
+
+                              const url =
+                                `https://vinculab.cl/u/${encodeURIComponent(
+                                  u.codigo
+                                )}`
+
+                              const qr =
+                                `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
+                                  url
+                                )}`
+
+                              const qrGrande =
+                                `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(
+                                  url
+                                )}`
+
+                              return (
+
+                                <div
+                                  key={u.id}
+                                  style={{
+                                    display: 'grid',
+
+                                    gridTemplateColumns:
+                                      '80px minmax(240px,1fr) auto',
+
+                                    gap: 18,
+
+                                    alignItems:
+                                      'center',
+
+                                    background:
+                                      '#18181b',
+
+                                    border:
+                                      '1px solid #27272a',
+
+                                    borderRadius:
+                                      12,
+
+                                    padding: 14,
+
+                                    marginBottom:
+                                      10
+                                  }}
+                                >
+
+                                  {/* =============================
+                                      QR
+                                  ============================= */}
+
+                                  <div
+                                    style={{
+                                      background:
+                                        'white',
+
+                                      padding: 5,
+
+                                      borderRadius:
+                                        8,
+
+                                      width: 72,
+
+                                      height: 72
+                                    }}
+                                  >
+
+                                    <img
+                                      src={qr}
+                                      alt={`QR ${u.codigo}`}
+                                      style={{
+                                        width: 62,
+                                        height: 62,
+                                        display:
+                                          'block'
+                                      }}
+                                    />
+
+                                  </div>
+
+                                  {/* =============================
+                                      DATOS
+                                  ============================= */}
+
+                                  <div>
+
+                                    <div
+                                      style={{
+                                        color:
+                                          '#ff6a00',
+
+                                        fontWeight:
+                                          900,
+
+                                        fontSize:
+                                          16
+                                      }}
+                                    >
+                                      {u.codigo}
+                                    </div>
+
+                                    <div
+                                      style={{
+                                        marginTop: 5,
+
+                                        color:
+                                          '#a1a1aa',
+
+                                        fontSize:
+                                          12
+                                      }}
+                                    >
+                                      Unidad Nº{' '}
+                                      {u.numero_unidad}
+
+                                      {' • '}
+
+                                      Estado:{' '}
+                                      {u.estado}
+                                    </div>
+
+                                  </div>
+
+                                  {/* =============================
+                                      ACCIONES UNIDAD
+                                  ============================= */}
+
+                                  <div
+                                    style={{
+                                      display:
+                                        'flex',
+
+                                      gap: 8,
+
+                                      flexWrap:
+                                        'wrap',
+
+                                      justifyContent:
+                                        'flex-end'
+                                    }}
+                                  >
+
+                                    {/* VER IDENTIDAD */}
+
+                                    <a
+                                      href={`/u/${encodeURIComponent(
+                                        u.codigo
+                                      )}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      style={{
+                                        ...boton,
+
+                                        background:
+                                          '#ff6a00',
+
+                                        fontWeight:
+                                          700
+                                      }}
+                                    >
+                                      Ver identidad
+                                    </a>
+
+                                    {/* VER QR */}
+
+                                    <a
+                                      href={
+                                        qrGrande
+                                      }
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      style={
+                                        boton
+                                      }
+                                    >
+                                      Ver QR
+                                    </a>
+
+                                    {/* EVENTO */}
+
+                                    <button
+                                      onClick={() =>
+                                        setUnidadEvento(
+                                          u
+                                        )
+                                      }
+                                      style={{
+                                        ...boton,
+
+                                        background:
+                                          '#14532d',
+
+                                        fontWeight:
+                                          700
+                                      }}
+                                    >
+                                      + Evento
+                                    </button>
+
+                                  </div>
+
+                                </div>
+
+                              )
+                            })
+                          }
+
                         </div>
 
-                        {cargandoUnidades === l.id && (
+                      </td>
 
-                          <div
-                            style={{
-                              color: '#a1a1aa',
-                              padding: 15
-                            }}
-                          >
-                            Cargando unidades...
-                          </div>
+                    </tr>
 
-                        )}
+                  )
+                }
 
-                        {cargandoUnidades !== l.id &&
-                          (unidades[l.id] || []).length === 0 && (
-
-                          <div
-                            style={{
-                              color: '#a1a1aa',
-                              padding: 15
-                            }}
-                          >
-                            Este lote no tiene unidades individuales.
-                          </div>
-
-                        )}
-
-                        {(unidades[l.id] || []).map(u => {
-
-                          const url =
-                            `https://vinculab.cl/u/${encodeURIComponent(u.codigo)}`
-
-                          const qr =
-                            `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(url)}`
-
-                          const qrGrande =
-                            `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(url)}`
-
-                          return (
-
-                            <div
-                              key={u.id}
-                              style={{
-                                display: 'grid',
-                                gridTemplateColumns:
-                                  '80px minmax(240px,1fr) auto',
-                                gap: 18,
-                                alignItems: 'center',
-                                background: '#18181b',
-                                border: '1px solid #27272a',
-                                borderRadius: 12,
-                                padding: 14,
-                                marginBottom: 10
-                              }}
-                            >
-
-                              {/* QR */}
-
-                              <div
-                                style={{
-                                  background: 'white',
-                                  padding: 5,
-                                  borderRadius: 8,
-                                  width: 72,
-                                  height: 72
-                                }}
-                              >
-
-                                <img
-                                  src={qr}
-                                  alt={`QR ${u.codigo}`}
-                                  style={{
-                                    width: 62,
-                                    height: 62,
-                                    display: 'block'
-                                  }}
-                                />
-
-                              </div>
-
-                              {/* DATOS */}
-
-                              <div>
-
-                                <div
-                                  style={{
-                                    color: '#ff6a00',
-                                    fontWeight: 900,
-                                    fontSize: 16
-                                  }}
-                                >
-                                  {u.codigo}
-                                </div>
-
-                                <div
-                                  style={{
-                                    marginTop: 5,
-                                    color: '#a1a1aa',
-                                    fontSize: 12
-                                  }}
-                                >
-                                  Unidad Nº {u.numero_unidad}
-                                  {' • '}
-                                  Estado: {u.estado}
-                                </div>
-
-                              </div>
-
-                              {/* ACCIONES */}
-
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  gap: 8,
-                                  flexWrap: 'wrap',
-                                  justifyContent: 'flex-end'
-                                }}
-                              >
-
-                                <a
-                                  href={`/u/${encodeURIComponent(u.codigo)}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  style={{
-                                    ...boton,
-                                    background: '#ff6a00',
-                                    fontWeight: 700
-                                  }}
-                                >
-                                  Ver identidad
-                                </a>
-
-                                <a
-                                  href={qrGrande}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  style={boton}
-                                >
-                                  Ver QR
-                                </a>
-                                <button
-  onClick={() => setUnidadEvento(u)}
-  style={{
-    ...boton,
-    background: '#14532d',
-    fontWeight: 700
-  }}
->
-  + Evento
-</button>
-
-                              </div>
-
-                            </div>
-
-                          )
-                        })}
-
-                      </div>
-
-                    </td>
-
-                  </tr>
-
-                )}
-
-              </>
+              </Fragment>
 
             ))}
 
@@ -617,30 +967,50 @@ export default function LotesPage() {
 
       </div>
 
-      {/* FORMULARIO */}
+      {/* =====================================================
+          FORMULARIO LOTE
+      ===================================================== */}
 
-      {showForm && (
+      {
+        showForm && (
 
-        <LoteForm
-          initial={editing}
-          onSave={handleSave}
-          onClose={() => {
-            setShowForm(false)
-            setEditing(null)
-          }}
-        />
+          <LoteForm
+            initial={editing}
+            onSave={handleSave}
+            onClose={() => {
 
-      )}
-{unidadEvento && (
-  <EventoForm
-    unidad={unidadEvento}
-    onClose={() => setUnidadEvento(null)}
-    onSaved={() => {
-      console.log('Evento registrado')
-    }}
-  />
-)}
+              setShowForm(false)
+
+              setEditing(null)
+
+            }}
+          />
+
+        )
+      }
+
+      {/* =====================================================
+          FORMULARIO EVENTO
+      ===================================================== */}
+
+      {
+        unidadEvento && (
+
+          <EventoForm
+            unidad={unidadEvento}
+            onClose={() =>
+              setUnidadEvento(null)
+            }
+            onSaved={() => {
+              console.log(
+                'Evento registrado'
+              )
+            }}
+          />
+
+        )
+      }
+
     </div>
-
   )
 }

@@ -2,22 +2,83 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
-
-import {
-  Building2,
-  Package,
-  Tag,
-  Layers3
-} from 'lucide-react'
-
 import AdminSidebar from './components/AdminSidebar'
-
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+/* =========================================================
+   ICONOS SVG
+   No requiere lucide-react ni ninguna librería externa
+========================================================= */
+
+function StatIcon({
+  type,
+  size = 20
+}: {
+  type: string
+  size?: number
+}) {
+
+  const common = {
+    width: size,
+    height: size,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: '#ff6a00',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const
+  }
+
+  if (type === 'empresa') {
+    return (
+      <svg {...common}>
+        <rect x="4" y="3" width="16" height="18" />
+        <path d="M8 7h2M14 7h2M8 11h2M14 11h2M8 15h2M14 15h2" />
+        <path d="M9 21v-3h6v3" />
+      </svg>
+    )
+  }
+
+  if (type === 'producto') {
+    return (
+      <svg {...common}>
+        <path d="M21 8l-9 5-9-5" />
+        <path d="M3 8l9-5 9 5v8l-9 5-9-5z" />
+        <path d="M12 13v8" />
+      </svg>
+    )
+  }
+
+  if (type === 'modelo') {
+    return (
+      <svg {...common}>
+        <path d="M20 12l-8 8-9-9V4h7z" />
+        <circle cx="7.5" cy="8" r="1" />
+      </svg>
+    )
+  }
+
+  if (type === 'lote') {
+    return (
+      <svg {...common}>
+        <path d="M4 5h16v4H4z" />
+        <path d="M4 10h16v4H4z" />
+        <path d="M4 15h16v4H4z" />
+      </svg>
+    )
+  }
+
+  return null
+}
+
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
 
 export default function AdminPage() {
 
@@ -28,17 +89,35 @@ export default function AdminPage() {
     lotes: 0
   })
 
+  const [cargando, setCargando] = useState(true)
+
+  const [usuario, setUsuario] = useState({
+    nombre: 'Administrador',
+    rol: 'SUPERADMIN'
+  })
+
+
+  /* =====================================================
+     CARGAR INFORMACIÓN
+  ===================================================== */
 
   useEffect(() => {
 
-    cargarDatos()
+    cargarDashboard()
+    cargarUsuario()
 
   }, [])
 
 
-  async function cargarDatos() {
+  /* =====================================================
+     ESTADÍSTICAS
+  ===================================================== */
+
+  async function cargarDashboard() {
 
     try {
+
+      setCargando(true)
 
       const [
         empresas,
@@ -94,11 +173,64 @@ export default function AdminPage() {
 
       })
 
-
     } catch (error) {
 
       console.error(
         'Error cargando estadísticas:',
+        error
+      )
+
+    } finally {
+
+      setCargando(false)
+
+    }
+
+  }
+
+
+  /* =====================================================
+     USUARIO ACTUAL
+  ===================================================== */
+
+  async function cargarUsuario() {
+
+    try {
+
+      const {
+        data: { user }
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        return
+      }
+
+      const { data: perfil } = await supabase
+        .from('perfiles')
+        .select('nombre, rol')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (perfil) {
+
+        setUsuario({
+          nombre:
+            perfil.nombre ||
+            'Administrador',
+
+          rol:
+            (
+              perfil.rol ||
+              'superadmin'
+            ).toUpperCase()
+        })
+
+      }
+
+    } catch (error) {
+
+      console.error(
+        'Error cargando usuario:',
         error
       )
 
@@ -107,34 +239,55 @@ export default function AdminPage() {
   }
 
 
+  /* =====================================================
+     CERRAR SESIÓN
+  ===================================================== */
+
+  async function cerrarSesion() {
+
+    await supabase.auth.signOut()
+
+    window.location.href = '/login'
+
+  }
+
+
+  /* =====================================================
+     TARJETAS
+  ===================================================== */
+
   const tarjetas = [
 
     {
       nombre: 'EMPRESAS',
       cantidad: stats.empresas,
-      icono: Building2
+      tipo: 'empresa'
     },
 
     {
       nombre: 'PRODUCTOS',
       cantidad: stats.productos,
-      icono: Package
+      tipo: 'producto'
     },
 
     {
       nombre: 'MODELOS',
       cantidad: stats.modelos,
-      icono: Tag
+      tipo: 'modelo'
     },
 
     {
       nombre: 'LOTES',
       cantidad: stats.lotes,
-      icono: Layers3
+      tipo: 'lote'
     }
 
   ]
 
+
+  /* =====================================================
+     INTERFAZ
+  ===================================================== */
 
   return (
 
@@ -143,20 +296,23 @@ export default function AdminPage() {
         display: 'flex',
         minHeight: '100vh',
         background: '#080b10',
-        color: '#ffffff'
+        color: '#ffffff',
+        fontFamily:
+          'Arial, Helvetica, sans-serif'
       }}
     >
 
-      {/* ==========================
+
+      {/* =================================================
           SIDEBAR
-      ========================== */}
+      ================================================= */}
 
       <AdminSidebar />
 
 
-      {/* ==========================
-          CONTENIDO
-      ========================== */}
+      {/* =================================================
+          ÁREA PRINCIPAL
+      ================================================= */}
 
       <main
         style={{
@@ -166,11 +322,13 @@ export default function AdminPage() {
       >
 
 
-        {/* HEADER */}
+        {/* ===============================================
+            HEADER
+        =============================================== */}
 
         <header
           style={{
-            height: 70,
+            minHeight: 70,
 
             display: 'flex',
             alignItems: 'center',
@@ -178,173 +336,328 @@ export default function AdminPage() {
 
             padding: '0 28px',
 
-            borderBottom: '1px solid #242a32',
+            borderBottom:
+              '1px solid #242a32',
 
-            background: '#0d1117'
+            background:
+              '#0d1117'
           }}
         >
+
+
+          {/* TEXTO HEADER */}
 
           <div
             style={{
               color: '#64748b',
               fontSize: 10,
-              letterSpacing: 1.6
+              letterSpacing: 1.6,
+              fontWeight: 600
             }}
           >
             PLATAFORMA DE IDENTIDAD DIGITAL DE PRODUCTOS
           </div>
 
 
+          {/* USUARIO */}
+
           <div
             style={{
-              textAlign: 'right'
+              display: 'flex',
+              alignItems: 'center',
+              gap: 16
             }}
           >
 
             <div
               style={{
-                color: '#64748b',
-                fontSize: 8
+                textAlign: 'right'
               }}
             >
-              USUARIO
+
+              <div
+                style={{
+                  color: '#64748b',
+                  fontSize: 8,
+                  letterSpacing: 1
+                }}
+              >
+                USUARIO
+              </div>
+
+
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  marginTop: 2
+                }}
+              >
+                {usuario.nombre}
+              </div>
+
+
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 800,
+                  color: '#ff6a00',
+                  marginTop: 2
+                }}
+              >
+                {usuario.rol}
+              </div>
+
             </div>
 
-            <div
+
+            <button
+              onClick={cerrarSesion}
               style={{
+                background: '#18181b',
+                border:
+                  '1px solid #3f3f46',
+                borderRadius: 7,
+
+                color: '#ffffff',
+
+                padding:
+                  '9px 13px',
+
                 fontSize: 12,
-                fontWeight: 700
+
+                cursor: 'pointer'
               }}
             >
-              Administrador
-            </div>
+              Cerrar sesión
+            </button>
 
           </div>
 
         </header>
 
 
-        {/* DASHBOARD */}
+        {/* ===============================================
+            CONTENIDO
+        =============================================== */}
 
         <section
           style={{
-            padding: '28px'
+            padding: '30px 28px'
           }}
         >
 
-          <h1
+
+          {/* TÍTULO */}
+
+          <div
             style={{
-              margin: 0,
-              fontSize: 24,
-              fontWeight: 800
+              marginBottom: 26
             }}
           >
-            Dashboard
-          </h1>
+
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 24,
+                fontWeight: 800
+              }}
+            >
+              Dashboard
+            </h1>
 
 
-          <p
-            style={{
-              color: '#8290a3',
-              fontSize: 13,
-              marginTop: 5,
-              marginBottom: 25
-            }}
-          >
-            Vista general de la plataforma Vinculab.
-          </p>
+            <p
+              style={{
+                color: '#8290a3',
+                fontSize: 13,
+                marginTop: 6,
+                marginBottom: 0
+              }}
+            >
+              Vista general de la plataforma Vinculab.
+            </p>
+
+          </div>
 
 
-          {/* TARJETAS */}
+          {/* =============================================
+              TARJETAS
+          ============================================= */}
 
           <div
             style={{
               display: 'grid',
 
               gridTemplateColumns:
-                'repeat(auto-fit, minmax(210px, 1fr))',
+                'repeat(4, minmax(180px, 1fr))',
 
               gap: 14
             }}
           >
 
-            {tarjetas.map((tarjeta) => {
+            {tarjetas.map((tarjeta) => (
 
-              const Icon =
-                tarjeta.icono
+              <div
+                key={tarjeta.nombre}
 
-              return (
+                style={{
+                  background: '#111820',
+
+                  border:
+                    '1px solid #27303a',
+
+                  borderLeft:
+                    '3px solid #ff6a00',
+
+                  borderRadius: 8,
+
+                  padding:
+                    '18px 18px 20px',
+
+                  minHeight: 110
+                }}
+              >
+
+
+                {/* CABECERA TARJETA */}
 
                 <div
-                  key={tarjeta.nombre}
-
                   style={{
-                    background: '#111820',
+                    display: 'flex',
 
-                    border:
-                      '1px solid #27303a',
+                    alignItems:
+                      'center',
 
-                    borderLeft:
-                      '3px solid #ff6a00',
-
-                    borderRadius: 8,
-
-                    padding:
-                      '20px 18px',
-
-                    minHeight: 110
+                    justifyContent:
+                      'space-between'
                   }}
                 >
 
-
                   <div
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent:
-                        'space-between'
+                      color: '#64748b',
+
+                      fontSize: 9,
+
+                      fontWeight: 700,
+
+                      letterSpacing: 1.3
                     }}
                   >
-
-                    <div
-                      style={{
-                        color: '#64748b',
-                        fontSize: 9,
-                        fontWeight: 700,
-                        letterSpacing: 1.3
-                      }}
-                    >
-                      {tarjeta.nombre}
-                    </div>
-
-
-                    <Icon
-                      size={17}
-                      strokeWidth={1.7}
-                      color="#ff6a00"
-                    />
-
+                    {tarjeta.nombre}
                   </div>
 
 
-                  <div
-                    style={{
-                      marginTop: 14,
-                      fontSize: 27,
-                      fontWeight: 900
-                    }}
-                  >
-                    {tarjeta.cantidad}
-                  </div>
-
+                  <StatIcon
+                    type={tarjeta.tipo}
+                    size={17}
+                  />
 
                 </div>
 
-              )
 
-            })}
+                {/* CANTIDAD */}
+
+                <div
+                  style={{
+                    marginTop: 15,
+
+                    fontSize: 28,
+
+                    lineHeight: 1,
+
+                    fontWeight: 900,
+
+                    color: '#ffffff'
+                  }}
+                >
+
+                  {cargando
+                    ? '—'
+                    : tarjeta.cantidad}
+
+                </div>
+
+              </div>
+
+            ))}
 
           </div>
+
+
+          {/* =============================================
+              INFORMACIÓN INFERIOR
+          ============================================= */}
+
+          <div
+            style={{
+              marginTop: 30,
+
+              border:
+                '1px solid #242a32',
+
+              background:
+                '#0d1117',
+
+              borderRadius: 8,
+
+              padding: 22
+            }}
+          >
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10
+              }}
+            >
+
+              <div
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  background: '#22c55e'
+                }}
+              />
+
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: '#ffffff'
+                }}
+              >
+                Plataforma operativa
+              </div>
+
+            </div>
+
+
+            <p
+              style={{
+                margin:
+                  '9px 0 0',
+
+                color:
+                  '#64748b',
+
+                fontSize:
+                  12,
+
+                lineHeight:
+                  1.6
+              }}
+            >
+              Gestión centralizada de productos,
+              lotes, identidades digitales y
+              trazabilidad.
+            </p>
+
+          </div>
+
 
         </section>
 
@@ -353,4 +666,5 @@ export default function AdminPage() {
     </div>
 
   )
+
 }

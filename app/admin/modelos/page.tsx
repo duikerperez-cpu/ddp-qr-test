@@ -10,57 +10,83 @@ const supabase = createClient(
 
 type Empresa = {
   id: string
-  razon_social?: string | null
   nombre?: string | null
+  razon_social?: string | null
   name?: string | null
   empresa_nombre?: string | null
+  sector?: string | null
 }
 
 type Producto = {
   id: string
-  empresa_id: string | null
-  nombre: string | null
-  sku?: string | null
+  empresa_id: string
+  nombre: string
   categoria?: string | null
+  sku?: string | null
 }
 
 type Modelo = {
   id: string
-  nombre: string | null
-  descripcion: string | null
-  empresa_id: string | null
-  producto_id: string | null
-  created_at: string | null
-  categoria: string | null
-  version: string | null
-  lithium_pct: number | null
-  cobalt_pct: number | null
+  nombre: string
+  descripcion?: string | null
+  empresa_id: string
+  producto_id: string
+  categoria?: string | null
+  version?: string | null
+  created_at?: string | null
 }
 
-type FormModelo = {
+type Atributo = {
+  id?: string
+  modelo_id?: string
+  nombre: string
+  valor: string
+  unidad: string
+  grupo: string
+  orden: number
+}
+
+type FormState = {
   empresa_id: string
   producto_id: string
   nombre: string
   descripcion: string
   categoria: string
   version: string
-  lithium_pct: string
-  cobalt_pct: string
 }
 
-const formInicial: FormModelo = {
+const EMPTY_FORM: FormState = {
   empresa_id: '',
   producto_id: '',
   nombre: '',
   descripcion: '',
   categoria: '',
   version: 'V1.0',
-  lithium_pct: '',
-  cobalt_pct: ''
 }
 
-function nombreEmpresa(empresa?: Empresa) {
-  if (!empresa) return 'Sin empresa'
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  height: 44,
+  background: '#090d12',
+  border: '1px solid #2a3440',
+  borderRadius: 7,
+  color: '#fff',
+  padding: '0 13px',
+  outline: 'none',
+  fontSize: 14,
+}
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  color: '#88a0bd',
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: 1.1,
+  marginBottom: 8,
+}
+
+function empresaNombre(empresa?: Empresa) {
+  if (!empresa) return '—'
 
   return (
     empresa.razon_social ||
@@ -71,89 +97,322 @@ function nombreEmpresa(empresa?: Empresa) {
   )
 }
 
+function normalizar(texto?: string | null) {
+  return (texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function sugerenciasPorCategoria(
+  categoriaProducto?: string | null,
+  sectorEmpresa?: string | null
+): Atributo[] {
+  const texto = normalizar(
+    `${categoriaProducto || ''} ${sectorEmpresa || ''}`
+  )
+
+  // ALIMENTOS / BEBIDAS / KOMBUCHA
+  if (
+    texto.includes('alimento') ||
+    texto.includes('bebida') ||
+    texto.includes('kombucha') ||
+    texto.includes('ferment') ||
+    texto.includes('food')
+  ) {
+    return [
+      {
+        nombre: 'Tipo de producto',
+        valor: '',
+        unidad: '',
+        grupo: 'Producto',
+        orden: 10,
+      },
+      {
+        nombre: 'Sabor / variedad',
+        valor: '',
+        unidad: '',
+        grupo: 'Producto',
+        orden: 20,
+      },
+      {
+        nombre: 'Tipo de fermentación',
+        valor: '',
+        unidad: '',
+        grupo: 'Proceso',
+        orden: 30,
+      },
+      {
+        nombre: 'Tiempo de fermentación',
+        valor: '',
+        unidad: 'días',
+        grupo: 'Proceso',
+        orden: 40,
+      },
+      {
+        nombre: 'Recipiente de fermentación',
+        valor: '',
+        unidad: '',
+        grupo: 'Proceso',
+        orden: 50,
+      },
+      {
+        nombre: 'Contenido neto',
+        valor: '',
+        unidad: 'ml',
+        grupo: 'Presentación',
+        orden: 60,
+      },
+      {
+        nombre: 'Condición de conservación',
+        valor: '',
+        unidad: '',
+        grupo: 'Conservación',
+        orden: 70,
+      },
+    ]
+  }
+
+  // ESTRUCTURAS / METAL / INDUSTRIAL
+  if (
+    texto.includes('estructura') ||
+    texto.includes('metal') ||
+    texto.includes('industrial') ||
+    texto.includes('acero') ||
+    texto.includes('minera')
+  ) {
+    return [
+      {
+        nombre: 'Material',
+        valor: '',
+        unidad: '',
+        grupo: 'Materiales',
+        orden: 10,
+      },
+      {
+        nombre: 'Altura',
+        valor: '',
+        unidad: 'm',
+        grupo: 'Dimensiones',
+        orden: 20,
+      },
+      {
+        nombre: 'Largo',
+        valor: '',
+        unidad: 'm',
+        grupo: 'Dimensiones',
+        orden: 30,
+      },
+      {
+        nombre: 'Ancho',
+        valor: '',
+        unidad: 'm',
+        grupo: 'Dimensiones',
+        orden: 40,
+      },
+      {
+        nombre: 'Peso',
+        valor: '',
+        unidad: 'kg',
+        grupo: 'Características',
+        orden: 50,
+      },
+      {
+        nombre: 'Terminación',
+        valor: '',
+        unidad: '',
+        grupo: 'Características',
+        orden: 60,
+      },
+      {
+        nombre: 'Capacidad de carga',
+        valor: '',
+        unidad: 'kg',
+        grupo: 'Características',
+        orden: 70,
+      },
+      {
+        nombre: 'Norma / certificación',
+        valor: '',
+        unidad: '',
+        grupo: 'Cumplimiento',
+        orden: 80,
+      },
+    ]
+  }
+
+  // TEXTIL
+  if (
+    texto.includes('textil') ||
+    texto.includes('ropa') ||
+    texto.includes('vestuario')
+  ) {
+    return [
+      {
+        nombre: 'Material',
+        valor: '',
+        unidad: '',
+        grupo: 'Composición',
+        orden: 10,
+      },
+      {
+        nombre: 'Talla',
+        valor: '',
+        unidad: '',
+        grupo: 'Características',
+        orden: 20,
+      },
+      {
+        nombre: 'Color',
+        valor: '',
+        unidad: '',
+        grupo: 'Características',
+        orden: 30,
+      },
+      {
+        nombre: 'Composición',
+        valor: '',
+        unidad: '%',
+        grupo: 'Composición',
+        orden: 40,
+      },
+      {
+        nombre: 'País de fabricación',
+        valor: '',
+        unidad: '',
+        grupo: 'Origen',
+        orden: 50,
+      },
+    ]
+  }
+
+  // ELECTRÓNICA / BATERÍAS
+  if (
+    texto.includes('electron') ||
+    texto.includes('bateria') ||
+    texto.includes('battery') ||
+    texto.includes('electrico')
+  ) {
+    return [
+      {
+        nombre: 'Tecnología',
+        valor: '',
+        unidad: '',
+        grupo: 'Características',
+        orden: 10,
+      },
+      {
+        nombre: 'Voltaje',
+        valor: '',
+        unidad: 'V',
+        grupo: 'Características',
+        orden: 20,
+      },
+      {
+        nombre: 'Capacidad',
+        valor: '',
+        unidad: 'Ah',
+        grupo: 'Características',
+        orden: 30,
+      },
+      {
+        nombre: 'Litio',
+        valor: '',
+        unidad: '%',
+        grupo: 'Composición',
+        orden: 40,
+      },
+      {
+        nombre: 'Cobalto',
+        valor: '',
+        unidad: '%',
+        grupo: 'Composición',
+        orden: 50,
+      },
+    ]
+  }
+
+  // GENÉRICO
+  return [
+    {
+      nombre: 'Característica',
+      valor: '',
+      unidad: '',
+      grupo: 'Especificaciones',
+      orden: 10,
+    },
+  ]
+}
+
 export default function ModelosPage() {
-  const [modelos, setModelos] = useState<Modelo[]>([])
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [productos, setProductos] = useState<Producto[]>([])
+  const [modelos, setModelos] = useState<Modelo[]>([])
+  const [atributos, setAtributos] = useState<Record<string, Atributo[]>>({})
 
-  const [busqueda, setBusqueda] = useState('')
-  const [cargando, setCargando] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [guardando, setGuardando] = useState(false)
+  const [modal, setModal] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
+  const [error, setError] = useState('')
 
-  const [modalAbierto, setModalAbierto] = useState(false)
-  const [modeloEditando, setModeloEditando] = useState<Modelo | null>(null)
+  const [form, setForm] = useState<FormState>(EMPTY_FORM)
+  const [especificaciones, setEspecificaciones] = useState<Atributo[]>([])
 
-  const [form, setForm] = useState<FormModelo>(formInicial)
+  useEffect(() => {
+    cargarTodo()
+  }, [])
 
-  const cargarDatos = async () => {
-    setCargando(true)
-
+  async function cargarTodo() {
     try {
-      const [modelosRes, empresasRes, productosRes] = await Promise.all([
+      setLoading(true)
+      setError('')
+
+      const [
+        empresasResponse,
+        productosResponse,
+        modelosResponse,
+        atributosResponse,
+      ] = await Promise.all([
+        supabase.from('empresas').select('*'),
+        supabase.from('productos').select('*'),
         supabase
           .from('modelos')
           .select('*')
           .order('created_at', { ascending: false }),
-
         supabase
-          .from('empresas')
-          .select('*'),
-
-        supabase
-          .from('productos')
+          .from('modelo_atributos')
           .select('*')
-          .order('nombre', { ascending: true })
+          .order('orden', { ascending: true }),
       ])
 
-      if (modelosRes.error) {
-        console.error('Error modelos:', modelosRes.error)
-        alert(`Error cargando modelos: ${modelosRes.error.message}`)
-      }
+      if (empresasResponse.error) throw empresasResponse.error
+      if (productosResponse.error) throw productosResponse.error
+      if (modelosResponse.error) throw modelosResponse.error
+      if (atributosResponse.error) throw atributosResponse.error
 
-      if (empresasRes.error) {
-        console.error('Error empresas:', empresasRes.error)
-        alert(`Error cargando empresas: ${empresasRes.error.message}`)
-      }
+      setEmpresas(empresasResponse.data || [])
+      setProductos(productosResponse.data || [])
+      setModelos(modelosResponse.data || [])
 
-      if (productosRes.error) {
-        console.error('Error productos:', productosRes.error)
-        alert(`Error cargando productos: ${productosRes.error.message}`)
-      }
+      const mapa: Record<string, Atributo[]> = {}
 
-      setModelos((modelosRes.data || []) as Modelo[])
-      setEmpresas((empresasRes.data || []) as Empresa[])
-      setProductos((productosRes.data || []) as Producto[])
-    } catch (error) {
-      console.error(error)
-      alert('Ocurrió un error inesperado cargando los datos.')
+      ;(atributosResponse.data || []).forEach((atributo: any) => {
+        if (!mapa[atributo.modelo_id]) {
+          mapa[atributo.modelo_id] = []
+        }
+
+        mapa[atributo.modelo_id].push(atributo)
+      })
+
+      setAtributos(mapa)
+    } catch (err: any) {
+      console.error(err)
+      setError(err?.message || 'No fue posible cargar los modelos.')
     } finally {
-      setCargando(false)
+      setLoading(false)
     }
   }
-
-  useEffect(() => {
-    cargarDatos()
-  }, [])
-
-  const mapaEmpresas = useMemo(() => {
-    const mapa = new Map<string, Empresa>()
-
-    empresas.forEach((empresa) => {
-      mapa.set(empresa.id, empresa)
-    })
-
-    return mapa
-  }, [empresas])
-
-  const mapaProductos = useMemo(() => {
-    const mapa = new Map<string, Producto>()
-
-    productos.forEach((producto) => {
-      mapa.set(producto.id, producto)
-    })
-
-    return mapa
-  }, [productos])
 
   const productosEmpresa = useMemo(() => {
     if (!form.empresa_id) return []
@@ -164,219 +423,212 @@ export default function ModelosPage() {
   }, [productos, form.empresa_id])
 
   const modelosFiltrados = useMemo(() => {
-    const texto = busqueda.trim().toLowerCase()
+    const texto = normalizar(busqueda)
 
     if (!texto) return modelos
 
     return modelos.filter((modelo) => {
-      const empresa = modelo.empresa_id
-        ? mapaEmpresas.get(modelo.empresa_id)
-        : undefined
+      const producto = productos.find((p) => p.id === modelo.producto_id)
+      const empresa = empresas.find((e) => e.id === modelo.empresa_id)
 
-      const producto = modelo.producto_id
-        ? mapaProductos.get(modelo.producto_id)
-        : undefined
-
-      const contenido = [
-        modelo.nombre,
-        modelo.descripcion,
-        modelo.categoria,
-        modelo.version,
-        nombreEmpresa(empresa),
-        producto?.nombre,
-        producto?.sku
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-
-      return contenido.includes(texto)
+      return normalizar(
+        [
+          modelo.nombre,
+          modelo.categoria,
+          modelo.version,
+          producto?.nombre,
+          empresaNombre(empresa),
+        ].join(' ')
+      ).includes(texto)
     })
-  }, [
-    modelos,
-    busqueda,
-    mapaEmpresas,
-    mapaProductos
-  ])
+  }, [modelos, productos, empresas, busqueda])
 
-  const abrirNuevo = () => {
-    setModeloEditando(null)
-    setForm(formInicial)
-    setModalAbierto(true)
+  function abrirNuevoModelo() {
+    setForm(EMPTY_FORM)
+    setEspecificaciones([])
+    setError('')
+    setModal(true)
   }
 
-  const abrirEditar = (modelo: Modelo) => {
-    setModeloEditando(modelo)
-
-    setForm({
-      empresa_id: modelo.empresa_id || '',
-      producto_id: modelo.producto_id || '',
-      nombre: modelo.nombre || '',
-      descripcion: modelo.descripcion || '',
-      categoria: modelo.categoria || '',
-      version: modelo.version || 'V1.0',
-      lithium_pct:
-        modelo.lithium_pct !== null &&
-        modelo.lithium_pct !== undefined
-          ? String(modelo.lithium_pct)
-          : '',
-      cobalt_pct:
-        modelo.cobalt_pct !== null &&
-        modelo.cobalt_pct !== undefined
-          ? String(modelo.cobalt_pct)
-          : ''
-    })
-
-    setModalAbierto(true)
-  }
-
-  const cerrarModal = () => {
+  function cerrarModal() {
     if (guardando) return
 
-    setModalAbierto(false)
-    setModeloEditando(null)
-    setForm(formInicial)
+    setModal(false)
+    setForm(EMPTY_FORM)
+    setEspecificaciones([])
+    setError('')
   }
 
-  const cambiarEmpresa = (empresa_id: string) => {
-    setForm((actual) => ({
-      ...actual,
-      empresa_id,
-      producto_id: ''
+  function seleccionarEmpresa(empresaId: string) {
+    setForm((prev) => ({
+      ...prev,
+      empresa_id: empresaId,
+      producto_id: '',
+      categoria: '',
     }))
+
+    setEspecificaciones([])
   }
 
-  const guardarModelo = async () => {
+  function seleccionarProducto(productoId: string) {
+    const producto = productos.find((p) => p.id === productoId)
+    const empresa = empresas.find((e) => e.id === form.empresa_id)
+
+    const categoria = producto?.categoria || ''
+
+    setForm((prev) => ({
+      ...prev,
+      producto_id: productoId,
+      categoria,
+    }))
+
+    setEspecificaciones(
+      sugerenciasPorCategoria(categoria, empresa?.sector)
+    )
+  }
+
+  function agregarEspecificacion() {
+    setEspecificaciones((prev) => [
+      ...prev,
+      {
+        nombre: '',
+        valor: '',
+        unidad: '',
+        grupo: 'Especificaciones',
+        orden: (prev.length + 1) * 10,
+      },
+    ])
+  }
+
+  function actualizarEspecificacion(
+    index: number,
+    campo: keyof Atributo,
+    valor: string
+  ) {
+    setEspecificaciones((prev) =>
+      prev.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              [campo]: valor,
+            }
+          : item
+      )
+    )
+  }
+
+  function eliminarEspecificacion(index: number) {
+    setEspecificaciones((prev) =>
+      prev.filter((_, i) => i !== index)
+    )
+  }
+
+  async function crearModelo() {
     if (!form.empresa_id) {
-      alert('Debes seleccionar una empresa.')
+      setError('Debes seleccionar una empresa.')
       return
     }
 
     if (!form.producto_id) {
-      alert('Debes seleccionar un producto.')
+      setError('Debes seleccionar un producto.')
       return
     }
 
     if (!form.nombre.trim()) {
-      alert('Debes ingresar el nombre del modelo.')
+      setError('Debes ingresar el nombre del modelo.')
       return
     }
 
-    let lithium: number | null = null
-    let cobalt: number | null = null
-
-    if (form.lithium_pct !== '') {
-      lithium = Number(form.lithium_pct)
-
-      if (
-        Number.isNaN(lithium) ||
-        lithium < 0 ||
-        lithium > 100
-      ) {
-        alert('El porcentaje de litio debe estar entre 0 y 100.')
-        return
-      }
-    }
-
-    if (form.cobalt_pct !== '') {
-      cobalt = Number(form.cobalt_pct)
-
-      if (
-        Number.isNaN(cobalt) ||
-        cobalt < 0 ||
-        cobalt > 100
-      ) {
-        alert('El porcentaje de cobalto debe estar entre 0 y 100.')
-        return
-      }
-    }
-
-    setGuardando(true)
-
-    const payload = {
-      empresa_id: form.empresa_id,
-      producto_id: form.producto_id,
-      nombre: form.nombre.trim(),
-      descripcion: form.descripcion.trim() || null,
-      categoria: form.categoria.trim() || null,
-      version: form.version.trim() || null,
-      lithium_pct: lithium,
-      cobalt_pct: cobalt
-    }
-
     try {
-      if (modeloEditando) {
-        const { error } = await supabase
-          .from('modelos')
-          .update(payload)
-          .eq('id', modeloEditando.id)
+      setGuardando(true)
+      setError('')
 
-        if (error) {
-          console.error(error)
-          alert(`No fue posible actualizar el modelo: ${error.message}`)
-          return
+      const { data: modeloCreado, error: modeloError } = await supabase
+        .from('modelos')
+        .insert({
+          empresa_id: form.empresa_id,
+          producto_id: form.producto_id,
+          nombre: form.nombre.trim(),
+          descripcion: form.descripcion.trim() || null,
+          categoria: form.categoria.trim() || null,
+          version: form.version.trim() || 'V1.0',
+        })
+        .select()
+        .single()
+
+      if (modeloError) throw modeloError
+
+      const atributosValidos = especificaciones
+        .filter(
+          (item) =>
+            item.nombre.trim() &&
+            item.valor.trim()
+        )
+        .map((item, index) => ({
+          modelo_id: modeloCreado.id,
+          nombre: item.nombre.trim(),
+          valor: item.valor.trim(),
+          unidad: item.unidad.trim() || null,
+          grupo: item.grupo.trim() || 'Especificaciones',
+          orden: (index + 1) * 10,
+        }))
+
+      if (atributosValidos.length > 0) {
+        const { error: atributosError } = await supabase
+          .from('modelo_atributos')
+          .insert(atributosValidos)
+
+        if (atributosError) {
+          // Si fallan los atributos, eliminamos el modelo recién creado
+          // para evitar dejar un registro incompleto.
+          await supabase
+            .from('modelos')
+            .delete()
+            .eq('id', modeloCreado.id)
+
+          throw atributosError
         }
-
-        alert('Modelo actualizado correctamente.')
-      } else {
-        const { error } = await supabase
-          .from('modelos')
-          .insert(payload)
-
-        if (error) {
-          console.error(error)
-          alert(`No fue posible crear el modelo: ${error.message}`)
-          return
-        }
-
-        alert('Modelo creado correctamente.')
       }
 
-      setModalAbierto(false)
-      setModeloEditando(null)
-      setForm(formInicial)
+      setModal(false)
+      setForm(EMPTY_FORM)
+      setEspecificaciones([])
 
-      await cargarDatos()
-    } catch (error) {
-      console.error(error)
-      alert('Ocurrió un error inesperado guardando el modelo.')
+      await cargarTodo()
+    } catch (err: any) {
+      console.error(err)
+      setError(
+        err?.message ||
+          'No fue posible crear el modelo.'
+      )
     } finally {
       setGuardando(false)
     }
   }
 
-  const formatoFecha = (fecha: string | null) => {
-    if (!fecha) return '—'
-
-    const date = new Date(fecha)
-
-    if (Number.isNaN(date.getTime())) return '—'
-
-    return new Intl.DateTimeFormat('es-CL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    }).format(date)
+  function productoDeModelo(modelo: Modelo) {
+    return productos.find(
+      (producto) => producto.id === modelo.producto_id
+    )
   }
 
-  const porcentaje = (valor: number | null) => {
-    if (valor === null || valor === undefined) return '—'
-
-    return `${valor}%`
+  function empresaDeModelo(modelo: Modelo) {
+    return empresas.find(
+      (empresa) => empresa.id === modelo.empresa_id
+    )
   }
 
   return (
-    <div>
-
-      {/* CABECERA */}
+    <div style={{ maxWidth: 1500, margin: '0 auto' }}>
+      {/* ENCABEZADO */}
 
       <div
         style={{
           display: 'flex',
-          alignItems: 'flex-start',
           justifyContent: 'space-between',
+          alignItems: 'flex-start',
           gap: 20,
-          marginBottom: 28
+          marginBottom: 28,
         }}
       >
         <div>
@@ -385,8 +637,8 @@ export default function ModelosPage() {
               color: '#ff6a00',
               fontSize: 10,
               fontWeight: 900,
-              letterSpacing: 1.2,
-              marginBottom: 8
+              letterSpacing: 1.4,
+              marginBottom: 8,
             }}
           >
             GESTIÓN
@@ -396,7 +648,7 @@ export default function ModelosPage() {
             style={{
               margin: 0,
               fontSize: 28,
-              fontWeight: 900
+              fontWeight: 900,
             }}
           >
             Modelos
@@ -404,9 +656,9 @@ export default function ModelosPage() {
 
           <div
             style={{
-              marginTop: 8,
-              color: '#8291a2',
-              fontSize: 13
+              color: '#7890aa',
+              fontSize: 13,
+              marginTop: 7,
             }}
           >
             Modelos y especificaciones técnicas de productos.
@@ -414,67 +666,60 @@ export default function ModelosPage() {
         </div>
 
         <button
-          onClick={abrirNuevo}
+          onClick={abrirNuevoModelo}
           style={{
             background: '#ff6a00',
-            border: 0,
-            color: 'white',
+            color: '#fff',
+            border: 'none',
             borderRadius: 7,
             padding: '12px 18px',
             fontWeight: 900,
             cursor: 'pointer',
-            fontSize: 13
           }}
         >
           + Nuevo modelo
         </button>
       </div>
 
-      {/* TARJETA CONTADOR */}
+      {/* CONTADOR */}
 
       <div
         style={{
-          width: 295,
+          width: 320,
+          minHeight: 125,
           background: '#111820',
-          border: '1px solid #26303a',
+          border: '1px solid #27313c',
           borderLeft: '3px solid #ff6a00',
           borderRadius: 9,
-          padding: '20px 20px',
-          marginBottom: 20
+          padding: 20,
+          marginBottom: 20,
         }}
       >
         <div
           style={{
             display: 'flex',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
           }}
         >
           <span
             style={{
-              fontSize: 9,
-              color: '#7e91a6',
+              color: '#839ab5',
+              fontSize: 10,
               fontWeight: 900,
-              letterSpacing: 1.2
+              letterSpacing: 1.2,
             }}
           >
             MODELOS REGISTRADOS
           </span>
 
-          <span
-            style={{
-              color: '#ff6a00',
-              fontSize: 18
-            }}
-          >
-            ◇
-          </span>
+          <span style={{ color: '#ff6a00' }}>◇</span>
         </div>
 
         <div
           style={{
             fontSize: 30,
             fontWeight: 900,
-            marginTop: 24
+            marginTop: 25,
           }}
         >
           {modelos.length}
@@ -485,326 +730,278 @@ export default function ModelosPage() {
 
       <div
         style={{
-          background: '#0d1319',
-          border: '1px solid #232d37',
-          borderRadius: 9,
+          background: '#0e141b',
+          border: '1px solid #222c36',
+          borderRadius: 8,
           padding: 13,
-          marginBottom: 14
+          marginBottom: 14,
         }}
       >
+        <input
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar modelo, producto, categoría o empresa..."
+          style={{
+            ...inputStyle,
+            maxWidth: 560,
+          }}
+        />
+      </div>
+
+      {/* ERROR */}
+
+      {error && !modal && (
         <div
           style={{
-            maxWidth: 560,
-            position: 'relative'
+            background: '#351010',
+            border: '1px solid #762525',
+            color: '#ffaaaa',
+            padding: 12,
+            borderRadius: 7,
+            marginBottom: 15,
+            fontSize: 12,
           }}
         >
-          <span
-            style={{
-              position: 'absolute',
-              left: 14,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: '#718096',
-              fontSize: 13
-            }}
-          >
-            ⌕
-          </span>
-
-          <input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar modelo, producto, empresa, categoría o versión..."
-            style={{
-              width: '100%',
-              background: '#080c11',
-              border: '1px solid #2b3540',
-              borderRadius: 6,
-              padding: '11px 14px 11px 42px',
-              color: 'white',
-              outline: 'none',
-              fontSize: 13
-            }}
-          />
+          {error}
         </div>
-      </div>
+      )}
 
       {/* TABLA */}
 
       <div
         style={{
-          background: '#0d1319',
-          border: '1px solid #232d37',
-          borderRadius: 9,
-          overflowX: 'auto'
+          background: '#0e141b',
+          border: '1px solid #222c36',
+          borderRadius: 8,
+          overflow: 'hidden',
         }}
       >
-        <table
+        <div
           style={{
-            width: '100%',
-            borderCollapse: 'collapse',
-            minWidth: 1100
+            display: 'grid',
+            gridTemplateColumns:
+              '1.5fr 1.2fr 1fr 1fr .7fr .7fr',
+            padding: '13px 17px',
+            borderBottom: '1px solid #222c36',
+            color: '#68809b',
+            fontSize: 9,
+            fontWeight: 900,
+            letterSpacing: 1.1,
           }}
         >
-          <thead>
-            <tr>
-              {[
-                'MODELO',
-                'PRODUCTO',
-                'EMPRESA',
-                'CATEGORÍA',
-                'VERSIÓN',
-                'LITIO',
-                'COBALTO',
-                'FECHA',
-                'ACCIONES'
-              ].map((titulo) => (
-                <th
-                  key={titulo}
-                  style={{
-                    textAlign: 'left',
-                    padding: '13px 16px',
-                    borderBottom: '1px solid #25303a',
-                    color: '#71849a',
-                    fontSize: 8,
-                    fontWeight: 900,
-                    letterSpacing: 1.2,
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {titulo}
-                </th>
-              ))}
-            </tr>
-          </thead>
+          <div>MODELO</div>
+          <div>PRODUCTO</div>
+          <div>EMPRESA</div>
+          <div>CATEGORÍA</div>
+          <div>VERSIÓN</div>
+          <div>ESPEC.</div>
+        </div>
 
-          <tbody>
+        {loading ? (
+          <div
+            style={{
+              padding: 40,
+              textAlign: 'center',
+              color: '#708297',
+            }}
+          >
+            Cargando modelos...
+          </div>
+        ) : modelosFiltrados.length === 0 ? (
+          <div
+            style={{
+              padding: 40,
+              textAlign: 'center',
+              color: '#708297',
+            }}
+          >
+            No se encontraron modelos.
+          </div>
+        ) : (
+          modelosFiltrados.map((modelo) => {
+            const producto = productoDeModelo(modelo)
+            const empresa = empresaDeModelo(modelo)
+            const specs = atributos[modelo.id] || []
 
-            {cargando && (
-              <tr>
-                <td
-                  colSpan={9}
-                  style={{
-                    padding: 40,
-                    textAlign: 'center',
-                    color: '#718096'
-                  }}
-                >
-                  Cargando modelos...
-                </td>
-              </tr>
-            )}
+            return (
+              <div
+                key={modelo.id}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns:
+                    '1.5fr 1.2fr 1fr 1fr .7fr .7fr',
+                  padding: '15px 17px',
+                  borderBottom: '1px solid #202832',
+                  alignItems: 'center',
+                  fontSize: 12,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      color: '#fff',
+                    }}
+                  >
+                    {modelo.nombre}
+                  </div>
 
-            {!cargando && modelosFiltrados.length === 0 && (
-              <tr>
-                <td
-                  colSpan={9}
-                  style={{
-                    padding: 42,
-                    textAlign: 'center',
-                    color: '#718096',
-                    fontSize: 13
-                  }}
-                >
-                  No se encontraron modelos.
-                </td>
-              </tr>
-            )}
+                  <div
+                    style={{
+                      color: '#526579',
+                      fontSize: 9,
+                      marginTop: 4,
+                    }}
+                  >
+                    ID: {modelo.id.slice(0, 12)}
+                  </div>
+                </div>
 
-            {!cargando &&
-              modelosFiltrados.map((modelo) => {
-                const empresa = modelo.empresa_id
-                  ? mapaEmpresas.get(modelo.empresa_id)
-                  : undefined
+                <div style={{ color: '#a8bdd2' }}>
+                  {producto?.nombre || '—'}
+                </div>
 
-                const producto = modelo.producto_id
-                  ? mapaProductos.get(modelo.producto_id)
-                  : undefined
+                <div>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      background: 'rgba(255,106,0,.10)',
+                      color: '#ff8129',
+                      border: '1px solid rgba(255,106,0,.25)',
+                      padding: '5px 8px',
+                      borderRadius: 5,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {empresaNombre(empresa)}
+                  </span>
+                </div>
 
-                return (
-                  <tr key={modelo.id}>
+                <div style={{ color: '#a8bdd2' }}>
+                  {modelo.categoria || producto?.categoria || '—'}
+                </div>
 
-                    <td style={tdStyle}>
-                      <div
-                        style={{
-                          fontWeight: 800,
-                          color: 'white'
-                        }}
-                      >
-                        {modelo.nombre || 'Sin nombre'}
-                      </div>
+                <div style={{ color: '#a8bdd2' }}>
+                  {modelo.version || '—'}
+                </div>
 
-                      <div style={subStyle}>
-                        ID: {modelo.id.slice(0, 10)}
-                      </div>
-                    </td>
-
-                    <td style={tdStyle}>
-                      <div>
-                        {producto?.nombre || '—'}
-                      </div>
-
-                      {producto?.sku && (
-                        <div style={subStyle}>
-                          SKU: {producto.sku}
-                        </div>
-                      )}
-                    </td>
-
-                    <td style={tdStyle}>
-                      {empresa ? (
-                        <span style={empresaBadge}>
-                          {nombreEmpresa(empresa)}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-
-                    <td style={tdStyle}>
-                      {modelo.categoria || '—'}
-                    </td>
-
-                    <td style={tdStyle}>
-                      {modelo.version || '—'}
-                    </td>
-
-                    <td style={tdStyle}>
-                      {porcentaje(modelo.lithium_pct)}
-                    </td>
-
-                    <td style={tdStyle}>
-                      {porcentaje(modelo.cobalt_pct)}
-                    </td>
-
-                    <td style={tdStyle}>
-                      {formatoFecha(modelo.created_at)}
-                    </td>
-
-                    <td style={tdStyle}>
-                      <button
-                        onClick={() => abrirEditar(modelo)}
-                        style={editButton}
-                      >
-                        Editar
-                      </button>
-                    </td>
-
-                  </tr>
-                )
-              })}
-
-          </tbody>
-        </table>
+                <div>
+                  <span
+                    style={{
+                      background: '#17212b',
+                      border: '1px solid #273441',
+                      borderRadius: 20,
+                      padding: '5px 9px',
+                      color: '#a8bdd2',
+                      fontSize: 10,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {specs.length}
+                  </span>
+                </div>
+              </div>
+            )
+          })
+        )}
       </div>
 
       {/* MODAL */}
 
-      {modalAbierto && (
+      {modal && (
         <div
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) {
-              cerrarModal()
-            }
-          }}
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,.78)',
+            background: 'rgba(0,0,0,.82)',
             zIndex: 9999,
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'center',
-            padding: 20
+            alignItems: 'center',
+            padding: 20,
           }}
         >
           <div
             style={{
               width: '100%',
-              maxWidth: 620,
+              maxWidth: 760,
               maxHeight: '92vh',
               overflowY: 'auto',
-              background: '#11161d',
-              border: '1px solid #303943',
-              borderRadius: 12,
-              boxShadow: '0 25px 80px rgba(0,0,0,.65)'
+              background: '#111820',
+              border: '1px solid #303b47',
+              borderRadius: 10,
+              boxShadow: '0 25px 80px rgba(0,0,0,.55)',
             }}
           >
+            {/* TITULO MODAL */}
 
             <div
               style={{
-                padding: '22px 24px',
-                borderBottom: '1px solid #252d36'
+                padding: '18px 26px',
+                borderBottom: '1px solid #27313b',
               }}
             >
-              <div
-                style={{
-                  color: '#ff6a00',
-                  fontSize: 9,
-                  fontWeight: 900,
-                  letterSpacing: 1.2
-                }}
-              >
-                GESTIÓN DE MODELOS
-              </div>
-
               <h2
                 style={{
-                  margin: '7px 0 0',
-                  fontSize: 21
+                  margin: 0,
+                  fontSize: 23,
+                  fontWeight: 900,
                 }}
               >
-                {modeloEditando
-                  ? 'Editar modelo'
-                  : 'Nuevo modelo'}
+                Nuevo modelo
               </h2>
+
+              <div
+                style={{
+                  color: '#71869d',
+                  fontSize: 12,
+                  marginTop: 5,
+                }}
+              >
+                Define el modelo y sus especificaciones.
+              </div>
             </div>
 
-            <div
-              style={{
-                padding: 24
-              }}
-            >
+            <div style={{ padding: 26 }}>
+              {/* EMPRESA */}
 
-              <Campo label="Empresa *">
+              <div style={{ marginBottom: 18 }}>
+                <label style={labelStyle}>EMPRESA *</label>
 
                 <select
                   value={form.empresa_id}
                   onChange={(e) =>
-                    cambiarEmpresa(e.target.value)
+                    seleccionarEmpresa(e.target.value)
                   }
                   style={inputStyle}
                 >
-                  <option value="">
-                    Seleccionar empresa
-                  </option>
+                  <option value="">Seleccionar empresa</option>
 
                   {empresas.map((empresa) => (
                     <option
                       key={empresa.id}
                       value={empresa.id}
                     >
-                      {nombreEmpresa(empresa)}
+                      {empresaNombre(empresa)}
                     </option>
                   ))}
                 </select>
+              </div>
 
-              </Campo>
+              {/* PRODUCTO */}
 
-              <Campo label="Producto *">
+              <div style={{ marginBottom: 18 }}>
+                <label style={labelStyle}>PRODUCTO *</label>
 
                 <select
                   value={form.producto_id}
                   disabled={!form.empresa_id}
                   onChange={(e) =>
-                    setForm({
-                      ...form,
-                      producto_id: e.target.value
-                    })
+                    seleccionarProducto(e.target.value)
                   }
                   style={{
                     ...inputStyle,
-                    opacity: form.empresa_id ? 1 : 0.5
+                    opacity: form.empresa_id ? 1 : 0.5,
                   }}
                 >
                   <option value="">
@@ -819,270 +1016,327 @@ export default function ModelosPage() {
                       value={producto.id}
                     >
                       {producto.nombre}
-                      {producto.sku
-                        ? ` · ${producto.sku}`
-                        : ''}
                     </option>
                   ))}
                 </select>
+              </div>
 
-              </Campo>
+              {/* NOMBRE */}
 
-              <Campo label="Nombre del modelo *">
+              <div style={{ marginBottom: 18 }}>
+                <label style={labelStyle}>
+                  NOMBRE DEL MODELO *
+                </label>
 
                 <input
                   value={form.nombre}
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      nombre: e.target.value
+                      nombre: e.target.value,
                     })
                   }
-                  placeholder="Ej: ESCALERA BODEGA"
+                  placeholder="Ej: Añejado en roble"
                   style={inputStyle}
                 />
+              </div>
 
-              </Campo>
+              {/* DESCRIPCIÓN */}
 
-              <Campo label="Descripción">
+              <div style={{ marginBottom: 18 }}>
+                <label style={labelStyle}>DESCRIPCIÓN</label>
 
                 <textarea
                   value={form.descripcion}
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      descripcion: e.target.value
+                      descripcion: e.target.value,
                     })
                   }
-                  placeholder="Descripción técnica del modelo..."
-                  rows={4}
+                  placeholder="Descripción del modelo..."
                   style={{
                     ...inputStyle,
-                    resize: 'vertical'
+                    height: 95,
+                    paddingTop: 12,
+                    resize: 'vertical',
                   }}
                 />
+              </div>
 
-              </Campo>
+              {/* CATEGORIA + VERSION */}
 
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns:
-                    'repeat(auto-fit, minmax(180px, 1fr))',
-                  gap: 14
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 15,
+                  marginBottom: 25,
                 }}
               >
+                <div>
+                  <label style={labelStyle}>CATEGORÍA</label>
 
-                <Campo label="Categoría">
                   <input
                     value={form.categoria}
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        categoria: e.target.value
+                        categoria: e.target.value,
                       })
                     }
-                    placeholder="Ej: Battery"
+                    placeholder="Ej: Alimento"
                     style={inputStyle}
                   />
-                </Campo>
+                </div>
 
-                <Campo label="Versión">
+                <div>
+                  <label style={labelStyle}>VERSIÓN</label>
+
                   <input
                     value={form.version}
                     onChange={(e) =>
                       setForm({
                         ...form,
-                        version: e.target.value
+                        version: e.target.value,
                       })
                     }
                     placeholder="V1.0"
                     style={inputStyle}
                   />
-                </Campo>
-
+                </div>
               </div>
+
+              {/* ESPECIFICACIONES */}
 
               <div
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns:
-                    'repeat(auto-fit, minmax(180px, 1fr))',
-                  gap: 14
+                  borderTop: '1px solid #27313b',
+                  paddingTop: 22,
                 }}
               >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 15,
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        color: '#ff6a00',
+                        fontSize: 10,
+                        fontWeight: 900,
+                        letterSpacing: 1.2,
+                      }}
+                    >
+                      ESPECIFICACIONES
+                    </div>
 
-                <Campo label="Litio %">
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={form.lithium_pct}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        lithium_pct: e.target.value
-                      })
-                    }
-                    placeholder="Ej: 12"
-                    style={inputStyle}
-                  />
-                </Campo>
+                    <div
+                      style={{
+                        color: '#71869d',
+                        fontSize: 11,
+                        marginTop: 4,
+                      }}
+                    >
+                      Características propias de este modelo.
+                    </div>
+                  </div>
 
-                <Campo label="Cobalto %">
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={form.cobalt_pct}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        cobalt_pct: e.target.value
-                      })
-                    }
-                    placeholder="Ej: 15"
-                    style={inputStyle}
-                  />
-                </Campo>
+                  <button
+                    type="button"
+                    onClick={agregarEspecificacion}
+                    style={{
+                      background: '#18212b',
+                      color: '#ff7a1a',
+                      border: '1px solid #34404d',
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      fontWeight: 800,
+                      fontSize: 11,
+                    }}
+                  >
+                    + Agregar
+                  </button>
+                </div>
 
+                {especificaciones.length === 0 ? (
+                  <div
+                    style={{
+                      background: '#0b1016',
+                      border: '1px dashed #303b47',
+                      borderRadius: 8,
+                      padding: 22,
+                      color: '#71869d',
+                      textAlign: 'center',
+                      fontSize: 12,
+                    }}
+                  >
+                    Selecciona un producto para cargar
+                    especificaciones sugeridas o agrégalas
+                    manualmente.
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 9,
+                    }}
+                  >
+                    {especificaciones.map((item, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns:
+                            '1.25fr 1.25fr .6fr 40px',
+                          gap: 8,
+                          alignItems: 'center',
+                        }}
+                      >
+                        <input
+                          value={item.nombre}
+                          onChange={(e) =>
+                            actualizarEspecificacion(
+                              index,
+                              'nombre',
+                              e.target.value
+                            )
+                          }
+                          placeholder="Característica"
+                          style={inputStyle}
+                        />
+
+                        <input
+                          value={item.valor}
+                          onChange={(e) =>
+                            actualizarEspecificacion(
+                              index,
+                              'valor',
+                              e.target.value
+                            )
+                          }
+                          placeholder="Valor"
+                          style={inputStyle}
+                        />
+
+                        <input
+                          value={item.unidad}
+                          onChange={(e) =>
+                            actualizarEspecificacion(
+                              index,
+                              'unidad',
+                              e.target.value
+                            )
+                          }
+                          placeholder="Unidad"
+                          style={inputStyle}
+                        />
+
+                        <button
+                          type="button"
+                          title="Eliminar especificación"
+                          onClick={() =>
+                            eliminarEspecificacion(index)
+                          }
+                          style={{
+                            width: 40,
+                            height: 40,
+                            background: '#291315',
+                            color: '#ff7474',
+                            border: '1px solid #562226',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                            fontWeight: 900,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
+              {/* ERROR MODAL */}
+
+              {error && (
+                <div
+                  style={{
+                    marginTop: 18,
+                    background: '#351010',
+                    border: '1px solid #762525',
+                    color: '#ffaaaa',
+                    padding: 12,
+                    borderRadius: 7,
+                    fontSize: 12,
+                  }}
+                >
+                  {error}
+                </div>
+              )}
             </div>
+
+            {/* BOTONES */}
 
             <div
               style={{
+                position: 'sticky',
+                bottom: 0,
+                background: '#111820',
+                borderTop: '1px solid #27313b',
+                padding: '16px 26px',
                 display: 'flex',
                 justifyContent: 'flex-end',
                 gap: 10,
-                padding: '18px 24px',
-                borderTop: '1px solid #252d36'
               }}
             >
-
               <button
                 onClick={cerrarModal}
                 disabled={guardando}
                 style={{
-                  background: '#20262e',
-                  border: '1px solid #343d47',
-                  color: 'white',
-                  padding: '10px 18px',
-                  borderRadius: 6,
-                  cursor: 'pointer'
+                  background: '#1c2530',
+                  border: '1px solid #34404d',
+                  color: '#fff',
+                  padding: '11px 20px',
+                  borderRadius: 7,
+                  cursor: guardando
+                    ? 'not-allowed'
+                    : 'pointer',
                 }}
               >
                 Cancelar
               </button>
 
               <button
-                onClick={guardarModelo}
+                onClick={crearModelo}
                 disabled={guardando}
                 style={{
-                  background: guardando
-                    ? '#7c3a08'
-                    : '#ff6a00',
-                  border: 0,
-                  color: 'white',
-                  padding: '10px 20px',
-                  borderRadius: 6,
+                  background: '#ff6a00',
+                  border: 'none',
+                  color: '#fff',
+                  padding: '11px 22px',
+                  borderRadius: 7,
                   fontWeight: 900,
                   cursor: guardando
-                    ? 'wait'
-                    : 'pointer'
+                    ? 'not-allowed'
+                    : 'pointer',
+                  opacity: guardando ? 0.7 : 1,
                 }}
               >
                 {guardando
-                  ? 'Guardando...'
-                  : modeloEditando
-                    ? 'Guardar cambios'
-                    : 'Crear modelo'}
+                  ? 'Creando modelo...'
+                  : 'Crear modelo'}
               </button>
-
             </div>
-
           </div>
         </div>
       )}
-
     </div>
   )
-}
-
-function Campo({
-  label,
-  children
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <label
-        style={{
-          display: 'block',
-          marginBottom: 7,
-          color: '#8795a5',
-          fontSize: 9,
-          fontWeight: 900,
-          letterSpacing: 1,
-          textTransform: 'uppercase'
-        }}
-      >
-        {label}
-      </label>
-
-      {children}
-    </div>
-  )
-}
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  background: '#080c11',
-  border: '1px solid #303944',
-  borderRadius: 6,
-  padding: '11px 12px',
-  color: 'white',
-  outline: 'none',
-  fontSize: 13,
-  boxSizing: 'border-box'
-}
-
-const tdStyle: React.CSSProperties = {
-  padding: '15px 16px',
-  borderBottom: '1px solid #232d37',
-  fontSize: 12,
-  color: '#b5c0cb',
-  verticalAlign: 'middle'
-}
-
-const subStyle: React.CSSProperties = {
-  color: '#586b7f',
-  fontSize: 9,
-  marginTop: 4
-}
-
-const empresaBadge: React.CSSProperties = {
-  display: 'inline-block',
-  background: 'rgba(255,106,0,.10)',
-  border: '1px solid rgba(255,106,0,.28)',
-  color: '#ff812b',
-  borderRadius: 5,
-  padding: '5px 9px',
-  fontSize: 10,
-  fontWeight: 800
-}
-
-const editButton: React.CSSProperties = {
-  background: '#18212a',
-  border: '1px solid #2d3944',
-  color: 'white',
-  padding: '7px 12px',
-  borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 11,
-  fontWeight: 700
 }

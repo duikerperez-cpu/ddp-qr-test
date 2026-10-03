@@ -751,6 +751,88 @@ export default async function DPPPage({ params }: Props) {
         </div>
 
         {/* ===================================================
+            HISTORIAL DE TRAZABILIDAD
+        =================================================== */}
+
+        <section className="section traceHistorySection">
+          <div className="sectionTop">
+            <div>
+              <div className="sectionEyebrow">CICLO DE VIDA</div>
+              <h2>Historial de trazabilidad</h2>
+            </div>
+            <div className="sectionMeta">
+              {eventosTrazabilidad.length > 0
+                ? `${eventosTrazabilidad.length} evento${eventosTrazabilidad.length === 1 ? '' : 's'} registrado${eventosTrazabilidad.length === 1 ? '' : 's'}`
+                : 'Sin eventos adicionales'}
+            </div>
+          </div>
+
+          {eventosTrazabilidad.length === 0 ? (
+            <div className="traceEmpty">
+              <div className="traceEmptyIcon">◎</div>
+              <div>
+                <strong>Esta unidad aún no registra eventos adicionales en su ciclo de vida.</strong>
+                <p>Cuando se registren controles, despachos, instalaciones, mantenimientos, reparaciones u otros hitos, aparecerán aquí automáticamente.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="traceTimeline">
+              {eventosTrazabilidad.map((evento: any, index: number) => {
+                const tituloEvento = evento.titulo || evento.tipo_evento || 'Evento de trazabilidad'
+                const fechaEvento = evento.fecha_evento || evento.created_at
+                return (
+                  <div className="traceEvent" key={evento.id || `${tituloEvento}-${index}`}>
+                    <div className="traceRail">
+                      <div className="traceDot">{String(index + 1).padStart(2, '0')}</div>
+                      {index < eventosTrazabilidad.length - 1 && <div className="traceLine" />}
+                    </div>
+
+                    <div className="traceCard">
+                      <div className="traceCardTop">
+                        <div>
+                          <span className="traceType">{evento.tipo_evento || 'TRAZABILIDAD'}</span>
+                          <h3>{tituloEvento}</h3>
+                        </div>
+                        <time>{formatEventDate(fechaEvento)}</time>
+                      </div>
+
+                      {evento.descripcion && <p className="traceDescription">{evento.descripcion}</p>}
+
+                      <div className="traceDetails">
+                        {evento.responsable && (
+                          <div><span>RESPONSABLE</span><strong>{evento.responsable}</strong></div>
+                        )}
+                        {evento.ubicacion && (
+                          <div><span>UBICACIÓN</span><strong>{evento.ubicacion}</strong></div>
+                        )}
+                        <div><span>REGISTRO</span><strong>VINCULAB</strong></div>
+                      </div>
+
+                      {evento.archivo_url && (
+                        <a
+                          href={evento.archivo_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="traceFile"
+                        >
+                          <span>▣</span>
+                          <div>
+                            <small>EVIDENCIA / DOCUMENTO</small>
+                            <strong>{evento.archivo_nombre || 'Ver archivo adjunto'}</strong>
+                            {evento.archivo_tipo && <em>{evento.archivo_tipo}</em>}
+                          </div>
+                          <b>↗</b>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* ===================================================
             RESPONSABLE
         =================================================== */}
 
@@ -2038,6 +2120,58 @@ export default async function DPPPage({ params }: Props) {
         }
         .qrOpenButton:hover { background:rgba(255,102,0,.14); }
 
+
+        /* ==============================================
+           TRACEABILITY HISTORY
+        ============================================== */
+
+        .traceHistorySection { margin-top:28px; }
+        .traceTimeline { margin-top:18px; }
+        .traceEvent { display:grid; grid-template-columns:52px minmax(0,1fr); gap:15px; }
+        .traceRail { position:relative; display:flex; flex-direction:column; align-items:center; }
+        .traceDot {
+          position:relative; z-index:2; width:36px; height:36px;
+          display:flex; align-items:center; justify-content:center;
+          border:1px solid rgba(255,102,0,.55); border-radius:50%;
+          background:#121a21; color:#ff6600; font-size:9px; font-weight:950;
+          box-shadow:0 0 0 5px #080d12;
+        }
+        .traceLine { width:1px; flex:1; min-height:40px; background:linear-gradient(#ff6600,#283641); }
+        .traceCard {
+          margin-bottom:18px; padding:20px 22px; border:1px solid #273540;
+          border-radius:10px; background:#10171f;
+        }
+        .traceCardTop { display:flex; justify-content:space-between; gap:20px; align-items:flex-start; }
+        .traceType { color:#ff6600; font-size:8px; font-weight:950; letter-spacing:1.5px; text-transform:uppercase; }
+        .traceCard h3 { margin:6px 0 0; font-size:16px; }
+        .traceCard time { color:#6f879a; font-size:9px; white-space:nowrap; }
+        .traceDescription { margin:14px 0 0; color:#8da0af; font-size:11px; line-height:1.65; }
+        .traceDetails { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:16px; }
+        .traceDetails>div { padding:11px 12px; border:1px solid #25323c; border-radius:7px; background:#0b1218; }
+        .traceDetails span { display:block; margin-bottom:5px; color:#5f778b; font-size:7px; font-weight:900; letter-spacing:1.1px; }
+        .traceDetails strong { font-size:9px; overflow-wrap:anywhere; }
+        .traceFile {
+          display:flex; align-items:center; gap:12px; margin-top:14px; padding:12px 14px;
+          border:1px solid rgba(255,102,0,.25); border-radius:8px;
+          background:rgba(255,102,0,.05); color:#fff; text-decoration:none;
+        }
+        .traceFile>span { color:#ff6600; font-size:18px; }
+        .traceFile div { min-width:0; flex:1; }
+        .traceFile small { display:block; color:#6d8294; font-size:7px; font-weight:900; letter-spacing:1px; }
+        .traceFile strong { display:block; margin-top:3px; font-size:10px; overflow-wrap:anywhere; }
+        .traceFile em { display:block; margin-top:3px; color:#687f91; font-size:8px; font-style:normal; }
+        .traceFile>b { color:#ff6600; }
+        .traceEmpty {
+          display:flex; gap:15px; align-items:center; margin-top:18px; padding:20px;
+          border:1px dashed #2b3a45; border-radius:10px; background:#0c1319;
+        }
+        .traceEmptyIcon {
+          width:40px; height:40px; flex:0 0 40px; display:flex; align-items:center; justify-content:center;
+          border-radius:50%; background:rgba(255,102,0,.09); color:#ff6600; font-size:20px;
+        }
+        .traceEmpty strong { font-size:11px; }
+        .traceEmpty p { margin:5px 0 0; color:#71889a; font-size:9px; line-height:1.5; }
+
         /* ==============================================
            COMPANY
         ============================================== */
@@ -2492,6 +2626,11 @@ export default async function DPPPage({ params }: Props) {
           .qrFrame { width:185px; height:185px; }
         }
         @media (max-width: 650px) {
+          .traceEvent { grid-template-columns:38px minmax(0,1fr); gap:8px; }
+          .traceDot { width:30px; height:30px; }
+          .traceCard { padding:16px; }
+          .traceCardTop { flex-direction:column; gap:8px; }
+          .traceDetails { grid-template-columns:1fr; }
           .qrPanel { grid-template-columns:1fr; padding:22px; }
           .qrFrame { width:min(240px,72vw); height:min(240px,72vw); }
           .qrContent { text-align:center; }

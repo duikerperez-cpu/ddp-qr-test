@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 
@@ -9,18 +9,170 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+type Perfil = {
+  rol: string | null
+  activo: boolean | null
+  empresa_id: string | null
+  nombre: string | null
+}
+
 export default function LoginPage() {
   const router = useRouter()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+
+  const [mostrarPassword, setMostrarPassword] = useState(false)
+
   const [loading, setLoading] = useState(false)
+  const [verificandoSesion, setVerificandoSesion] = useState(true)
+
   const [error, setError] = useState('')
+
+  /* =========================================================
+     NORMALIZAR ROL
+  ========================================================= */
+
+  const normalizarRol = (rol: string | null | undefined) => {
+    return String(rol || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '')
+      .replace(/_/g, '')
+      .replace(/-/g, '')
+  }
+
+  /* =========================================================
+     DETERMINAR DESTINO SEGÚN PERFIL
+  ========================================================= */
+
+  const obtenerDestino = (perfil: Perfil) => {
+    const rol = normalizarRol(perfil.rol)
+
+    /*
+      SUPER ADMIN VINCULAB
+
+      Aceptamos:
+      superadmin
+      super_admin
+      super-admin
+      Super Admin
+    */
+
+    if (rol === 'superadmin') {
+      return '/dashboard'
+    }
+
+    /*
+      USUARIO DE EMPRESA
+
+      Todo usuario que NO sea superadmin
+      debe estar asociado a una empresa.
+
+      Más adelante podremos diferenciar:
+      administrador
+      operador
+      consulta
+      etc.
+    */
+
+    if (perfil.empresa_id) {
+      return '/dashboard'
+    }
+
+    return null
+  }
+
+  /* =========================================================
+     OBTENER PERFIL DEL USUARIO
+  ========================================================= */
+
+  const obtenerPerfil = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('perfiles')
+      .select('rol, activo, empresa_id, nombre')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (error) {
+      console.error('Error obteniendo perfil:', error)
+      return null
+    }
+
+    return data as Perfil | null
+  }
+
+  /* =========================================================
+     VERIFICAR SI YA EXISTE SESIÓN
+  ========================================================= */
+
+  useEffect(() => {
+    let activo = true
+
+    const verificarSesion = async () => {
+      try {
+        const {
+          data: { session }
+        } = await supabase.auth.getSession()
+
+        if (!activo) return
+
+        if (!session?.user) {
+          setVerificandoSesion(false)
+          return
+        }
+
+        const perfil = await obtenerPerfil(session.user.id)
+
+        if (!activo) return
+
+        if (!perfil) {
+          await supabase.auth.signOut()
+          setVerificandoSesion(false)
+          return
+        }
+
+        if (!perfil.activo) {
+          await supabase.auth.signOut()
+          setVerificandoSesion(false)
+          return
+        }
+
+        const destino = obtenerDestino(perfil)
+
+        if (!destino) {
+          await supabase.auth.signOut()
+          setVerificandoSesion(false)
+          return
+        }
+
+        router.replace(destino)
+        router.refresh()
+
+      } catch (err) {
+        console.error('Error verificando sesión:', err)
+
+        if (activo) {
+          setVerificandoSesion(false)
+        }
+      }
+    }
+
+    verificarSesion()
+
+    return () => {
+      activo = false
+    }
+  }, [])
+
+  /* =========================================================
+     INICIAR SESIÓN
+  ========================================================= */
 
   const iniciarSesion = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!email || !password) {
+    if (!email.trim() || !password) {
       setError('Ingresa tu correo y contraseña.')
       return
     }
@@ -28,47 +180,150 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password
-    })
+    try {
+      /* -------------------------------------------------------
+         1. AUTENTICACIÓN SUPABASE
+      ------------------------------------------------------- */
 
-    if (error) {
-      console.error(error)
-      setError('Correo o contraseña incorrectos.')
+      const {
+        data,
+        error: loginError
+      } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password
+      })
+
+      if (loginError) {
+        console.error('Error login:', loginError)
+
+        setError('Correo o contraseña incorrectos.')
+        setLoading(false)
+        return
+      }
+
+      if (!data.user) {
+        setError('No fue posible iniciar sesión.')
+        setLoading(false)
+        return
+      }
+
+      /* -------------------------------------------------------
+         2. CONSULTAR PERFIL
+      ------------------------------------------------------- */
+
+      const perfil = await obtenerPerfil(data.user.id)
+
+      if (!perfil) {
+        await supabase.auth.signOut()
+
+        setError(
+          'Este usuario no tiene un perfil autorizado en Vinculab.'
+        )
+
+        setLoading(false)
+        return
+      }
+
+      /* -------------------------------------------------------
+         3. VALIDAR USUARIO ACTIVO
+      ------------------------------------------------------- */
+
+      if (!perfil.activo) {
+        await supabase.auth.signOut()
+
+        setError(
+          'Este usuario se encuentra desactivado.'
+        )
+
+        setLoading(false)
+        return
+      }
+
+      /* -------------------------------------------------------
+         4. DETERMINAR DESTINO
+      ------------------------------------------------------- */
+
+      const destino = obtenerDestino(perfil)
+
+      if (!destino) {
+        await supabase.auth.signOut()
+
+        setError(
+          'Este usuario no tiene una empresa o rol autorizado.'
+        )
+
+        setLoading(false)
+        return
+      }
+
+      /* -------------------------------------------------------
+         5. REDIRECCIONAR
+      ------------------------------------------------------- */
+
+      router.replace(destino)
+      router.refresh()
+
+    } catch (err) {
+      console.error('Error iniciando sesión:', err)
+
+      setError(
+        'Ocurrió un problema al iniciar sesión. Intenta nuevamente.'
+      )
+
       setLoading(false)
-      return
     }
-
-    if (!data.user) {
-      setError('No fue posible iniciar sesión.')
-      setLoading(false)
-      return
-    }
-
-    const { data: perfil, error: perfilError } = await supabase
-      .from('perfiles')
-      .select('rol, activo, empresa_id, nombre')
-      .eq('id', data.user.id)
-      .maybeSingle()
-
-    if (perfilError || !perfil) {
-      await supabase.auth.signOut()
-      setError('Este usuario no tiene un perfil autorizado en Vinculab.')
-      setLoading(false)
-      return
-    }
-
-    if (!perfil.activo) {
-      await supabase.auth.signOut()
-      setError('Este usuario se encuentra desactivado.')
-      setLoading(false)
-      return
-    }
-
-    router.push('/dashboard')
-    router.refresh()
   }
+
+  /* =========================================================
+     VERIFICANDO SESIÓN
+  ========================================================= */
+
+  if (verificandoSesion) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          background: '#09090b',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20,
+          fontFamily: 'system-ui'
+        }}
+      >
+        <div
+          style={{
+            textAlign: 'center'
+          }}
+        >
+          <div
+            style={{
+              color: '#ff6a00',
+              fontSize: 18,
+              fontWeight: 900,
+              letterSpacing: 3
+            }}
+          >
+            VINCULAB
+          </div>
+
+          <div
+            style={{
+              color: '#a1a1aa',
+              fontSize: 12,
+              marginTop: 12
+            }}
+          >
+            Verificando sesión...
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  /* =========================================================
+     LOGIN
+  ========================================================= */
 
   return (
     <div
@@ -93,6 +348,8 @@ export default function LoginPage() {
           boxShadow: '0 25px 60px rgba(0,0,0,.45)'
         }}
       >
+        {/* LOGO */}
+
         <div
           style={{
             color: '#ff6a00',
@@ -114,6 +371,8 @@ export default function LoginPage() {
           Plataforma de identidad y trazabilidad
         </div>
 
+        {/* TITULO */}
+
         <h1
           style={{
             color: 'white',
@@ -133,10 +392,14 @@ export default function LoginPage() {
             marginBottom: 25
           }}
         >
-          Acceso al panel de administración
+          Acceso seguro a tu espacio de administración
         </p>
 
+        {/* FORMULARIO */}
+
         <form onSubmit={iniciarSesion}>
+
+          {/* EMAIL */}
 
           <label
             style={{
@@ -151,9 +414,16 @@ export default function LoginPage() {
           <input
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="contacto@vinculab.cl"
+            onChange={(e) => {
+              setEmail(e.target.value)
+
+              if (error) {
+                setError('')
+              }
+            }}
+            placeholder="usuario@empresa.cl"
             autoComplete="email"
+            disabled={loading}
             style={{
               width: '100%',
               boxSizing: 'border-box',
@@ -165,9 +435,12 @@ export default function LoginPage() {
               fontSize: 14,
               marginTop: 7,
               marginBottom: 18,
-              outline: 'none'
+              outline: 'none',
+              opacity: loading ? 0.7 : 1
             }}
           />
+
+          {/* CONTRASEÑA */}
 
           <label
             style={{
@@ -179,26 +452,63 @@ export default function LoginPage() {
             CONTRASEÑA
           </label>
 
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            autoComplete="current-password"
+          <div
             style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              background: '#09090b',
-              border: '1px solid #3f3f46',
-              borderRadius: 9,
-              padding: '12px 13px',
-              color: 'white',
-              fontSize: 14,
+              position: 'relative',
               marginTop: 7,
-              marginBottom: 18,
-              outline: 'none'
+              marginBottom: 18
             }}
-          />
+          >
+            <input
+              type={mostrarPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+
+                if (error) {
+                  setError('')
+                }
+              }}
+              placeholder="••••••••"
+              autoComplete="current-password"
+              disabled={loading}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                background: '#09090b',
+                border: '1px solid #3f3f46',
+                borderRadius: 9,
+                padding: '12px 80px 12px 13px',
+                color: 'white',
+                fontSize: 14,
+                outline: 'none',
+                opacity: loading ? 0.7 : 1
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => setMostrarPassword(!mostrarPassword)}
+              disabled={loading}
+              style={{
+                position: 'absolute',
+                right: 10,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'transparent',
+                border: 0,
+                color: '#a1a1aa',
+                fontSize: 11,
+                fontWeight: 800,
+                cursor: 'pointer',
+                padding: 5
+              }}
+            >
+              {mostrarPassword ? 'OCULTAR' : 'VER'}
+            </button>
+          </div>
+
+          {/* ERROR */}
 
           {error && (
             <div
@@ -209,12 +519,15 @@ export default function LoginPage() {
                 borderRadius: 9,
                 padding: 12,
                 fontSize: 12,
-                marginBottom: 18
+                marginBottom: 18,
+                lineHeight: 1.5
               }}
             >
               {error}
             </div>
           )}
+
+          {/* BOTÓN */}
 
           <button
             type="submit"
@@ -228,13 +541,18 @@ export default function LoginPage() {
               color: 'white',
               fontSize: 14,
               fontWeight: 900,
-              cursor: loading ? 'wait' : 'pointer'
+              cursor: loading ? 'wait' : 'pointer',
+              transition: 'all .2s ease'
             }}
           >
-            {loading ? 'Ingresando...' : 'Ingresar a Vinculab'}
+            {loading
+              ? 'Verificando acceso...'
+              : 'Ingresar a Vinculab'}
           </button>
 
         </form>
+
+        {/* FOOTER */}
 
         <div
           style={{
@@ -248,6 +566,7 @@ export default function LoginPage() {
         >
           ACCESO SEGURO • VINCULAB.CL
         </div>
+
       </div>
     </div>
   )

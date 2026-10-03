@@ -11,12 +11,18 @@ const supabase = createClient(
 
 type Perfil = {
   id: string
-  email: string | null
+  email?: string | null
   nombre: string | null
   cargo: string | null
   rol: string | null
   activo: boolean | null
   empresa_id: string | null
+}
+
+type Empresa = {
+  id: string
+  razon_social?: string | null
+  empresa_nombre?: string | null
 }
 
 type Stats = {
@@ -32,6 +38,8 @@ export default function DashboardPage() {
   const router = useRouter()
 
   const [perfil, setPerfil] = useState<Perfil | null>(null)
+  const [empresa, setEmpresa] = useState<Empresa | null>(null)
+  const [emailUsuario, setEmailUsuario] = useState('')
 
   const [stats, setStats] = useState<Stats>({
     empresas: 0,
@@ -44,6 +52,7 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true)
   const [cerrando, setCerrando] = useState(false)
+  const [errorDashboard, setErrorDashboard] = useState('')
 
   useEffect(() => {
     iniciarDashboard()
@@ -52,6 +61,7 @@ export default function DashboardPage() {
   async function iniciarDashboard() {
     try {
       setLoading(true)
+      setErrorDashboard('')
 
       // ==========================================
       // 1. COMPROBAR SESIÓN
@@ -67,6 +77,8 @@ export default function DashboardPage() {
         return
       }
 
+      setEmailUsuario(user.email || '')
+
       // ==========================================
       // 2. OBTENER PERFIL
       // ==========================================
@@ -80,6 +92,9 @@ export default function DashboardPage() {
 
       if (perfilError) {
         console.error('Error obteniendo perfil:', perfilError)
+        await supabase.auth.signOut()
+        router.replace('/login')
+        return
       }
 
       if (!perfilData) {
@@ -94,25 +109,80 @@ export default function DashboardPage() {
         return
       }
 
+      // ==========================================
+      // 3. VALIDAR ROL
+      // ==========================================
+
+      const esSuperadmin = perfilData.rol === 'superadmin'
+      const esAdminEmpresa = perfilData.rol === 'admin_empresa'
+
+      if (!esSuperadmin && !esAdminEmpresa) {
+        await supabase.auth.signOut()
+        router.replace('/login')
+        return
+      }
+
+      if (esAdminEmpresa && !perfilData.empresa_id) {
+        console.error(
+          'El administrador de empresa no tiene empresa_id.'
+        )
+
+        await supabase.auth.signOut()
+        router.replace('/login')
+        return
+      }
+
       setPerfil(perfilData)
 
       // ==========================================
-      // 3. CARGAR ESTADÍSTICAS
+      // 4. OBTENER EMPRESA DEL USUARIO
       // ==========================================
 
-      await cargarEstadisticas()
+      if (esAdminEmpresa && perfilData.empresa_id) {
+        const { data: empresaData, error: empresaError } =
+          await supabase
+            .from('empresas')
+            .select('id, razon_social, empresa_nombre')
+            .eq('id', perfilData.empresa_id)
+            .maybeSingle()
+
+        if (empresaError) {
+          console.error(
+            'Error obteniendo empresa:',
+            empresaError
+          )
+        }
+
+        if (empresaData) {
+          setEmpresa(empresaData)
+        }
+      } else {
+        setEmpresa(null)
+      }
+
+      // ==========================================
+      // 5. CARGAR ESTADÍSTICAS
+      // RLS DETERMINA QUÉ REGISTROS PUEDE VER
+      // ==========================================
+
+      await cargarEstadisticas(esSuperadmin)
 
     } catch (error) {
       console.error('Error cargando dashboard:', error)
+
+      setErrorDashboard(
+        'No fue posible cargar completamente el panel.'
+      )
     } finally {
       setLoading(false)
     }
   }
 
-  async function cargarEstadisticas() {
+  async function cargarEstadisticas(
+    esSuperadmin: boolean
+  ) {
     try {
       const [
-        empresasResult,
         productosResult,
         modelosResult,
         lotesResult,
@@ -120,32 +190,57 @@ export default function DashboardPage() {
         eventosResult
       ] = await Promise.all([
         supabase
-          .from('empresas')
-          .select('*', { count: 'exact', head: true }),
-
-        supabase
           .from('productos')
-          .select('*', { count: 'exact', head: true }),
+          .select('*', {
+            count: 'exact',
+            head: true
+          }),
 
         supabase
           .from('modelos')
-          .select('*', { count: 'exact', head: true }),
+          .select('*', {
+            count: 'exact',
+            head: true
+          }),
 
         supabase
           .from('lotes')
-          .select('*', { count: 'exact', head: true }),
+          .select('*', {
+            count: 'exact',
+            head: true
+          }),
 
         supabase
           .from('unidades')
-          .select('*', { count: 'exact', head: true }),
+          .select('*', {
+            count: 'exact',
+            head: true
+          }),
 
         supabase
           .from('eventos_trazabilidad')
-          .select('*', { count: 'exact', head: true })
+          .select('*', {
+            count: 'exact',
+            head: true
+          })
       ])
 
+      let totalEmpresas = 0
+
+      // Solo el superadmin necesita el total global.
+      if (esSuperadmin) {
+        const empresasResult = await supabase
+          .from('empresas')
+          .select('*', {
+            count: 'exact',
+            head: true
+          })
+
+        totalEmpresas = empresasResult.count ?? 0
+      }
+
       setStats({
-        empresas: empresasResult.count ?? 0,
+        empresas: totalEmpresas,
         productos: productosResult.count ?? 0,
         modelos: modelosResult.count ?? 0,
         lotes: lotesResult.count ?? 0,
@@ -154,7 +249,10 @@ export default function DashboardPage() {
       })
 
     } catch (error) {
-      console.error('Error obteniendo estadísticas:', error)
+      console.error(
+        'Error obteniendo estadísticas:',
+        error
+      )
     }
   }
 
@@ -167,7 +265,11 @@ export default function DashboardPage() {
       router.replace('/login')
 
     } catch (error) {
-      console.error('Error cerrando sesión:', error)
+      console.error(
+        'Error cerrando sesión:',
+        error
+      )
+
       setCerrando(false)
     }
   }
@@ -177,6 +279,21 @@ export default function DashboardPage() {
   }
 
   // ============================================
+  // VARIABLES DE ACCESO
+  // ============================================
+
+  const esSuperadmin =
+    perfil?.rol === 'superadmin'
+
+  const esAdminEmpresa =
+    perfil?.rol === 'admin_empresa'
+
+  const nombreEmpresa =
+    empresa?.razon_social ||
+    empresa?.empresa_nombre ||
+    'Mi empresa'
+
+  // ============================================
   // LOADING
   // ============================================
 
@@ -184,7 +301,10 @@ export default function DashboardPage() {
     return (
       <main style={styles.loading}>
         <div style={styles.loadingBox}>
-          <div style={styles.brand}>VINCULAB</div>
+
+          <div style={styles.brand}>
+            VINCULAB
+          </div>
 
           <div style={styles.loadingTitle}>
             Cargando plataforma...
@@ -193,6 +313,7 @@ export default function DashboardPage() {
           <div style={styles.loadingText}>
             Verificando acceso y trazabilidad
           </div>
+
         </div>
       </main>
     )
@@ -212,6 +333,7 @@ export default function DashboardPage() {
       <header style={styles.header}>
 
         <div>
+
           <div style={styles.brand}>
             VINCULAB
           </div>
@@ -219,6 +341,7 @@ export default function DashboardPage() {
           <div style={styles.brandSubtitle}>
             Plataforma de identidad y trazabilidad
           </div>
+
         </div>
 
         <div style={styles.userArea}>
@@ -230,7 +353,11 @@ export default function DashboardPage() {
             </div>
 
             <div style={styles.userRole}>
-              {perfil?.rol || 'usuario'}
+              {esSuperadmin
+                ? 'SUPERADMIN'
+                : esAdminEmpresa
+                  ? 'ADMINISTRADOR EMPRESA'
+                  : perfil?.rol || 'USUARIO'}
             </div>
 
           </div>
@@ -255,21 +382,48 @@ export default function DashboardPage() {
 
       <div style={styles.container}>
 
+        {errorDashboard && (
+          <div style={styles.errorBox}>
+            {errorDashboard}
+          </div>
+        )}
+
+        {/* =====================================
+            BIENVENIDA
+        ===================================== */}
+
         <section style={styles.welcome}>
 
           <div>
 
             <div style={styles.sectionLabel}>
-              PANEL DE ADMINISTRACIÓN
+              {esSuperadmin
+                ? 'ADMINISTRACIÓN GLOBAL'
+                : 'PANEL DE EMPRESA'}
             </div>
 
             <h1 style={styles.title}>
-              Dashboard
+              {esSuperadmin
+                ? 'Dashboard Vinculab'
+                : nombreEmpresa}
             </h1>
 
             <p style={styles.subtitle}>
-              Control central de identidad digital,
-              trazabilidad y ciclo de vida de productos.
+              {esSuperadmin
+                ? (
+                  <>
+                    Control central de empresas,
+                    identidad digital, trazabilidad
+                    y ciclo de vida de productos.
+                  </>
+                )
+                : (
+                  <>
+                    Gestión de productos, modelos,
+                    lotes, identidades digitales
+                    y trazabilidad de {nombreEmpresa}.
+                  </>
+                )}
             </p>
 
           </div>
@@ -277,10 +431,43 @@ export default function DashboardPage() {
           <div style={styles.accessBadge}>
             <span style={styles.accessDot}></span>
 
-            Acceso autorizado
+            {esSuperadmin
+              ? 'Acceso global'
+              : 'Acceso autorizado'}
           </div>
 
         </section>
+
+        {/* =====================================
+            IDENTIFICACIÓN EMPRESA
+        ===================================== */}
+
+        {esAdminEmpresa && (
+          <section style={styles.companyBanner}>
+
+            <div style={styles.companyIcon}>
+              🏢
+            </div>
+
+            <div>
+
+              <div style={styles.companyLabel}>
+                ORGANIZACIÓN ACTIVA
+              </div>
+
+              <div style={styles.companyName}>
+                {nombreEmpresa}
+              </div>
+
+              <div style={styles.companyDescription}>
+                Los registros visibles en este panel
+                corresponden únicamente a esta empresa.
+              </div>
+
+            </div>
+
+          </section>
+        )}
 
         {/* =====================================
             ESTADÍSTICAS
@@ -288,31 +475,45 @@ export default function DashboardPage() {
 
         <section style={styles.statsGrid}>
 
-          <StatCard
-            title="Empresas"
-            value={stats.empresas}
-            description="Organizaciones registradas"
-            icon="🏢"
-          />
+          {esSuperadmin && (
+            <StatCard
+              title="Empresas"
+              value={stats.empresas}
+              description="Organizaciones registradas"
+              icon="🏢"
+            />
+          )}
 
           <StatCard
             title="Productos"
             value={stats.productos}
-            description="Productos registrados"
+            description={
+              esSuperadmin
+                ? 'Productos registrados'
+                : 'Productos de la empresa'
+            }
             icon="📦"
           />
 
           <StatCard
             title="Modelos"
             value={stats.modelos}
-            description="Modelos de productos"
+            description={
+              esSuperadmin
+                ? 'Modelos de productos'
+                : 'Modelos de la empresa'
+            }
             icon="🏷️"
           />
 
           <StatCard
             title="Lotes"
             value={stats.lotes}
-            description="Lotes de producción"
+            description={
+              esSuperadmin
+                ? 'Lotes de producción'
+                : 'Lotes de la empresa'
+            }
             icon="▦"
           />
 
@@ -344,35 +545,55 @@ export default function DashboardPage() {
           </div>
 
           <h2 style={styles.sectionTitle}>
-            Administración Vinculab
+            {esSuperadmin
+              ? 'Administración Vinculab'
+              : `Administración ${nombreEmpresa}`}
           </h2>
 
           <div style={styles.modulesGrid}>
 
-            <ModuleCard
-              title="Empresas"
-              description="Administrar organizaciones y fabricantes registrados en la plataforma."
-              icon="🏢"
-              onClick={() => ir('/empresas')}
-            />
+            {/* SOLO SUPERADMIN */}
+
+            {esSuperadmin && (
+              <ModuleCard
+                title="Empresas"
+                description="Administrar organizaciones y fabricantes registrados en la plataforma."
+                icon="🏢"
+                onClick={() => ir('/empresas')}
+              />
+            )}
+
+            {/* SUPERADMIN + ADMIN EMPRESA */}
 
             <ModuleCard
               title="Productos"
-              description="Gestionar productos, categorías y elementos asociados."
+              description={
+                esSuperadmin
+                  ? 'Gestionar productos, categorías y elementos asociados.'
+                  : 'Crear y administrar los productos de tu empresa.'
+              }
               icon="📦"
               onClick={() => ir('/productos')}
             />
 
             <ModuleCard
               title="Modelos"
-              description="Administrar modelos vinculados a los productos."
+              description={
+                esSuperadmin
+                  ? 'Administrar modelos vinculados a los productos.'
+                  : 'Crear y administrar modelos asociados a tus productos.'
+              }
               icon="🏷️"
               onClick={() => ir('/modelos')}
             />
 
             <ModuleCard
               title="Lotes / QR"
-              description="Crear lotes, generar identidades digitales y códigos QR."
+              description={
+                esSuperadmin
+                  ? 'Crear lotes, generar identidades digitales y códigos QR.'
+                  : 'Crear lotes y generar códigos QR para tus productos.'
+              }
               icon="▦"
               onClick={() => ir('/lotes')}
               highlight
@@ -380,14 +601,22 @@ export default function DashboardPage() {
 
             <ModuleCard
               title="Identidades digitales"
-              description="Consultar unidades individuales y su ciclo de vida."
+              description={
+                esSuperadmin
+                  ? 'Consultar unidades individuales y su ciclo de vida.'
+                  : 'Consultar las unidades individuales y su identidad digital.'
+              }
               icon="◈"
               onClick={() => ir('/unidades')}
             />
 
             <ModuleCard
               title="Trazabilidad"
-              description="Historial de fabricación, calidad, despacho, mantenimiento y otros eventos."
+              description={
+                esSuperadmin
+                  ? 'Historial de fabricación, calidad, despacho, mantenimiento y otros eventos.'
+                  : 'Registrar y consultar eventos del ciclo de vida de tus productos.'
+              }
               icon="↻"
               onClick={() => ir('/trazabilidad')}
             />
@@ -409,7 +638,9 @@ export default function DashboardPage() {
             </div>
 
             <h2 style={styles.sectionTitle}>
-              Cuenta administrativa
+              {esSuperadmin
+                ? 'Cuenta administrativa'
+                : 'Cuenta de empresa'}
             </h2>
 
           </div>
@@ -418,23 +649,45 @@ export default function DashboardPage() {
 
             <Info
               label="Usuario"
-              value={perfil?.nombre || 'Administrador'}
+              value={
+                perfil?.nombre ||
+                'Administrador'
+              }
             />
 
             <Info
               label="Correo"
-              value={perfil?.email || '-'}
+              value={
+                emailUsuario ||
+                perfil?.email ||
+                '-'
+              }
             />
 
             <Info
               label="Cargo"
-              value={perfil?.cargo || '-'}
+              value={
+                perfil?.cargo || '-'
+              }
             />
 
             <Info
               label="Rol"
-              value={perfil?.rol || '-'}
+              value={
+                esSuperadmin
+                  ? 'Superadministrador'
+                  : esAdminEmpresa
+                    ? 'Administrador de empresa'
+                    : perfil?.rol || '-'
+              }
             />
+
+            {esAdminEmpresa && (
+              <Info
+                label="Empresa"
+                value={nombreEmpresa}
+              />
+            )}
 
           </div>
 
@@ -472,8 +725,13 @@ function StatCard({
   description,
   icon,
   highlight = false
-}: any) {
-
+}: {
+  title: string
+  value: number
+  description: string
+  icon: string
+  highlight?: boolean
+}) {
   return (
     <div
       style={{
@@ -524,8 +782,13 @@ function ModuleCard({
   icon,
   onClick,
   highlight = false
-}: any) {
-
+}: {
+  title: string
+  description: string
+  icon: string
+  onClick: () => void
+  highlight?: boolean
+}) {
   return (
     <button
       onClick={onClick}
@@ -568,8 +831,10 @@ function ModuleCard({
 function Info({
   label,
   value
-}: any) {
-
+}: {
+  label: string
+  value: string
+}) {
   return (
     <div style={styles.infoBox}>
 
@@ -631,7 +896,8 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '0 32px',
-    background: '#0c0c0f'
+    background: '#0c0c0f',
+    gap: 20
   },
 
   brand: {
@@ -683,7 +949,8 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
     maxWidth: 1450,
     margin: '0 auto',
-    padding: '42px 30px 70px'
+    padding: '42px 30px 70px',
+    boxSizing: 'border-box'
   },
 
   welcome: {
@@ -691,7 +958,8 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     gap: 20,
-    marginBottom: 30
+    marginBottom: 30,
+    flexWrap: 'wrap'
   },
 
   sectionLabel: {
@@ -709,7 +977,7 @@ const styles: Record<string, React.CSSProperties> = {
   subtitle: {
     color: '#a1a1aa',
     margin: 0,
-    maxWidth: 620,
+    maxWidth: 680,
     lineHeight: 1.6
   },
 
@@ -731,6 +999,61 @@ const styles: Record<string, React.CSSProperties> = {
     height: 8,
     background: '#22c55e',
     borderRadius: '50%'
+  },
+
+  errorBox: {
+    background: '#450a0a',
+    border: '1px solid #7f1d1d',
+    color: '#fecaca',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 25,
+    fontSize: 13
+  },
+
+  companyBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+    background:
+      'linear-gradient(145deg,#18181b,#20150d)',
+    border:
+      '1px solid rgba(255,106,0,.45)',
+    borderRadius: 14,
+    padding: 20,
+    marginBottom: 24
+  },
+
+  companyIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 12,
+    background: '#27272a',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 24,
+    flexShrink: 0
+  },
+
+  companyLabel: {
+    color: '#ff6a00',
+    fontSize: 10,
+    letterSpacing: 1.3,
+    fontWeight: 900
+  },
+
+  companyName: {
+    fontSize: 20,
+    fontWeight: 900,
+    marginTop: 4
+  },
+
+  companyDescription: {
+    color: '#a1a1aa',
+    fontSize: 12,
+    marginTop: 5,
+    lineHeight: 1.5
   },
 
   statsGrid: {
@@ -799,7 +1122,7 @@ const styles: Record<string, React.CSSProperties> = {
   modulesGrid: {
     display: 'grid',
     gridTemplateColumns:
-      'repeat(auto-fit, minmax(350px, 1fr))',
+      'repeat(auto-fit, minmax(300px, 1fr))',
     gap: 14
   },
 
@@ -888,7 +1211,8 @@ const styles: Record<string, React.CSSProperties> = {
   infoValue: {
     marginTop: 7,
     fontSize: 14,
-    fontWeight: 700
+    fontWeight: 700,
+    overflowWrap: 'anywhere'
   },
 
   footer: {
@@ -901,6 +1225,8 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     gap: 12,
     color: '#52525b',
-    fontSize: 11
+    fontSize: 11,
+    flexWrap: 'wrap',
+    textAlign: 'center'
   }
 }

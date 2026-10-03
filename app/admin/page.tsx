@@ -1,42 +1,356 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+import {
+  Building2,
+  Package,
+  Tag,
+  Layers3
+} from 'lucide-react'
 
-export default function Dashboard(){
-  const [stats,setStats]=useState({empresas:3,productos:4,modelos:3,lotes:9})
-  useEffect(()=>{
-    (async()=>{
-      try{
-        const [e,p,m,l]=await Promise.all([
-          supabase.from('empresas').select('*',{count:'exact',head:true}),
-          supabase.from('productos').select('*',{count:'exact',head:true}),
-          supabase.from('modelos').select('*',{count:'exact',head:true}),
-          supabase.from('lotes').select('*',{count:'exact',head:true}),
-        ])
-        setStats({
-          empresas:e.count||3,
-          productos:p.count||4,
-          modelos:m.count||3,
-          lotes:l.count||9
-        })
-      }catch{}
-    })()
-  },[])
+import AdminSidebar from './components/AdminSidebar'
+
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+
+export default function AdminPage() {
+
+  const [stats, setStats] = useState({
+    empresas: 0,
+    productos: 0,
+    modelos: 0,
+    lotes: 0
+  })
+
+
+  useEffect(() => {
+
+    cargarDatos()
+
+  }, [])
+
+
+  async function cargarDatos() {
+
+    try {
+
+      const [
+        empresas,
+        productos,
+        modelos,
+        lotes
+      ] = await Promise.all([
+
+        supabase
+          .from('empresas')
+          .select('*', {
+            count: 'exact',
+            head: true
+          }),
+
+        supabase
+          .from('productos')
+          .select('*', {
+            count: 'exact',
+            head: true
+          }),
+
+        supabase
+          .from('modelos')
+          .select('*', {
+            count: 'exact',
+            head: true
+          }),
+
+        supabase
+          .from('lotes')
+          .select('*', {
+            count: 'exact',
+            head: true
+          })
+
+      ])
+
+
+      setStats({
+
+        empresas:
+          empresas.count ?? 0,
+
+        productos:
+          productos.count ?? 0,
+
+        modelos:
+          modelos.count ?? 0,
+
+        lotes:
+          lotes.count ?? 0
+
+      })
+
+
+    } catch (error) {
+
+      console.error(
+        'Error cargando estadísticas:',
+        error
+      )
+
+    }
+
+  }
+
+
+  const tarjetas = [
+
+    {
+      nombre: 'EMPRESAS',
+      cantidad: stats.empresas,
+      icono: Building2
+    },
+
+    {
+      nombre: 'PRODUCTOS',
+      cantidad: stats.productos,
+      icono: Package
+    },
+
+    {
+      nombre: 'MODELOS',
+      cantidad: stats.modelos,
+      icono: Tag
+    },
+
+    {
+      nombre: 'LOTES',
+      cantidad: stats.lotes,
+      icono: Layers3
+    }
+
+  ]
+
 
   return (
-    <div>
-      <h1 style={{margin:0,fontSize:18,fontWeight:800}}>Dashboard</h1>
-      <p style={{margin:'4px 0 20px',fontSize:11,color:'#768088'}}>Vista general de la plataforma Vinculab.</p>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
-        {Object.entries({EMPRESAS:stats.empresas,PRODUCTOS:stats.productos,MODELOS:stats.modelos,LOTES:stats.lotes}).map(([label,value])=>(
-          <div key={label} style={{background:'#11161d',border:'1px solid #1e2731',borderLeft:'3px solid #ff4500',borderRadius:8,padding:16}}>
-            <div style={{fontSize:8,color:'#5a6570',letterSpacing:1}}>{label}</div>
-            <div style={{fontSize:24,fontWeight:900,marginTop:8}}>{value}</div>
+
+    <div
+      style={{
+        display: 'flex',
+        minHeight: '100vh',
+        background: '#080b10',
+        color: '#ffffff'
+      }}
+    >
+
+      {/* ==========================
+          SIDEBAR
+      ========================== */}
+
+      <AdminSidebar />
+
+
+      {/* ==========================
+          CONTENIDO
+      ========================== */}
+
+      <main
+        style={{
+          flex: 1,
+          minWidth: 0
+        }}
+      >
+
+
+        {/* HEADER */}
+
+        <header
+          style={{
+            height: 70,
+
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+
+            padding: '0 28px',
+
+            borderBottom: '1px solid #242a32',
+
+            background: '#0d1117'
+          }}
+        >
+
+          <div
+            style={{
+              color: '#64748b',
+              fontSize: 10,
+              letterSpacing: 1.6
+            }}
+          >
+            PLATAFORMA DE IDENTIDAD DIGITAL DE PRODUCTOS
           </div>
-        ))}
-      </div>
+
+
+          <div
+            style={{
+              textAlign: 'right'
+            }}
+          >
+
+            <div
+              style={{
+                color: '#64748b',
+                fontSize: 8
+              }}
+            >
+              USUARIO
+            </div>
+
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700
+              }}
+            >
+              Administrador
+            </div>
+
+          </div>
+
+        </header>
+
+
+        {/* DASHBOARD */}
+
+        <section
+          style={{
+            padding: '28px'
+          }}
+        >
+
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 24,
+              fontWeight: 800
+            }}
+          >
+            Dashboard
+          </h1>
+
+
+          <p
+            style={{
+              color: '#8290a3',
+              fontSize: 13,
+              marginTop: 5,
+              marginBottom: 25
+            }}
+          >
+            Vista general de la plataforma Vinculab.
+          </p>
+
+
+          {/* TARJETAS */}
+
+          <div
+            style={{
+              display: 'grid',
+
+              gridTemplateColumns:
+                'repeat(auto-fit, minmax(210px, 1fr))',
+
+              gap: 14
+            }}
+          >
+
+            {tarjetas.map((tarjeta) => {
+
+              const Icon =
+                tarjeta.icono
+
+              return (
+
+                <div
+                  key={tarjeta.nombre}
+
+                  style={{
+                    background: '#111820',
+
+                    border:
+                      '1px solid #27303a',
+
+                    borderLeft:
+                      '3px solid #ff6a00',
+
+                    borderRadius: 8,
+
+                    padding:
+                      '20px 18px',
+
+                    minHeight: 110
+                  }}
+                >
+
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent:
+                        'space-between'
+                    }}
+                  >
+
+                    <div
+                      style={{
+                        color: '#64748b',
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: 1.3
+                      }}
+                    >
+                      {tarjeta.nombre}
+                    </div>
+
+
+                    <Icon
+                      size={17}
+                      strokeWidth={1.7}
+                      color="#ff6a00"
+                    />
+
+                  </div>
+
+
+                  <div
+                    style={{
+                      marginTop: 14,
+                      fontSize: 27,
+                      fontWeight: 900
+                    }}
+                  >
+                    {tarjeta.cantidad}
+                  </div>
+
+
+                </div>
+
+              )
+
+            })}
+
+          </div>
+
+        </section>
+
+      </main>
+
     </div>
+
   )
 }

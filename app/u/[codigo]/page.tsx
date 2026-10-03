@@ -10,14 +10,11 @@ const supabase = createClient(
 )
 
 type AtributoModelo = {
-  id: string
-  modelo_id: string
   nombre: string
   valor?: string | null
   unidad?: string | null
   grupo?: string | null
   orden?: number | null
-  created_at?: string
 }
 
 export default function UnidadPublicaPage() {
@@ -519,7 +516,7 @@ export default function UnidadPublicaPage() {
 
       <div
         style={{
-          maxWidth: 620,
+          maxWidth: 980,
 
           margin: '0 auto',
 
@@ -577,7 +574,7 @@ export default function UnidadPublicaPage() {
 
         <div
           style={{
-            padding: 26
+            padding: 'clamp(20px, 4vw, 38px)'
           }}
         >
 
@@ -712,7 +709,7 @@ export default function UnidadPublicaPage() {
             {
               estadoActivo
 
-                ? '✓ IDENTIDAD VINCULAB REGISTRADA'
+                ? '✓ IDENTIDAD DIGITAL REGISTRADA'
 
                 : '● IDENTIDAD REGISTRADA'
             }
@@ -905,10 +902,7 @@ export default function UnidadPublicaPage() {
                 lineHeight: 1.5
               }}
             >
-              Esta identidad existe en la
-              plataforma Vinculab y
-              corresponde a una unidad
-              individual registrada.
+              Esta unidad posee una identidad digital registrada en Vinculab. La información mostrada corresponde al registro público asociado a este código.
             </div>
 
           </div>
@@ -1061,9 +1055,7 @@ export default function UnidadPublicaPage() {
                               ) => (
 
                                 <div
-                                  key={
-                                    atributo.id
-                                  }
+                                  key={`${grupo}-${atributo.nombre}-${index}`}
                                   style={{
                                     display:
                                       'grid',
@@ -1469,334 +1461,7 @@ export default function UnidadPublicaPage() {
                                 )
                               }
 
-                              {
-                                (
-                                  evento.responsable ||
-                                  evento.ubicacion
-                                ) && (
 
-                                  <div
-                                    style={{
-                                      display:
-                                        'grid',
-
-                                      gridTemplateColumns:
-                                        'repeat(2, minmax(0, 1fr))',
-
-                                      gap: 8,
-
-                                      marginTop:
-                                        14
-                                    }}
-                                  >
-
-                                    {
-                                      evento.responsable && (
-
-                                        <div>
-
-                                          <div
-                                            style={{
-                                              color:
-                                                '#a1a1aa',
-
-                                              fontSize:
-                                                8,
-
-                                              fontWeight:
-                                                900,
-
-                                              letterSpacing:
-                                                0.8
-                                            }}
-                                          >
-                                            RESPONSABLE
-                                          </div>
-
-                                          <div
-                                            style={{
-                                              color:
-                                                '#27272a',
-
-                                              fontSize:
-                                                11,
-
-                                              fontWeight:
-                                                800,
-
-                                              marginTop:
-                                                3
-                                            }}
-                                          >
-                                            {
-                                              evento.responsable
-                                            }
-                                          </div>
-
-                                        </div>
-
-                                      )
-                                    }
-
-                                    {
-                                      evento.ubicacion && (
-
-                                        <div>
-
-                                          <div
-                                            style={{
-                                              color:
-                                                '#a1a1aa',
-
-                                              fontSize:
-                                                8,
-
-                                              fontWeight:
-                                                900,
-
-                                              letterSpacing:
-                                                0.8
-                                            }}
-                                          >
-                                            UBICACIÓN
-                                          </div>
-
-                                          <div
-                                            style={{
-                                              color:
-                                                '#27272a',
-
-                                              fontSize:
-                                                11,
-
-                                              fontWeight:
-                                                800,
-
-                                              marginTop:
-                                                3
-                                            }}
-                                          >
-                                            {
-                                              evento.ubicacion
-                                            }
-                                          </div>
-
-                                        </div>
-
-                                      )
-                                    }
-
-                                  </div>
-
-                                )
-                              }
-
-                              {/* EVIDENCIA */}
-
-                              {
-                                evento.archivo_url && (
-
-                                  <div
-                                    style={{
-                                      marginTop:
-                                        16,
-
-                                      paddingTop:
-                                        14,
-
-                                      borderTop:
-                                        '1px solid #e4e4e7'
-                                    }}
-                                  >
-
-                                    <div
-                                      style={{
-                                        color:
-                                          '#71717a',
-
-                                        fontSize:
-                                          9,
-
-                                        fontWeight:
-                                          900,
-
-                                        letterSpacing:
-                                          0.8,
-
-                                        marginBottom:
-                                          9
-                                      }}
-                                    >
-                                      EVIDENCIA / DOCUMENTO
-                                    </div>
-
-                                    {
-                                      String(
-                                        evento.archivo_tipo ||
-                                        ''
-                                      ).startsWith(
-                                        'image/'
-                                      )
-
-                                        ? (
-
-                                          <a
-                                            href={
-                                              evento.archivo_url
-                                            }
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            style={{
-                                              textDecoration:
-                                                'none'
-                                            }}
-                                          >
-
-                                            <img
-                                              src={
-                                                evento.archivo_url
-                                              }
-                                              alt={
-                                                evento.archivo_nombre ||
-                                                'Evidencia del evento'
-                                              }
-                                              style={{
-                                                display:
-                                                  'block',
-
-                                                width:
-                                                  '100%',
-
-                                                maxHeight:
-                                                  320,
-
-                                                objectFit:
-                                                  'cover',
-
-                                                borderRadius:
-                                                  12,
-
-                                                border:
-                                                  '1px solid #e4e4e7',
-
-                                                background:
-                                                  '#f4f4f5'
-                                              }}
-                                            />
-
-                                          </a>
-
-                                        )
-
-                                        : (
-
-                                          <div
-                                            style={{
-                                              background:
-                                                'white',
-
-                                              border:
-                                                '1px solid #e4e4e7',
-
-                                              borderRadius:
-                                                12,
-
-                                              padding:
-                                                12
-                                            }}
-                                          >
-
-                                            <div
-                                              style={{
-                                                color:
-                                                  '#27272a',
-
-                                                fontSize:
-                                                  12,
-
-                                                fontWeight:
-                                                  800,
-
-                                                wordBreak:
-                                                  'break-word'
-                                              }}
-                                            >
-                                              {
-                                                evento.archivo_nombre ||
-                                                'Documento adjunto'
-                                              }
-                                            </div>
-
-                                            {
-                                              evento.archivo_tipo && (
-
-                                                <div
-                                                  style={{
-                                                    color:
-                                                      '#a1a1aa',
-
-                                                    fontSize:
-                                                      9,
-
-                                                    marginTop:
-                                                      4
-                                                  }}
-                                                >
-                                                  {
-                                                    evento.archivo_tipo
-                                                  }
-                                                </div>
-
-                                              )
-                                            }
-
-                                          </div>
-
-                                        )
-                                    }
-
-                                    <a
-                                      href={
-                                        evento.archivo_url
-                                      }
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      style={{
-                                        display:
-                                          'inline-block',
-
-                                        marginTop:
-                                          10,
-
-                                        background:
-                                          '#09090b',
-
-                                        color:
-                                          'white',
-
-                                        padding:
-                                          '8px 12px',
-
-                                        borderRadius:
-                                          8,
-
-                                        fontSize:
-                                          11,
-
-                                        fontWeight:
-                                          900,
-
-                                        textDecoration:
-                                          'none'
-                                      }}
-                                    >
-                                      Ver evidencia
-                                    </a>
-
-                                  </div>
-
-                                )
-                              }
 
                             </div>
 

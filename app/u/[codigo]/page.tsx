@@ -315,7 +315,7 @@ export default function UnidadPublicaPage() {
 
           <div
             style={{
-              marginTop: 15,
+              marginTop: 12,
               background: '#09090b',
               padding: 12,
               borderRadius: 8,
@@ -1505,7 +1505,7 @@ export default function UnidadPublicaPage() {
 
                 letterSpacing: 1.5,
 
-                marginBottom: 12
+                marginBottom: 10
               }}
             >
               IDENTIDAD DIGITAL
@@ -1523,7 +1523,7 @@ export default function UnidadPublicaPage() {
 
                 borderRadius: 15,
 
-                padding: 12
+                padding: 10
               }}
             >
 

@@ -72,9 +72,9 @@ export default async function DPPPage({ params }: Props) {
   const { codigo } = await params
   const codigoLimpio = decodeURIComponent(codigo)
 
-  // ==========================================================
-  // 1. IDENTIDAD DIGITAL
-  // ==========================================================
+  /* =========================================================
+     1. IDENTIDAD DIGITAL
+  ========================================================= */
 
   const { data: identidad, error: identidadError } = await supabase
     .from('productos_individuales')
@@ -90,17 +90,21 @@ export default async function DPPPage({ params }: Props) {
     notFound()
   }
 
-  // ==========================================================
-  // 2. RELACIONES
-  // ==========================================================
+  /* =========================================================
+     2. EMPRESA Y LOTE
+  ========================================================= */
 
   const [empresa, lote] = await Promise.all([
     buscarPorId('empresas', identidad.empresa_id),
     buscarPorId('lotes', identidad.lote_id),
   ])
 
-  // Algunos registros antiguos podrían no tener producto_id/modelo_id
-  // directamente en productos_individuales.
+  /*
+    Compatibilidad con registros antiguos:
+    si producto_id o modelo_id no están en la identidad,
+    intentamos recuperarlos desde el lote.
+  */
+
   const productoId =
     identidad.producto_id ||
     lote?.producto_id ||
@@ -111,14 +115,18 @@ export default async function DPPPage({ params }: Props) {
     lote?.modelo_id ||
     null
 
+  /* =========================================================
+     3. PRODUCTO Y MODELO
+  ========================================================= */
+
   const [producto, modelo] = await Promise.all([
     buscarPorId('productos', productoId),
     buscarPorId('modelos', modeloId),
   ])
 
-  // ==========================================================
-  // 3. ATRIBUTOS DINÁMICOS DEL MODELO
-  // ==========================================================
+  /* =========================================================
+     4. ATRIBUTOS DINÁMICOS
+  ========================================================= */
 
   let atributos: Atributo[] = []
 
@@ -137,7 +145,21 @@ export default async function DPPPage({ params }: Props) {
     }
   }
 
-  // Agrupar especificaciones dinámicamente.
+  /*
+    Esto permite que Vinculab sea multisectorial.
+
+    Ejemplo industrial:
+      MATERIALES
+      DIMENSIONES
+      NORMATIVA
+
+    Ejemplo alimentos:
+      INGREDIENTES
+      INFORMACIÓN NUTRICIONAL
+      FERMENTACIÓN
+      CONSERVACIÓN
+  */
+
   const grupos = atributos.reduce<Record<string, Atributo[]>>(
     (acc, atributo) => {
       const grupo =
@@ -155,6 +177,10 @@ export default async function DPPPage({ params }: Props) {
     {}
   )
 
+  /* =========================================================
+     5. DATOS NORMALIZADOS
+  ========================================================= */
+
   const empresaNombre =
     empresa?.razon_social ||
     empresa?.nombre ||
@@ -170,6 +196,11 @@ export default async function DPPPage({ params }: Props) {
     modelo?.nombre ||
     'Modelo no identificado'
 
+  const descripcion =
+    modelo?.descripcion ||
+    producto?.descripcion ||
+    'Producto registrado en la plataforma de identidad digital VINCULAB.'
+
   const estado =
     identidad.estado ||
     'activo'
@@ -178,168 +209,348 @@ export default async function DPPPage({ params }: Props) {
     String(estado).toLowerCase() === 'activo' ||
     String(estado).toLowerCase() === 'active'
 
+  const numeroUnidad =
+    identidad.numero_unidad
+      ? `Unidad #${identidad.numero_unidad}`
+      : 'Unidad individual'
+
+  const qrAsociado = Boolean(
+    identidad.codigo_qr
+  )
+
+  const nfcAsociado = Boolean(
+    identidad.nfc_uid
+  )
+
+  const urlPublica =
+    identidad.url_dpp ||
+    `https://vinculab.cl/dpp/${encodeURIComponent(codigoLimpio)}`
+
   return (
     <main className="page">
 
-      {/* ======================================================
-          CABECERA
-      ====================================================== */}
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
       <header className="header">
-        <div className="brand">
-          <div className="logo">
-            VINCULA<span>B</span>
+
+        <div className="headerInner">
+
+          <div className="brand">
+
+            <div className="logo">
+              VINCULA<span>B</span>
+            </div>
+
+            <div className="brandSub">
+              DIGITAL PRODUCT IDENTITY
+            </div>
+
           </div>
 
-          <div className="brandSub">
-            DIGITAL PRODUCT IDENTITY
+          <div className="passportHeader">
+
+            <div className="passportDot" />
+
+            <span>
+              DIGITAL PRODUCT PASSPORT
+            </span>
+
           </div>
+
         </div>
 
-        <div className="passport">
-          DIGITAL PRODUCT PASSPORT
-        </div>
       </header>
 
-      {/* ======================================================
+      {/* =====================================================
           HERO
-      ====================================================== */}
+      ===================================================== */}
 
-      <section className="hero">
+      <section className="heroWrapper">
 
-        <div className="heroContent">
+        <div className="hero">
 
-          <div className="verified">
-            ✓ IDENTIDAD DIGITAL VERIFICADA
+          <div className="heroContent">
+
+            <div className="registered">
+              <span className="registeredIcon">
+                ✓
+              </span>
+
+              IDENTIDAD DIGITAL REGISTRADA
+            </div>
+
+            <div className="heroEyebrow">
+              PASAPORTE DIGITAL DE PRODUCTO
+            </div>
+
+            <h1>
+              {productoNombre}
+            </h1>
+
+            <div className="modelName">
+              {modeloNombre}
+            </div>
+
+            <p className="description">
+              {descripcion}
+            </p>
+
+            <div className="heroIdentity">
+
+              <div>
+                <span>
+                  IDENTIDAD ÚNICA
+                </span>
+
+                <strong>
+                  {codigoLimpio}
+                </strong>
+              </div>
+
+              <div className="unitBadge">
+                {numeroUnidad}
+              </div>
+
+            </div>
+
           </div>
 
-          <h1>{productoNombre}</h1>
+          {/* ESTADO */}
 
-          <div className="modelName">
-            {modeloNombre}
+          <div className="statusCard">
+
+            <div
+              className={
+                activo
+                  ? 'statusCircle statusCircleActive'
+                  : 'statusCircle statusCircleInactive'
+              }
+            >
+              {activo ? '✓' : '!'}
+            </div>
+
+            <span className="statusLabel">
+              ESTADO DEL REGISTRO
+            </span>
+
+            <strong
+              className={
+                activo
+                  ? 'statusActive'
+                  : 'statusInactive'
+              }
+            >
+              {String(estado).toUpperCase()}
+            </strong>
+
+            <div className="statusDivider" />
+
+            <small>
+              Registro digital VINCULAB
+            </small>
+
+            <small>
+              Identidad: {codigoLimpio}
+            </small>
+
           </div>
-
-          <p className="description">
-            {modelo?.descripcion ||
-              'Producto registrado en la plataforma de identidad digital VINCULAB.'}
-          </p>
-
-          <div className="identityCode">
-            <span>IDENTIDAD ÚNICA</span>
-            <strong>{codigoLimpio}</strong>
-          </div>
-
-        </div>
-
-        <div className="statusCard">
-
-          <div className="statusIcon">
-            ✓
-          </div>
-
-          <span>ESTADO</span>
-
-          <strong className={activo ? 'active' : 'inactive'}>
-            {String(estado).toUpperCase()}
-          </strong>
-
-          <small>
-            Registro digital VINCULAB
-          </small>
 
         </div>
 
       </section>
 
-      {/* ======================================================
-          CONTENIDO
-      ====================================================== */}
+      {/* =====================================================
+          CONTENIDO PRINCIPAL
+      ===================================================== */}
 
       <section className="container">
 
-        <div className="sectionTitle">
-          IDENTIDAD DEL PRODUCTO
+        {/* PASSPORT BANNER */}
+
+        <div className="passportBanner">
+
+          <div className="passportBannerIdentity">
+
+            <span>
+              PASAPORTE DIGITAL
+            </span>
+
+            <strong>
+              {codigoLimpio}
+            </strong>
+
+            <small>
+              Identificador público único
+            </small>
+
+          </div>
+
+          <div className="passportBannerRight">
+
+            <span>
+              REGISTRO
+            </span>
+
+            <strong>
+              VINCULAB
+            </strong>
+
+            <small>
+              Digital Product Identity
+            </small>
+
+          </div>
+
         </div>
 
-        <div className="grid">
+        {/* ===================================================
+            IDENTIDAD DEL PRODUCTO
+        =================================================== */}
+
+        <SectionHeader
+          eyebrow="IDENTIFICACIÓN"
+          title="Identidad del producto"
+          description="Información principal asociada a esta unidad física."
+        />
+
+        <div className="identityGrid">
 
           <InfoCard
+            number="01"
             label="Producto"
             value={productoNombre}
           />
 
           <InfoCard
+            number="02"
             label="Modelo"
             value={modeloNombre}
           />
 
           <InfoCard
+            number="03"
             label="Empresa"
             value={empresaNombre}
           />
 
           <InfoCard
+            number="04"
             label="Unidad"
-            value={
-              identidad.numero_unidad
-                ? `Unidad #${identidad.numero_unidad}`
-                : 'Unidad individual'
-            }
+            value={numeroUnidad}
           />
 
         </div>
 
-        {/* ====================================================
-            LOTE
-        ==================================================== */}
+        {/* ===================================================
+            TRAZABILIDAD DE PRODUCCIÓN
+        =================================================== */}
 
-        <div className="sectionTitle">
-          TRAZABILIDAD DE PRODUCCIÓN
+        <SectionHeader
+          eyebrow="ORIGEN"
+          title="Trazabilidad de producción"
+          description="Información del lote al que pertenece esta unidad."
+        />
+
+        <div className="traceLayout">
+
+          <div className="traceCard">
+
+            <TraceRow
+              label="Código de lote"
+              value={lote?.codigo}
+              highlight
+            />
+
+            <TraceRow
+              label="Cantidad del lote"
+              value={lote?.cantidad}
+            />
+
+            <TraceRow
+              label="Fecha de producción"
+              value={fecha(lote?.fecha_produccion)}
+            />
+
+            <TraceRow
+              label="Fecha de vencimiento"
+              value={fecha(lote?.fecha_vencimiento)}
+            />
+
+            <TraceRow
+              label="Ubicación"
+              value={lote?.ubicacion}
+            />
+
+            <TraceRow
+              label="Estado del lote"
+              value={lote?.estado}
+            />
+
+          </div>
+
+          <div className="traceSummary">
+
+            <div className="traceSummaryIcon">
+              ↗
+            </div>
+
+            <span>
+              CADENA DE IDENTIDAD
+            </span>
+
+            <div className="chain">
+
+              <ChainItem
+                number="1"
+                label="Empresa"
+                value={empresaNombre}
+              />
+
+              <ChainItem
+                number="2"
+                label="Producto"
+                value={productoNombre}
+              />
+
+              <ChainItem
+                number="3"
+                label="Modelo"
+                value={modeloNombre}
+              />
+
+              <ChainItem
+                number="4"
+                label="Lote"
+                value={lote?.codigo || 'No informado'}
+              />
+
+              <ChainItem
+                number="5"
+                label="Unidad"
+                value={numeroUnidad}
+                last
+              />
+
+            </div>
+
+          </div>
+
         </div>
 
-        <div className="traceCard">
-
-          <TraceRow
-            label="Código de lote"
-            value={lote?.codigo}
-          />
-
-          <TraceRow
-            label="Cantidad del lote"
-            value={lote?.cantidad}
-          />
-
-          <TraceRow
-            label="Fecha de producción"
-            value={fecha(lote?.fecha_produccion)}
-          />
-
-          <TraceRow
-            label="Fecha de vencimiento"
-            value={fecha(lote?.fecha_vencimiento)}
-          />
-
-          <TraceRow
-            label="Ubicación"
-            value={lote?.ubicacion}
-          />
-
-          <TraceRow
-            label="Estado del lote"
-            value={lote?.estado}
-          />
-
-        </div>
-
-        {/* ====================================================
+        {/* ===================================================
             ATRIBUTOS DINÁMICOS
-        ==================================================== */}
+        =================================================== */}
 
         {Object.keys(grupos).length > 0 && (
           <>
-            <div className="sectionTitle">
-              INFORMACIÓN DEL PRODUCTO
-            </div>
+
+            <SectionHeader
+              eyebrow="DATOS DEL PRODUCTO"
+              title="Información técnica"
+              description="Características y atributos definidos para este modelo."
+            />
 
             <div className="attributesGrid">
 
@@ -351,35 +562,47 @@ export default async function DPPPage({ params }: Props) {
                     key={grupo}
                   >
 
-                    <h2>
-                      {grupo.toUpperCase()}
-                    </h2>
+                    <div className="attributeHeader">
 
-                    {items.map((item, index) => (
+                      <span className="attributeDot" />
 
-                      <div
-                        className="attributeRow"
-                        key={
-                          item.id ||
-                          `${grupo}-${item.nombre}-${index}`
-                        }
-                      >
+                      <h2>
+                        {grupo.toUpperCase()}
+                      </h2>
 
-                        <span>
-                          {texto(item.nombre)}
-                        </span>
+                    </div>
 
-                        <strong>
-                          {texto(item.valor)}
+                    <div className="attributeContent">
 
-                          {item.unidad
-                            ? ` ${item.unidad}`
-                            : ''}
-                        </strong>
+                      {items.map(
+                        (item, index) => (
 
-                      </div>
+                          <div
+                            className="attributeRow"
+                            key={
+                              item.id ||
+                              `${grupo}-${item.nombre}-${index}`
+                            }
+                          >
 
-                    ))}
+                            <span>
+                              {texto(item.nombre)}
+                            </span>
+
+                            <strong>
+                              {texto(item.valor)}
+
+                              {item.unidad
+                                ? ` ${item.unidad}`
+                                : ''}
+                            </strong>
+
+                          </div>
+
+                        )
+                      )}
+
+                    </div>
 
                   </div>
 
@@ -387,83 +610,199 @@ export default async function DPPPage({ params }: Props) {
               )}
 
             </div>
+
           </>
         )}
 
-        {/* ====================================================
+        {/* ===================================================
             IDENTIDAD DIGITAL
-        ==================================================== */}
+        =================================================== */}
 
-        <div className="sectionTitle">
-          IDENTIDAD DIGITAL
+        <SectionHeader
+          eyebrow="IDENTIDAD DIGITAL"
+          title="Tecnologías de identificación"
+          description="Mecanismos digitales asociados a esta unidad."
+        />
+
+        <div className="digitalLayout">
+
+          <div className="digitalCard">
+
+            <DigitalItem
+              icon="ID"
+              label="Código público"
+              value={codigoLimpio}
+              active
+            />
+
+            <DigitalItem
+              icon="QR"
+              label="Código QR"
+              value={
+                qrAsociado
+                  ? 'Asociado'
+                  : 'No asociado'
+              }
+              active={qrAsociado}
+            />
+
+            <DigitalItem
+              icon="N"
+              label="NFC"
+              value={
+                nfcAsociado
+                  ? 'Asociado'
+                  : 'No asociado'
+              }
+              active={nfcAsociado}
+            />
+
+          </div>
+
+          <div className="digitalPassport">
+
+            <div className="digitalPassportTop">
+
+              <div className="miniLogo">
+                V<span>B</span>
+              </div>
+
+              <div className="digitalPassportTitle">
+
+                <span>
+                  DIGITAL PRODUCT PASSPORT
+                </span>
+
+                <strong>
+                  {codigoLimpio}
+                </strong>
+
+              </div>
+
+            </div>
+
+            <div className="digitalPassportProduct">
+              {productoNombre}
+            </div>
+
+            <div className="digitalPassportModel">
+              {modeloNombre}
+            </div>
+
+            <div className="digitalPassportFooter">
+
+              <span>
+                {numeroUnidad}
+              </span>
+
+              <span className="registeredMini">
+                ● REGISTRADO
+              </span>
+
+            </div>
+
+          </div>
+
         </div>
 
-        <div className="digitalCard">
+        <div className="publicUrl">
 
-          <div>
-            <span>Código público</span>
-            <strong>
-              {codigoLimpio}
-            </strong>
+          <div className="publicUrlIcon">
+            ↗
           </div>
 
           <div>
-            <span>QR</span>
-            <strong>
-              {identidad.codigo_qr
-                ? '✓ Asociado'
-                : 'No asociado'}
-            </strong>
-          </div>
 
-          <div>
-            <span>NFC</span>
+            <span>
+              DIRECCIÓN PÚBLICA DEL PASAPORTE
+            </span>
+
             <strong>
-              {identidad.nfc_uid
-                ? '✓ Asociado'
-                : 'No asociado'}
+              {urlPublica}
             </strong>
+
           </div>
 
         </div>
 
-        {/* ====================================================
-            EMPRESA
-        ==================================================== */}
+        {/* ===================================================
+            RESPONSABLE
+        =================================================== */}
 
-        <div className="sectionTitle">
-          RESPONSABLE DEL PRODUCTO
-        </div>
+        <SectionHeader
+          eyebrow="ORGANIZACIÓN"
+          title="Responsable del producto"
+          description="Organización asociada al registro de esta identidad."
+        />
 
         <div className="companyCard">
 
-          <div className="companyIcon">
-            V
+          <div className="companyIdentity">
+
+            <div className="companyIcon">
+              {empresaNombre
+                .charAt(0)
+                .toUpperCase()}
+            </div>
+
+            <div>
+
+              <span className="companyLabel">
+                EMPRESA RESPONSABLE
+              </span>
+
+              <h2>
+                {empresaNombre}
+              </h2>
+
+              <p>
+                {empresa?.sector || 'Sector no informado'}
+
+                {empresa?.pais
+                  ? ` · ${empresa.pais}`
+                  : ''}
+              </p>
+
+            </div>
+
           </div>
 
-          <div>
-            <h2>
-              {empresaNombre}
-            </h2>
-
-            <p>
-              {empresa?.sector &&
-                `${empresa.sector} · `}
-              {empresa?.pais || ''}
-            </p>
+          <div className="companyData">
 
             {empresa?.rut && (
-              <small>
-                RUT: {empresa.rut}
-              </small>
+              <div>
+                <span>RUT</span>
+                <strong>
+                  {empresa.rut}
+                </strong>
+              </div>
             )}
+
+            {empresa?.pais && (
+              <div>
+                <span>PAÍS</span>
+                <strong>
+                  {empresa.pais}
+                </strong>
+              </div>
+            )}
+
+            {empresa?.sector && (
+              <div>
+                <span>SECTOR</span>
+                <strong>
+                  {empresa.sector}
+                </strong>
+              </div>
+            )}
+
           </div>
 
         </div>
 
-        {/* ====================================================
-            VERIFICACIÓN
-        ==================================================== */}
+        {/* ===================================================
+            REGISTRO FINAL
+        =================================================== */}
 
         <div className="verification">
 
@@ -471,40 +810,79 @@ export default async function DPPPage({ params }: Props) {
             ✓
           </div>
 
-          <div>
+          <div className="verificationContent">
+
+            <span>
+              REGISTRO DIGITAL
+            </span>
+
             <strong>
-              Identidad digital registrada
+              Identidad digital registrada en VINCULAB
             </strong>
 
             <p>
               Esta unidad física posee una identidad digital
-              única registrada en VINCULAB.
+              única asociada a su producto, modelo, empresa y
+              lote de origen.
             </p>
+
+          </div>
+
+          <div className="verificationCode">
+
+            <span>
+              IDENTIDAD
+            </span>
+
+            <strong>
+              {codigoLimpio}
+            </strong>
+
           </div>
 
         </div>
 
       </section>
 
-      {/* ======================================================
+      {/* =====================================================
           FOOTER
-      ====================================================== */}
+      ===================================================== */}
 
       <footer>
 
-        <div className="footerLogo">
-          VINCULA<span>B</span>
+        <div className="footerInner">
+
+          <div>
+
+            <div className="footerLogo">
+              VINCULA<span>B</span>
+            </div>
+
+            <p>
+              Plataforma de Identidad Digital de Productos
+            </p>
+
+          </div>
+
+          <div className="footerRight">
+
+            <span>
+              DIGITAL PRODUCT PASSPORT
+            </span>
+
+            <small>
+              Trazabilidad · QR · NFC · Identidad Digital
+            </small>
+
+          </div>
+
         </div>
 
-        <p>
-          Plataforma de Identidad Digital de Productos
-        </p>
-
-        <small>
-          Digital Product Passport · Trazabilidad · QR · NFC
-        </small>
-
       </footer>
+
+      {/* =====================================================
+          CSS
+      ===================================================== */}
 
       <style>{`
 
@@ -512,18 +890,28 @@ export default async function DPPPage({ params }: Props) {
           box-sizing: border-box;
         }
 
+        html {
+          background: #070a0e;
+        }
+
         body {
           margin: 0;
-          background: #080b0f;
+          background: #070a0e;
         }
 
         .page {
           min-height: 100vh;
+
           background:
             radial-gradient(
               circle at 80% 0%,
               rgba(255, 102, 0, .08),
-              transparent 25%
+              transparent 26%
+            ),
+            radial-gradient(
+              circle at 10% 30%,
+              rgba(25, 55, 80, .10),
+              transparent 30%
             ),
             #080b0f;
 
@@ -535,220 +923,499 @@ export default async function DPPPage({ params }: Props) {
             sans-serif;
         }
 
+        /* ==============================================
+           HEADER
+        ============================================== */
+
         .header {
-          height: 82px;
+          min-height: 82px;
+
+          display: flex;
+          align-items: center;
+
+          border-bottom: 1px solid #1e2933;
+
+          background: rgba(10, 15, 21, .96);
+        }
+
+        .headerInner {
+          width: min(1500px, 92vw);
+
+          margin: 0 auto;
 
           display: flex;
           align-items: center;
           justify-content: space-between;
 
-          padding: 0 6%;
-
-          border-bottom: 1px solid #202b35;
-
-          background: #0c1117;
+          gap: 30px;
         }
 
         .logo,
         .footerLogo {
-          font-size: 24px;
+          font-size: 25px;
           font-weight: 900;
+
           letter-spacing: -1px;
         }
 
         .logo span,
-        .footerLogo span {
+        .footerLogo span,
+        .miniLogo span {
           color: #ff6600;
         }
 
         .brandSub {
           margin-top: 5px;
 
-          color: #69849c;
+          color: #607a91;
 
-          font-size: 9px;
+          font-size: 8px;
+          font-weight: 700;
+
+          letter-spacing: 2.2px;
+        }
+
+        .passportHeader {
+          display: flex;
+          align-items: center;
+
+          gap: 10px;
+
+          color: #8298ab;
+
+          font-size: 10px;
+          font-weight: 800;
+
           letter-spacing: 2px;
         }
 
-        .passport {
-          color: #8ca3b7;
+        .passportDot {
+          width: 7px;
+          height: 7px;
 
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 2px;
+          border-radius: 50%;
+
+          background: #ff6600;
+
+          box-shadow:
+            0 0 15px rgba(255, 102, 0, .8);
+        }
+
+        /* ==============================================
+           HERO
+        ============================================== */
+
+        .heroWrapper {
+          border-bottom: 1px solid #1d2832;
         }
 
         .hero {
+          width: min(1500px, 92vw);
+
+          margin: 0 auto;
+
+          padding: 75px 0;
+
           display: grid;
 
           grid-template-columns:
             minmax(0, 1fr)
-            280px;
+            310px;
 
-          gap: 50px;
+          gap: 70px;
 
-          padding:
-            80px
-            max(6%, calc((100% - 1250px) / 2));
-
-          border-bottom: 1px solid #202b35;
+          align-items: center;
         }
 
-        .verified {
-          display: inline-block;
+        .registered {
+          display: inline-flex;
+          align-items: center;
 
-          padding: 8px 12px;
+          gap: 8px;
 
-          border: 1px solid #145b40;
+          padding: 8px 13px;
+
+          border: 1px solid #14563f;
           border-radius: 20px;
 
-          background: #092d21;
+          background: #082c20;
 
-          color: #30e996;
-
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: 1px;
-        }
-
-        h1 {
-          margin:
-            25px 0
-            5px;
-
-          font-size: clamp(38px, 6vw, 70px);
-
-          line-height: 1;
-
-          letter-spacing: -2px;
-        }
-
-        .modelName {
-          color: #ff6600;
-
-          font-size: 21px;
-          font-weight: 700;
-        }
-
-        .description {
-          max-width: 700px;
-
-          margin-top: 22px;
-
-          color: #8da1b4;
-
-          font-size: 16px;
-          line-height: 1.7;
-        }
-
-        .identityCode {
-          display: flex;
-          flex-direction: column;
-
-          margin-top: 35px;
-        }
-
-        .identityCode span {
-          color: #60798e;
+          color: #32e697;
 
           font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 2px;
+          font-weight: 900;
+
+          letter-spacing: 1.2px;
         }
 
-        .identityCode strong {
-          margin-top: 8px;
+        .registeredIcon {
+          width: 18px;
+          height: 18px;
 
-          color: #fff;
-
-          font-size: 20px;
-          letter-spacing: 2px;
-        }
-
-        .statusCard {
-          min-height: 240px;
-
-          display: flex;
-          flex-direction: column;
+          display: inline-flex;
           align-items: center;
           justify-content: center;
-
-          border: 1px solid #24323e;
-          border-radius: 16px;
-
-          background: #101821;
-        }
-
-        .statusIcon {
-          width: 55px;
-          height: 55px;
-
-          display: flex;
-          align-items: center;
-          justify-content: center;
-
-          margin-bottom: 20px;
 
           border-radius: 50%;
 
-          background: #063c2a;
-
-          color: #25e38e;
-
-          font-size: 25px;
-        }
-
-        .statusCard span {
-          color: #66839c;
+          background: #0c543a;
 
           font-size: 10px;
+        }
+
+        .heroEyebrow {
+          margin-top: 30px;
+
+          color: #667e93;
+
+          font-size: 9px;
+          font-weight: 900;
+
+          letter-spacing: 2.4px;
+        }
+
+        h1 {
+          max-width: 1000px;
+
+          margin:
+            14px 0
+            7px;
+
+          font-size: clamp(
+            46px,
+            5.3vw,
+            82px
+          );
+
+          line-height: .98;
+
+          letter-spacing: -3px;
+        }
+
+        .modelName {
+          color: #ff6a00;
+
+          font-size: 23px;
           font-weight: 800;
+
+          letter-spacing: -.4px;
+        }
+
+        .description {
+          max-width: 800px;
+
+          margin:
+            25px 0
+            0;
+
+          color: #899daf;
+
+          font-size: 15px;
+
+          line-height: 1.75;
+        }
+
+        .heroIdentity {
+          max-width: 800px;
+
+          margin-top: 35px;
+
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+
+          gap: 25px;
+
+          padding-top: 25px;
+
+          border-top: 1px solid #202c36;
+        }
+
+        .heroIdentity > div:first-child {
+          display: flex;
+          flex-direction: column;
+
+          gap: 8px;
+        }
+
+        .heroIdentity span {
+          color: #5d758a;
+
+          font-size: 9px;
+          font-weight: 900;
+
           letter-spacing: 2px;
         }
 
-        .statusCard strong {
-          margin: 10px 0;
+        .heroIdentity strong {
+          font-size: 20px;
 
-          font-size: 16px;
+          letter-spacing: 2px;
         }
 
-        .active {
-          color: #26e691;
+        .unitBadge {
+          padding: 8px 13px;
+
+          border: 1px solid #303d48;
+          border-radius: 7px;
+
+          background: #111820;
+
+          color: #9bb0c2;
+
+          font-size: 11px;
+          font-weight: 800;
         }
 
-        .inactive {
+        /* ==============================================
+           STATUS
+        ============================================== */
+
+        .statusCard {
+          min-height: 300px;
+
+          padding: 30px;
+
+          display: flex;
+          flex-direction: column;
+
+          align-items: center;
+          justify-content: center;
+
+          text-align: center;
+
+          border: 1px solid #25323d;
+          border-radius: 18px;
+
+          background:
+            linear-gradient(
+              145deg,
+              #121a22,
+              #0c1218
+            );
+
+          box-shadow:
+            0 25px 80px rgba(0, 0, 0, .22);
+        }
+
+        .statusCircle {
+          width: 64px;
+          height: 64px;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          margin-bottom: 22px;
+
+          border-radius: 50%;
+
+          font-size: 28px;
+          font-weight: 900;
+        }
+
+        .statusCircleActive {
+          border: 1px solid #146044;
+
+          background: #073a29;
+
+          color: #2ae590;
+
+          box-shadow:
+            0 0 35px rgba(42, 229, 144, .10);
+        }
+
+        .statusCircleInactive {
+          border: 1px solid #6a431e;
+
+          background: #35210e;
+
           color: #ff9a43;
         }
 
-        .statusCard small {
-          color: #657c8e;
-        }
+        .statusLabel {
+          color: #657d92;
 
-        .container {
-          max-width: 1250px;
-
-          margin: auto;
-
-          padding: 60px 30px 90px;
-        }
-
-        .sectionTitle {
-          margin:
-            55px 0
-            18px;
-
-          color: #ff6600;
-
-          font-size: 11px;
+          font-size: 9px;
           font-weight: 900;
+
           letter-spacing: 2px;
         }
 
-        .sectionTitle:first-child {
+        .statusCard > strong {
+          margin:
+            10px 0
+            15px;
+
+          font-size: 18px;
+        }
+
+        .statusActive {
+          color: #2ae590;
+        }
+
+        .statusInactive {
+          color: #ff9a43;
+        }
+
+        .statusDivider {
+          width: 50px;
+          height: 1px;
+
+          margin-bottom: 15px;
+
+          background: #2b3741;
+        }
+
+        .statusCard small {
+          margin-top: 5px;
+
+          color: #61778a;
+
+          font-size: 10px;
+        }
+
+        /* ==============================================
+           CONTAINER
+        ============================================== */
+
+        .container {
+          width: min(1500px, 92vw);
+
+          margin: 0 auto;
+
+          padding:
+            60px 0
+            100px;
+        }
+
+        /* ==============================================
+           PASSPORT BANNER
+        ============================================== */
+
+        .passportBanner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          gap: 40px;
+
+          margin-bottom: 70px;
+
+          padding: 25px 28px;
+
+          border: 1px solid #293640;
+          border-left: 4px solid #ff6600;
+
+          border-radius: 12px;
+
+          background:
+            linear-gradient(
+              90deg,
+              #111922,
+              #0c1218
+            );
+        }
+
+        .passportBannerIdentity,
+        .passportBannerRight {
+          display: flex;
+          flex-direction: column;
+
+          gap: 6px;
+        }
+
+        .passportBanner span {
+          color: #668097;
+
+          font-size: 9px;
+          font-weight: 900;
+
+          letter-spacing: 2px;
+        }
+
+        .passportBanner strong {
+          color: #fff;
+
+          font-size: 17px;
+
+          letter-spacing: 1px;
+        }
+
+        .passportBanner small {
+          color: #506779;
+
+          font-size: 10px;
+        }
+
+        .passportBannerRight {
+          text-align: right;
+        }
+
+        .passportBannerRight strong {
+          color: #ff6600;
+        }
+
+        /* ==============================================
+           SECTION HEADER
+        ============================================== */
+
+        .sectionHeader {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+
+          gap: 30px;
+
+          margin:
+            70px 0
+            20px;
+        }
+
+        .sectionHeader:first-of-type {
           margin-top: 0;
         }
 
-        .grid {
+        .sectionEyebrow {
+          display: block;
+
+          margin-bottom: 8px;
+
+          color: #ff6600;
+
+          font-size: 9px;
+          font-weight: 900;
+
+          letter-spacing: 2px;
+        }
+
+        .sectionHeader h2 {
+          margin: 0;
+
+          font-size: 25px;
+
+          letter-spacing: -.5px;
+        }
+
+        .sectionHeader p {
+          max-width: 500px;
+
+          margin: 0;
+
+          color: #687f93;
+
+          font-size: 11px;
+
+          line-height: 1.6;
+
+          text-align: right;
+        }
+
+        /* ==============================================
+           IDENTITY CARDS
+        ============================================== */
+
+        .identityGrid {
           display: grid;
 
           grid-template-columns:
@@ -758,37 +1425,85 @@ export default async function DPPPage({ params }: Props) {
         }
 
         .infoCard {
-          min-height: 115px;
+          min-height: 145px;
 
-          padding: 22px;
+          position: relative;
 
-          border: 1px solid #23313d;
+          padding: 24px;
+
+          overflow: hidden;
+
+          border: 1px solid #25323d;
           border-radius: 12px;
 
-          background: #10171f;
+          background:
+            linear-gradient(
+              145deg,
+              #111922,
+              #0d141b
+            );
         }
 
-        .infoCard span {
+        .infoNumber {
+          position: absolute;
+
+          right: 17px;
+          top: 14px;
+
+          color: #263642;
+
+          font-size: 30px;
+          font-weight: 900;
+        }
+
+        .infoCard span:not(.infoNumber) {
           display: block;
 
-          margin-bottom: 12px;
+          margin-bottom: 16px;
 
-          color: #69839a;
+          color: #688298;
 
-          font-size: 10px;
-          font-weight: 800;
+          font-size: 9px;
+          font-weight: 900;
+
           letter-spacing: 1.5px;
         }
 
         .infoCard strong {
-          font-size: 17px;
+          position: relative;
+
+          z-index: 2;
+
+          display: block;
+
+          max-width: 90%;
+
+          font-size: 18px;
+
+          line-height: 1.35;
+        }
+
+        /* ==============================================
+           TRACE
+        ============================================== */
+
+        .traceLayout {
+          display: grid;
+
+          grid-template-columns:
+            minmax(0, 1.5fr)
+            minmax(300px, .7fr);
+
+          gap: 18px;
         }
 
         .traceCard,
+        .traceSummary,
         .attributeCard,
         .digitalCard,
+        .digitalPassport,
         .companyCard {
-          border: 1px solid #23313d;
+          border: 1px solid #25323d;
           border-radius: 12px;
 
           background: #10171f;
@@ -799,13 +1514,15 @@ export default async function DPPPage({ params }: Props) {
         }
 
         .traceRow {
+          min-height: 57px;
+
           display: flex;
           align-items: center;
           justify-content: space-between;
 
           gap: 30px;
 
-          padding: 17px 22px;
+          padding: 16px 22px;
 
           border-bottom: 1px solid #202b34;
         }
@@ -815,16 +1532,132 @@ export default async function DPPPage({ params }: Props) {
         }
 
         .traceRow span {
-          color: #738da3;
+          color: #72899d;
 
-          font-size: 13px;
+          font-size: 12px;
         }
 
         .traceRow strong {
           text-align: right;
 
-          font-size: 14px;
+          font-size: 13px;
         }
+
+        .traceHighlight {
+          color: #ff7519;
+        }
+
+        /* CHAIN */
+
+        .traceSummary {
+          padding: 23px;
+        }
+
+        .traceSummaryIcon {
+          width: 36px;
+          height: 36px;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          margin-bottom: 18px;
+
+          border-radius: 8px;
+
+          background: rgba(255, 102, 0, .10);
+
+          color: #ff6600;
+
+          font-size: 18px;
+        }
+
+        .traceSummary > span {
+          color: #70889d;
+
+          font-size: 9px;
+          font-weight: 900;
+
+          letter-spacing: 1.7px;
+        }
+
+        .chain {
+          margin-top: 23px;
+        }
+
+        .chainItem {
+          position: relative;
+
+          display: grid;
+
+          grid-template-columns:
+            28px 1fr;
+
+          gap: 12px;
+
+          padding-bottom: 18px;
+        }
+
+        .chainLine {
+          position: absolute;
+
+          left: 13px;
+          top: 27px;
+
+          width: 1px;
+          height: calc(100% - 10px);
+
+          background: #2a3945;
+        }
+
+        .chainNumber {
+          width: 27px;
+          height: 27px;
+
+          position: relative;
+
+          z-index: 2;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          border: 1px solid #344653;
+          border-radius: 50%;
+
+          background: #121c24;
+
+          color: #ff7417;
+
+          font-size: 9px;
+          font-weight: 900;
+        }
+
+        .chainText {
+          display: flex;
+          flex-direction: column;
+
+          gap: 3px;
+        }
+
+        .chainText span {
+          color: #5e778b;
+
+          font-size: 8px;
+          font-weight: 800;
+
+          letter-spacing: 1px;
+        }
+
+        .chainText strong {
+          color: #dce4eb;
+
+          font-size: 11px;
+        }
+
+        /* ==============================================
+           ATTRIBUTES
+        ============================================== */
 
         .attributesGrid {
           display: grid;
@@ -839,24 +1672,43 @@ export default async function DPPPage({ params }: Props) {
           overflow: hidden;
         }
 
-        .attributeCard h2 {
-          margin: 0;
+        .attributeHeader {
+          display: flex;
+          align-items: center;
+
+          gap: 10px;
 
           padding: 18px 20px;
 
           border-bottom: 1px solid #26323c;
+        }
 
-          color: #ff6600;
+        .attributeDot {
+          width: 7px;
+          height: 7px;
 
-          font-size: 11px;
-          letter-spacing: 1.5px;
+          flex-shrink: 0;
+
+          border-radius: 50%;
+
+          background: #ff6600;
+        }
+
+        .attributeHeader h2 {
+          margin: 0;
+
+          color: #ff7417;
+
+          font-size: 10px;
+
+          letter-spacing: 1.6px;
         }
 
         .attributeRow {
           display: flex;
           justify-content: space-between;
 
-          gap: 20px;
+          gap: 25px;
 
           padding: 15px 20px;
 
@@ -870,13 +1722,27 @@ export default async function DPPPage({ params }: Props) {
         .attributeRow span {
           color: #8095a8;
 
-          font-size: 13px;
+          font-size: 12px;
         }
 
         .attributeRow strong {
           text-align: right;
 
-          font-size: 13px;
+          font-size: 12px;
+        }
+
+        /* ==============================================
+           DIGITAL IDENTITY
+        ============================================== */
+
+        .digitalLayout {
+          display: grid;
+
+          grid-template-columns:
+            minmax(0, 1.4fr)
+            minmax(330px, .6fr);
+
+          gap: 18px;
         }
 
         .digitalCard {
@@ -888,44 +1754,99 @@ export default async function DPPPage({ params }: Props) {
           overflow: hidden;
         }
 
-        .digitalCard > div {
+        .digitalItem {
+          min-height: 170px;
+
           padding: 25px;
+
+          display: flex;
+          flex-direction: column;
+
+          justify-content: space-between;
 
           border-right: 1px solid #26323c;
         }
 
-        .digitalCard > div:last-child {
+        .digitalItem:last-child {
           border-right: none;
         }
 
-        .digitalCard span {
-          display: block;
+        .digitalIcon {
+          width: 40px;
+          height: 40px;
 
-          margin-bottom: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
 
-          color: #68849a;
+          border: 1px solid #31414e;
+          border-radius: 9px;
+
+          background: #121c24;
+
+          color: #738da3;
 
           font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 1.5px;
+          font-weight: 900;
         }
 
-        .digitalCard strong {
-          font-size: 14px;
+        .digitalIconActive {
+          border-color: rgba(255, 102, 0, .35);
+
+          background: rgba(255, 102, 0, .08);
+
+          color: #ff7317;
         }
 
-        .companyCard {
+        .digitalItemText {
+          display: flex;
+          flex-direction: column;
+
+          gap: 7px;
+        }
+
+        .digitalItemText span {
+          color: #68849a;
+
+          font-size: 9px;
+          font-weight: 900;
+
+          letter-spacing: 1.4px;
+        }
+
+        .digitalItemText strong {
+          font-size: 13px;
+
+          word-break: break-word;
+        }
+
+        .digitalPassport {
+          padding: 24px;
+
+          display: flex;
+          flex-direction: column;
+
+          justify-content: space-between;
+
+          background:
+            radial-gradient(
+              circle at 100% 0%,
+              rgba(255, 102, 0, .15),
+              transparent 40%
+            ),
+            #10171f;
+        }
+
+        .digitalPassportTop {
           display: flex;
           align-items: center;
 
-          gap: 20px;
-
-          padding: 25px;
+          gap: 14px;
         }
 
-        .companyIcon {
-          width: 55px;
-          height: 55px;
+        .miniLogo {
+          width: 44px;
+          height: 44px;
 
           flex-shrink: 0;
 
@@ -933,53 +1854,269 @@ export default async function DPPPage({ params }: Props) {
           align-items: center;
           justify-content: center;
 
-          border-radius: 12px;
+          border: 1px solid #33434f;
+          border-radius: 10px;
 
-          background: #ff6600;
+          background: #0b1117;
 
-          color: white;
-
-          font-size: 22px;
+          font-size: 16px;
           font-weight: 900;
         }
 
-        .companyCard h2 {
-          margin: 0 0 6px;
+        .digitalPassportTitle {
+          display: flex;
+          flex-direction: column;
 
-          font-size: 20px;
+          gap: 5px;
         }
 
-        .companyCard p {
-          margin: 0 0 6px;
+        .digitalPassportTitle span {
+          color: #617b91;
 
-          color: #8ba0b2;
+          font-size: 7px;
+          font-weight: 900;
+
+          letter-spacing: 1.2px;
         }
 
-        .companyCard small {
-          color: #60798e;
+        .digitalPassportTitle strong {
+          font-size: 11px;
+
+          letter-spacing: 1px;
         }
 
-        .verification {
+        .digitalPassportProduct {
+          margin-top: 28px;
+
+          font-size: 19px;
+          font-weight: 900;
+        }
+
+        .digitalPassportModel {
+          margin-top: 5px;
+
+          color: #ff7114;
+
+          font-size: 11px;
+          font-weight: 800;
+        }
+
+        .digitalPassportFooter {
+          margin-top: 30px;
+
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          gap: 15px;
+
+          padding-top: 15px;
+
+          border-top: 1px solid #2b3741;
+
+          color: #71899d;
+
+          font-size: 9px;
+          font-weight: 800;
+        }
+
+        .registeredMini {
+          color: #28dc8b;
+        }
+
+        /* PUBLIC URL */
+
+        .publicUrl {
           display: flex;
           align-items: center;
 
-          gap: 18px;
+          gap: 15px;
 
-          margin-top: 50px;
+          margin-top: 15px;
 
-          padding: 25px;
+          padding: 18px 20px;
 
-          border: 1px solid #12543d;
-          border-radius: 12px;
+          border: 1px solid #25323d;
+          border-radius: 10px;
 
-          background: #08241c;
+          background: #0d141b;
+        }
+
+        .publicUrlIcon {
+          width: 38px;
+          height: 38px;
+
+          flex-shrink: 0;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          border-radius: 8px;
+
+          background: rgba(255, 102, 0, .09);
+
+          color: #ff6600;
+        }
+
+        .publicUrl > div:last-child {
+          min-width: 0;
+
+          display: flex;
+          flex-direction: column;
+
+          gap: 5px;
+        }
+
+        .publicUrl span {
+          color: #637d93;
+
+          font-size: 8px;
+          font-weight: 900;
+
+          letter-spacing: 1.5px;
+        }
+
+        .publicUrl strong {
+          overflow-wrap: anywhere;
+
+          font-size: 11px;
+        }
+
+        /* ==============================================
+           COMPANY
+        ============================================== */
+
+        .companyCard {
+          padding: 28px;
+
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          gap: 40px;
+        }
+
+        .companyIdentity {
+          display: flex;
+          align-items: center;
+
+          gap: 20px;
+        }
+
+        .companyIcon {
+          width: 64px;
+          height: 64px;
+
+          flex-shrink: 0;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          border-radius: 13px;
+
+          background:
+            linear-gradient(
+              145deg,
+              #ff7417,
+              #e95700
+            );
+
+          color: white;
+
+          font-size: 25px;
+          font-weight: 900;
+
+          box-shadow:
+            0 10px 35px rgba(255, 102, 0, .15);
+        }
+
+        .companyLabel {
+          color: #687f93;
+
+          font-size: 8px;
+          font-weight: 900;
+
+          letter-spacing: 1.5px;
+        }
+
+        .companyIdentity h2 {
+          margin:
+            5px 0
+            5px;
+
+          font-size: 22px;
+        }
+
+        .companyIdentity p {
+          margin: 0;
+
+          color: #8096a8;
+
+          font-size: 11px;
+        }
+
+        .companyData {
+          display: flex;
+
+          gap: 35px;
+        }
+
+        .companyData > div {
+          display: flex;
+          flex-direction: column;
+
+          gap: 6px;
+        }
+
+        .companyData span {
+          color: #60798e;
+
+          font-size: 8px;
+          font-weight: 900;
+
+          letter-spacing: 1.4px;
+        }
+
+        .companyData strong {
+          font-size: 11px;
+        }
+
+        /* ==============================================
+           VERIFICATION
+        ============================================== */
+
+        .verification {
+          display: grid;
+
+          grid-template-columns:
+            auto
+            minmax(0, 1fr)
+            auto;
+
+          align-items: center;
+
+          gap: 20px;
+
+          margin-top: 70px;
+
+          padding: 27px 30px;
+
+          border: 1px solid #14523d;
+          border-radius: 13px;
+
+          background:
+            linear-gradient(
+              90deg,
+              #08251c,
+              #0a1d18
+            );
         }
 
         .verificationIcon {
-          width: 42px;
-          height: 42px;
-
-          flex-shrink: 0;
+          width: 48px;
+          height: 48px;
 
           display: flex;
           align-items: center;
@@ -991,111 +2128,245 @@ export default async function DPPPage({ params }: Props) {
 
           color: #29e893;
 
-          font-size: 20px;
+          font-size: 21px;
+          font-weight: 900;
         }
 
-        .verification strong {
-          color: #30e996;
+        .verificationContent {
+          display: flex;
+          flex-direction: column;
+
+          gap: 5px;
         }
 
-        .verification p {
-          margin: 6px 0 0;
+        .verificationContent span,
+        .verificationCode span {
+          color: #5c9c80;
 
-          color: #82a899;
+          font-size: 8px;
+          font-weight: 900;
 
-          font-size: 13px;
+          letter-spacing: 1.6px;
         }
+
+        .verificationContent strong {
+          color: #31e996;
+
+          font-size: 14px;
+        }
+
+        .verificationContent p {
+          margin: 0;
+
+          color: #79a795;
+
+          font-size: 11px;
+
+          line-height: 1.5;
+        }
+
+        .verificationCode {
+          display: flex;
+          flex-direction: column;
+
+          gap: 6px;
+
+          text-align: right;
+        }
+
+        .verificationCode strong {
+          font-size: 12px;
+
+          letter-spacing: 1px;
+        }
+
+        /* ==============================================
+           FOOTER
+        ============================================== */
 
         footer {
-          padding: 50px 30px;
+          padding:
+            45px 0;
 
-          border-top: 1px solid #202b35;
+          border-top: 1px solid #1e2933;
 
-          background: #080c11;
+          background: #070b0f;
+        }
 
-          text-align: center;
+        .footerInner {
+          width: min(1500px, 92vw);
+
+          margin: 0 auto;
+
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          gap: 30px;
         }
 
         footer p {
-          margin: 10px 0;
+          margin:
+            7px 0
+            0;
 
-          color: #7890a4;
+          color: #657d91;
+
+          font-size: 10px;
         }
 
-        footer small {
-          color: #4f6678;
+        .footerRight {
+          display: flex;
+          flex-direction: column;
+
+          gap: 6px;
+
+          text-align: right;
         }
 
-        @media (max-width: 900px) {
+        .footerRight span {
+          color: #71889c;
+
+          font-size: 9px;
+          font-weight: 900;
+
+          letter-spacing: 1.6px;
+        }
+
+        .footerRight small {
+          color: #485e70;
+
+          font-size: 9px;
+        }
+
+        /* ==============================================
+           TABLET
+        ============================================== */
+
+        @media (max-width: 1000px) {
 
           .hero {
             grid-template-columns: 1fr;
 
+            gap: 35px;
+
             padding:
-              50px 25px;
+              55px 0;
           }
 
           .statusCard {
-            min-height: 180px;
+            min-height: 200px;
           }
 
-          .grid {
+          .identityGrid {
             grid-template-columns:
               repeat(2, 1fr);
+          }
+
+          .traceLayout,
+          .digitalLayout {
+            grid-template-columns: 1fr;
           }
 
           .attributesGrid {
             grid-template-columns: 1fr;
           }
 
+          .companyCard {
+            align-items: flex-start;
+
+            flex-direction: column;
+          }
+
         }
 
-        @media (max-width: 600px) {
+        /* ==============================================
+           MOBILE
+        ============================================== */
+
+        @media (max-width: 650px) {
 
           .header {
-            height: auto;
+            min-height: auto;
+          }
 
-            padding: 20px;
+          .headerInner {
+            padding:
+              18px 0;
 
             flex-direction: column;
             align-items: flex-start;
 
-            gap: 15px;
+            gap: 13px;
           }
 
-          .passport {
-            font-size: 9px;
+          .passportHeader {
+            font-size: 8px;
           }
 
           .hero {
-            padding: 40px 20px;
+            width: 90vw;
+
+            padding:
+              42px 0;
           }
 
           h1 {
-            font-size: 42px;
+            font-size: 43px;
+
+            letter-spacing: -2px;
+          }
+
+          .modelName {
+            font-size: 18px;
+          }
+
+          .description {
+            font-size: 13px;
+          }
+
+          .heroIdentity {
+            align-items: flex-start;
+
+            flex-direction: column;
           }
 
           .container {
+            width: 90vw;
+
             padding:
-              40px 18px
+              40px 0
               70px;
           }
 
-          .grid {
+          .passportBanner {
+            align-items: flex-start;
+
+            flex-direction: column;
+
+            margin-bottom: 50px;
+          }
+
+          .passportBannerRight {
+            text-align: left;
+          }
+
+          .sectionHeader {
+            align-items: flex-start;
+
+            flex-direction: column;
+
+            gap: 8px;
+
+            margin-top: 55px;
+          }
+
+          .sectionHeader p {
+            text-align: left;
+          }
+
+          .identityGrid {
             grid-template-columns: 1fr;
-          }
-
-          .digitalCard {
-            grid-template-columns: 1fr;
-          }
-
-          .digitalCard > div {
-            border-right: none;
-            border-bottom: 1px solid #26323c;
-          }
-
-          .digitalCard > div:last-child {
-            border-bottom: none;
           }
 
           .traceRow {
@@ -1110,6 +2381,54 @@ export default async function DPPPage({ params }: Props) {
             text-align: left;
           }
 
+          .digitalCard {
+            grid-template-columns: 1fr;
+          }
+
+          .digitalItem {
+            min-height: 120px;
+
+            border-right: none;
+            border-bottom: 1px solid #26323c;
+          }
+
+          .digitalItem:last-child {
+            border-bottom: none;
+          }
+
+          .companyData {
+            flex-direction: column;
+
+            gap: 18px;
+          }
+
+          .verification {
+            grid-template-columns:
+              auto
+              1fr;
+          }
+
+          .verificationCode {
+            grid-column:
+              1 / -1;
+
+            padding-top: 15px;
+
+            border-top: 1px solid #16513e;
+
+            text-align: left;
+          }
+
+          .footerInner {
+            align-items: flex-start;
+
+            flex-direction: column;
+          }
+
+          .footerRight {
+            text-align: left;
+          }
+
         }
 
       `}</style>
@@ -1118,32 +2437,192 @@ export default async function DPPPage({ params }: Props) {
   )
 }
 
+/* =========================================================
+   SECTION HEADER
+========================================================= */
+
+function SectionHeader({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string
+  title: string
+  description: string
+}) {
+  return (
+    <div className="sectionHeader">
+
+      <div>
+
+        <span className="sectionEyebrow">
+          {eyebrow}
+        </span>
+
+        <h2>
+          {title}
+        </h2>
+
+      </div>
+
+      <p>
+        {description}
+      </p>
+
+    </div>
+  )
+}
+
+/* =========================================================
+   INFO CARD
+========================================================= */
+
 function InfoCard({
+  number,
   label,
   value,
 }: {
+  number: string
   label: string
   value: any
 }) {
   return (
     <div className="infoCard">
-      <span>{label.toUpperCase()}</span>
-      <strong>{texto(value)}</strong>
+
+      <span className="infoNumber">
+        {number}
+      </span>
+
+      <span>
+        {label.toUpperCase()}
+      </span>
+
+      <strong>
+        {texto(value)}
+      </strong>
+
     </div>
   )
 }
 
+/* =========================================================
+   TRACE ROW
+========================================================= */
+
 function TraceRow({
   label,
   value,
+  highlight = false,
 }: {
   label: string
   value: any
+  highlight?: boolean
 }) {
   return (
     <div className="traceRow">
-      <span>{label}</span>
-      <strong>{texto(value)}</strong>
+
+      <span>
+        {label}
+      </span>
+
+      <strong
+        className={
+          highlight
+            ? 'traceHighlight'
+            : ''
+        }
+      >
+        {texto(value)}
+      </strong>
+
+    </div>
+  )
+}
+
+/* =========================================================
+   CHAIN ITEM
+========================================================= */
+
+function ChainItem({
+  number,
+  label,
+  value,
+  last = false,
+}: {
+  number: string
+  label: string
+  value: string
+  last?: boolean
+}) {
+  return (
+    <div className="chainItem">
+
+      {!last && (
+        <div className="chainLine" />
+      )}
+
+      <div className="chainNumber">
+        {number}
+      </div>
+
+      <div className="chainText">
+
+        <span>
+          {label.toUpperCase()}
+        </span>
+
+        <strong>
+          {value}
+        </strong>
+
+      </div>
+
+    </div>
+  )
+}
+
+/* =========================================================
+   DIGITAL ITEM
+========================================================= */
+
+function DigitalItem({
+  icon,
+  label,
+  value,
+  active,
+}: {
+  icon: string
+  label: string
+  value: string
+  active: boolean
+}) {
+  return (
+    <div className="digitalItem">
+
+      <div
+        className={
+          active
+            ? 'digitalIcon digitalIconActive'
+            : 'digitalIcon'
+        }
+      >
+        {icon}
+      </div>
+
+      <div className="digitalItemText">
+
+        <span>
+          {label.toUpperCase()}
+        </span>
+
+        <strong>
+          {active && label !== 'Código público'
+            ? `✓ ${value}`
+            : value}
+        </strong>
+
+      </div>
+
     </div>
   )
 }

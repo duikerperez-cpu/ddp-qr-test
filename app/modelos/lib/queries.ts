@@ -5,6 +5,10 @@ export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+// =====================================================
+// MODELOS
+// =====================================================
+
 export const getModelos = () =>
   supabase
     .from('modelos')
@@ -45,7 +49,10 @@ export const createModelo = async (data: any) => {
   return res
 }
 
-export const updateModelo = async (id: string, data: any) => {
+export const updateModelo = async (
+  id: string,
+  data: any
+) => {
   const res = await supabase
     .from('modelos')
     .update({
@@ -73,6 +80,96 @@ export const deleteModelo = async (id: string) => {
 
   if (res.error) {
     console.error('Error eliminando modelo:', res.error)
+  }
+
+  return res
+}
+
+// =====================================================
+// ATRIBUTOS DEL MODELO
+// =====================================================
+
+export const getAtributosModelo = (
+  modeloId: string
+) =>
+  supabase
+    .from('modelo_atributos')
+    .select('*')
+    .eq('modelo_id', modeloId)
+    .order('grupo', { ascending: true })
+    .order('orden', { ascending: true })
+
+export const createAtributoModelo = async (
+  modeloId: string,
+  data: any
+) => {
+  const res = await supabase
+    .from('modelo_atributos')
+    .insert([
+      {
+        modelo_id: modeloId,
+        nombre: data.nombre.trim(),
+        valor: data.valor?.trim() || null,
+        unidad: data.unidad?.trim() || null,
+        grupo:
+          data.grupo?.trim() ||
+          'Especificaciones',
+        orden: Number(data.orden) || 0
+      }
+    ])
+    .select()
+
+  if (res.error) {
+    console.error(
+      'Error creando atributo:',
+      res.error
+    )
+  }
+
+  return res
+}
+
+export const updateAtributoModelo = async (
+  id: string,
+  data: any
+) => {
+  const res = await supabase
+    .from('modelo_atributos')
+    .update({
+      nombre: data.nombre.trim(),
+      valor: data.valor?.trim() || null,
+      unidad: data.unidad?.trim() || null,
+      grupo:
+        data.grupo?.trim() ||
+        'Especificaciones',
+      orden: Number(data.orden) || 0
+    })
+    .eq('id', id)
+    .select()
+
+  if (res.error) {
+    console.error(
+      'Error actualizando atributo:',
+      res.error
+    )
+  }
+
+  return res
+}
+
+export const deleteAtributoModelo = async (
+  id: string
+) => {
+  const res = await supabase
+    .from('modelo_atributos')
+    .delete()
+    .eq('id', id)
+
+  if (res.error) {
+    console.error(
+      'Error eliminando atributo:',
+      res.error
+    )
   }
 
   return res

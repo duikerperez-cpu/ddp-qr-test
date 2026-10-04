@@ -766,11 +766,17 @@ function UnidadDetalle({
 }) {
   const carrier = unidad.carrier
 
-  const qrUrl =
-    carrier?.qr_url ||
+  const basePublicUrl =
     `https://vinculab.cl/u/${encodeURIComponent(
       unidad.codigo
     )}`
+
+  // El QR físico siempre identifica su origen explícitamente.
+  const qrUrl = `${basePublicUrl}?origen=qr`
+
+  // El NFC utiliza una URL distinta para que Verificaciones
+  // pueda diferenciarlo del QR y de una visita web normal.
+  const nfcUrl = `${basePublicUrl}?origen=nfc`
 
   return (
     <>
@@ -848,6 +854,19 @@ function UnidadDetalle({
 
               <div style={styles.publicUrl}>
                 {qrUrl}
+              </div>
+
+              <div
+                style={{
+                  ...styles.publicLabel,
+                  marginTop: 14
+                }}
+              >
+                URL NFC
+              </div>
+
+              <div style={styles.publicUrl}>
+                {nfcUrl}
               </div>
 
               <div

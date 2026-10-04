@@ -353,7 +353,11 @@ export default function NfcQrPage() {
               type="button"
               style={styles.backButton}
               onClick={() =>
-                router.push('/dashboard')
+                router.push(
+                  perfil?.rol === 'superadmin'
+                    ? '/admin'
+                    : '/portal'
+                )
               }
             >
               ← Dashboard

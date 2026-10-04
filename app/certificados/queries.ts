@@ -126,7 +126,9 @@ export async function getPerfilCertificados(): Promise<PerfilCertificados> {
   } = await supabase.auth.getUser()
 
   if (userError || !user) {
-    throw new Error('Sesión no válida.')
+    throw new Error(
+      'Sesión no válida.'
+    )
   }
 
   const {
@@ -134,8 +136,7 @@ export async function getPerfilCertificados(): Promise<PerfilCertificados> {
     error
   } = await supabase
     .from('perfiles')
-    .select(
-      `
+    .select(`
       id,
       nombre,
       apellido,
@@ -143,8 +144,7 @@ export async function getPerfilCertificados(): Promise<PerfilCertificados> {
       rol,
       activo,
       empresa_id
-      `
-    )
+    `)
     .eq('id', user.id)
     .maybeSingle()
 
@@ -171,7 +171,8 @@ export async function getPerfilCertificados(): Promise<PerfilCertificados> {
     )
   }
 
-  const rol = normalizarRol(data.rol)
+  const rol =
+    normalizarRol(data.rol)
 
   if (
     rol !== 'superadmin' &&
@@ -221,8 +222,7 @@ export async function getEmpresaCertificados(
     error
   } = await supabase
     .from('empresas')
-    .select(
-      `
+    .select(`
       id,
       razon_social,
       nombre,
@@ -232,8 +232,7 @@ export async function getEmpresaCertificados(
       pais,
       sector,
       estado
-      `
-    )
+    `)
     .eq('id', empresaId)
     .maybeSingle()
 
@@ -253,12 +252,6 @@ export async function getEmpresaCertificados(
 
 // ============================================================
 // EMPRESAS
-//
-// Super Admin:
-// puede utilizar todas.
-//
-// Admin Empresa:
-// solamente recibe su empresa.
 // ============================================================
 
 export async function getEmpresasCertificados(): Promise<
@@ -272,8 +265,7 @@ export async function getEmpresasCertificados(): Promise<
 
   let query = supabase
     .from('empresas')
-    .select(
-      `
+    .select(`
       id,
       razon_social,
       nombre,
@@ -283,8 +275,7 @@ export async function getEmpresasCertificados(): Promise<
       pais,
       sector,
       estado
-      `
-    )
+    `)
     .order(
       'razon_social',
       {
@@ -323,7 +314,23 @@ export async function getEmpresasCertificados(): Promise<
 }
 
 // ============================================================
-// UNIDADES DISPONIBLES PARA CERTIFICACIÓN
+// UNIDADES PARA CERTIFICACIÓN
+//
+// VERSIÓN OPTIMIZADA:
+//
+// Antes:
+// varias consultas por cada unidad.
+//
+// Ahora:
+// 1 consulta unidades
+// 1 productos
+// 1 modelos
+// 1 lotes
+// 1 DPP
+// 1 NFC/QR
+//
+// Total aproximado:
+// 6 consultas independientemente del número de unidades.
 // ============================================================
 
 export async function getUnidadesCertificados(): Promise<
@@ -337,8 +344,7 @@ export async function getUnidadesCertificados(): Promise<
 
   let query = supabase
     .from('productos_individuales')
-    .select(
-      `
+    .select(`
       id,
       codigo_publico,
       codigo_qr,
@@ -347,9 +353,9 @@ export async function getUnidadesCertificados(): Promise<
       empresa_id,
       producto_id,
       modelo_id,
-      lote_id
-      `
-    )
+      lote_id,
+      created_at
+    `)
     .order(
       'created_at',
       {
@@ -389,187 +395,150 @@ export async function getUnidadesCertificados(): Promise<
     return []
   }
 
-  const resultado: UnidadCertificado[] =
-    []
+  // ==========================================================
+  // IDS ÚNICOS
+  // ==========================================================
 
-  for (
-    const unidad of unidades
-  ) {
-    let productoNombre:
-      | string
-      | null = null
-
-    let productoCategoria:
-      | string
-      | null = null
-
-    let modeloNombre:
-      | string
-      | null = null
-
-    let modeloVersion:
-      | string
-      | null = null
-
-    let loteCodigo:
-      | string
-      | null = null
-
-    let dppId:
-      | string
-      | null = null
-
-    let dppCodigo:
-      | string
-      | null = null
-
-    let carrierId:
-      | string
-      | null = null
-
-    let uidNfc:
-      | string
-      | null = null
-
-    let qrUrl:
-      | string
-      | null = null
-
-    // --------------------------------------------------------
-    // PRODUCTO
-    // --------------------------------------------------------
-
-    if (
-      unidad.producto_id
-    ) {
-      const {
-        data: producto
-      } = await supabase
-        .from('productos')
-        .select(
-          `
-          nombre,
-          categoria
-          `
+  const productoIds = Array.from(
+    new Set(
+      unidades
+        .map(
+          (unidad) =>
+            unidad.producto_id
         )
-        .eq(
-          'id',
-          unidad.producto_id
+        .filter(
+          (
+            id
+          ): id is string =>
+            Boolean(id)
         )
-        .maybeSingle()
+    )
+  )
 
-      productoNombre =
-        producto?.nombre || null
-
-      productoCategoria =
-        producto?.categoria || null
-    }
-
-    // --------------------------------------------------------
-    // MODELO
-    // --------------------------------------------------------
-
-    if (
-      unidad.modelo_id
-    ) {
-      const {
-        data: modelo
-      } = await supabase
-        .from('modelos')
-        .select(
-          `
-          nombre,
-          version
-          `
+  const modeloIds = Array.from(
+    new Set(
+      unidades
+        .map(
+          (unidad) =>
+            unidad.modelo_id
         )
-        .eq(
-          'id',
-          unidad.modelo_id
+        .filter(
+          (
+            id
+          ): id is string =>
+            Boolean(id)
         )
-        .maybeSingle()
+    )
+  )
 
-      modeloNombre =
-        modelo?.nombre || null
-
-      modeloVersion =
-        modelo?.version || null
-    }
-
-    // --------------------------------------------------------
-    // LOTE
-    // --------------------------------------------------------
-
-    if (
-      unidad.lote_id
-    ) {
-      const {
-        data: lote
-      } = await supabase
-        .from('lotes')
-        .select('codigo')
-        .eq(
-          'id',
-          unidad.lote_id
+  const loteIds = Array.from(
+    new Set(
+      unidades
+        .map(
+          (unidad) =>
+            unidad.lote_id
         )
-        .maybeSingle()
+        .filter(
+          (
+            id
+          ): id is string =>
+            Boolean(id)
+        )
+    )
+  )
 
-      loteCodigo =
-        lote?.codigo || null
-    }
+  const unidadIds =
+    unidades.map(
+      (unidad) =>
+        unidad.id
+    )
 
-    // --------------------------------------------------------
-    // DPP
-    // --------------------------------------------------------
+  // ==========================================================
+  // CONSULTAS EN PARALELO
+  // ==========================================================
 
-    const {
-      data: dpp
-    } = await supabase
+  const [
+    productosResponse,
+    modelosResponse,
+    lotesResponse,
+    dppsResponse,
+    carriersResponse
+  ] = await Promise.all([
+    productoIds.length > 0
+      ? supabase
+          .from('productos')
+          .select(
+            'id,nombre,categoria'
+          )
+          .in(
+            'id',
+            productoIds
+          )
+      : Promise.resolve({
+          data: [],
+          error: null
+        }),
+
+    modeloIds.length > 0
+      ? supabase
+          .from('modelos')
+          .select(
+            'id,nombre,version'
+          )
+          .in(
+            'id',
+            modeloIds
+          )
+      : Promise.resolve({
+          data: [],
+          error: null
+        }),
+
+    loteIds.length > 0
+      ? supabase
+          .from('lotes')
+          .select(
+            'id,codigo'
+          )
+          .in(
+            'id',
+            loteIds
+          )
+      : Promise.resolve({
+          data: [],
+          error: null
+        }),
+
+    supabase
       .from('dpps')
       .select(
-        `
-        id,
-        codigo
-        `
+        'id,codigo,unidad_id,created_at'
       )
-      .eq(
+      .in(
         'unidad_id',
-        unidad.id
+        unidadIds
       )
       .order(
         'created_at',
         {
           ascending: false
         }
-      )
-      .limit(1)
-      .maybeSingle()
+      ),
 
-    if (dpp) {
-      dppId =
-        dpp.id || null
-
-      dppCodigo =
-        dpp.codigo || null
-    }
-
-    // --------------------------------------------------------
-    // NFC / QR
-    // --------------------------------------------------------
-
-    const {
-      data: carrier
-    } = await supabase
+    supabase
       .from('nfc_qr')
       .select(
         `
         id_carrier,
+        unidad_id,
         uid_nfc,
-        qr_url
+        qr_url,
+        fecha_asignacion
         `
       )
-      .eq(
+      .in(
         'unidad_id',
-        unidad.id
+        unidadIds
       )
       .order(
         'fecha_asignacion',
@@ -577,93 +546,343 @@ export async function getUnidadesCertificados(): Promise<
           ascending: false
         }
       )
-      .limit(1)
-      .maybeSingle()
+  ])
 
-    if (carrier) {
-      carrierId =
-        carrier.id_carrier || null
-
-      uidNfc =
-        carrier.uid_nfc || null
-
-      qrUrl =
-        carrier.qr_url || null
-    }
-
-    resultado.push({
-      id:
-        unidad.id,
-
-      codigo_publico:
-        unidad.codigo_publico ||
-        null,
-
-      codigo_qr:
-        unidad.codigo_qr ||
-        null,
-
-      numero_unidad:
-        unidad.numero_unidad ??
-        null,
-
-      estado:
-        unidad.estado ||
-        null,
-
-      empresa_id:
-        unidad.empresa_id ||
-        null,
-
-      producto_id:
-        unidad.producto_id ||
-        null,
-
-      modelo_id:
-        unidad.modelo_id ||
-        null,
-
-      lote_id:
-        unidad.lote_id ||
-        null,
-
-      producto_nombre:
-        productoNombre,
-
-      producto_categoria:
-        productoCategoria,
-
-      modelo_nombre:
-        modeloNombre,
-
-      modelo_version:
-        modeloVersion,
-
-      lote_codigo:
-        loteCodigo,
-
-      dpp_id:
-        dppId,
-
-      dpp_codigo:
-        dppCodigo,
-
-      carrier_id:
-        carrierId,
-
-      uid_nfc:
-        uidNfc,
-
-      qr_url:
-        qrUrl
-    })
+  if (
+    productosResponse.error
+  ) {
+    console.error(
+      'Error cargando productos:',
+      productosResponse.error
+    )
   }
 
-  return resultado
+  if (
+    modelosResponse.error
+  ) {
+    console.error(
+      'Error cargando modelos:',
+      modelosResponse.error
+    )
+  }
+
+  if (
+    lotesResponse.error
+  ) {
+    console.error(
+      'Error cargando lotes:',
+      lotesResponse.error
+    )
+  }
+
+  if (
+    dppsResponse.error
+  ) {
+    console.error(
+      'Error cargando DPP:',
+      dppsResponse.error
+    )
+  }
+
+  if (
+    carriersResponse.error
+  ) {
+    console.error(
+      'Error cargando carriers:',
+      carriersResponse.error
+    )
+  }
+
+  // ==========================================================
+  // MAPAS
+  // ==========================================================
+
+  const productosMap =
+    new Map<
+      string,
+      {
+        nombre: string | null
+        categoria: string | null
+      }
+    >()
+
+  for (
+    const producto of
+      productosResponse.data || []
+  ) {
+    productosMap.set(
+      producto.id,
+      {
+        nombre:
+          producto.nombre ||
+          null,
+
+        categoria:
+          producto.categoria ||
+          null
+      }
+    )
+  }
+
+  const modelosMap =
+    new Map<
+      string,
+      {
+        nombre: string | null
+        version: string | null
+      }
+    >()
+
+  for (
+    const modelo of
+      modelosResponse.data || []
+  ) {
+    modelosMap.set(
+      modelo.id,
+      {
+        nombre:
+          modelo.nombre ||
+          null,
+
+        version:
+          modelo.version ||
+          null
+      }
+    )
+  }
+
+  const lotesMap =
+    new Map<
+      string,
+      {
+        codigo: string | null
+      }
+    >()
+
+  for (
+    const lote of
+      lotesResponse.data || []
+  ) {
+    lotesMap.set(
+      lote.id,
+      {
+        codigo:
+          lote.codigo ||
+          null
+      }
+    )
+  }
+
+  // ==========================================================
+  // DPP MÁS RECIENTE POR UNIDAD
+  // ==========================================================
+
+  const dppsMap =
+    new Map<
+      string,
+      {
+        id: string
+        codigo: string | null
+      }
+    >()
+
+  for (
+    const dpp of
+      dppsResponse.data || []
+  ) {
+    if (
+      !dpp.unidad_id
+    ) {
+      continue
+    }
+
+    if (
+      !dppsMap.has(
+        dpp.unidad_id
+      )
+    ) {
+      dppsMap.set(
+        dpp.unidad_id,
+        {
+          id:
+            dpp.id,
+
+          codigo:
+            dpp.codigo ||
+            null
+        }
+      )
+    }
+  }
+
+  // ==========================================================
+  // CARRIER MÁS RECIENTE POR UNIDAD
+  // ==========================================================
+
+  const carriersMap =
+    new Map<
+      string,
+      {
+        id_carrier: string
+        uid_nfc: string | null
+        qr_url: string | null
+      }
+    >()
+
+  for (
+    const carrier of
+      carriersResponse.data || []
+  ) {
+    if (
+      !carrier.unidad_id
+    ) {
+      continue
+    }
+
+    if (
+      !carriersMap.has(
+        carrier.unidad_id
+      )
+    ) {
+      carriersMap.set(
+        carrier.unidad_id,
+        {
+          id_carrier:
+            carrier.id_carrier,
+
+          uid_nfc:
+            carrier.uid_nfc ||
+            null,
+
+          qr_url:
+            carrier.qr_url ||
+            null
+        }
+      )
+    }
+  }
+
+  // ==========================================================
+  // CONSTRUIR RESULTADO
+  // ==========================================================
+
+  return unidades.map(
+    (unidad) => {
+      const producto =
+        unidad.producto_id
+          ? productosMap.get(
+              unidad.producto_id
+            )
+          : undefined
+
+      const modelo =
+        unidad.modelo_id
+          ? modelosMap.get(
+              unidad.modelo_id
+            )
+          : undefined
+
+      const lote =
+        unidad.lote_id
+          ? lotesMap.get(
+              unidad.lote_id
+            )
+          : undefined
+
+      const dpp =
+        dppsMap.get(
+          unidad.id
+        )
+
+      const carrier =
+        carriersMap.get(
+          unidad.id
+        )
+
+      return {
+        id:
+          unidad.id,
+
+        codigo_publico:
+          unidad.codigo_publico ||
+          null,
+
+        codigo_qr:
+          unidad.codigo_qr ||
+          null,
+
+        numero_unidad:
+          unidad.numero_unidad ??
+          null,
+
+        estado:
+          unidad.estado ||
+          null,
+
+        empresa_id:
+          unidad.empresa_id ||
+          null,
+
+        producto_id:
+          unidad.producto_id ||
+          null,
+
+        modelo_id:
+          unidad.modelo_id ||
+          null,
+
+        lote_id:
+          unidad.lote_id ||
+          null,
+
+        producto_nombre:
+          producto?.nombre ||
+          null,
+
+        producto_categoria:
+          producto?.categoria ||
+          null,
+
+        modelo_nombre:
+          modelo?.nombre ||
+          null,
+
+        modelo_version:
+          modelo?.version ||
+          null,
+
+        lote_codigo:
+          lote?.codigo ||
+          null,
+
+        dpp_id:
+          dpp?.id ||
+          null,
+
+        dpp_codigo:
+          dpp?.codigo ||
+          null,
+
+        carrier_id:
+          carrier?.id_carrier ||
+          null,
+
+        uid_nfc:
+          carrier?.uid_nfc ||
+          null,
+
+        qr_url:
+          carrier?.qr_url ||
+          null
+      }
+    }
+  )
 }
 
 // ============================================================
 // CERTIFICADOS
+//
+// TAMBIÉN OPTIMIZADO POR LOTES.
 // ============================================================
 
 export async function getCertificados(): Promise<
@@ -685,8 +904,6 @@ export async function getCertificados(): Promise<
       }
     )
 
-  // Esto duplica deliberadamente la seguridad RLS.
-  // RLS sigue siendo la protección principal.
   if (
     rol === 'adminempresa'
   ) {
@@ -721,208 +938,353 @@ export async function getCertificados(): Promise<
     return []
   }
 
-  const resultado: Certificado[] =
-    []
+  // ==========================================================
+  // IDS
+  // ==========================================================
+
+  const empresaIds = Array.from(
+    new Set(
+      certificados
+        .map(
+          (item) =>
+            item.empresa_id
+        )
+        .filter(Boolean)
+    )
+  )
+
+  const productoIds = Array.from(
+    new Set(
+      certificados
+        .map(
+          (item) =>
+            item.producto_id
+        )
+        .filter(
+          (
+            id
+          ): id is string =>
+            Boolean(id)
+        )
+    )
+  )
+
+  const modeloIds = Array.from(
+    new Set(
+      certificados
+        .map(
+          (item) =>
+            item.modelo_id
+        )
+        .filter(
+          (
+            id
+          ): id is string =>
+            Boolean(id)
+        )
+    )
+  )
+
+  const loteIds = Array.from(
+    new Set(
+      certificados
+        .map(
+          (item) =>
+            item.lote_id
+        )
+        .filter(
+          (
+            id
+          ): id is string =>
+            Boolean(id)
+        )
+    )
+  )
+
+  const unidadIds = Array.from(
+    new Set(
+      certificados
+        .map(
+          (item) =>
+            item.unidad_id
+        )
+        .filter(
+          (
+            id
+          ): id is string =>
+            Boolean(id)
+        )
+    )
+  )
+
+  const dppIds = Array.from(
+    new Set(
+      certificados
+        .map(
+          (item) =>
+            item.dpp_id
+        )
+        .filter(
+          (
+            id
+          ): id is string =>
+            Boolean(id)
+        )
+    )
+  )
+
+  // ==========================================================
+  // CONSULTAS PARALELAS
+  // ==========================================================
+
+  const [
+    empresasResponse,
+    productosResponse,
+    modelosResponse,
+    lotesResponse,
+    unidadesResponse,
+    dppsResponse
+  ] = await Promise.all([
+    empresaIds.length > 0
+      ? supabase
+          .from('empresas')
+          .select(`
+            id,
+            razon_social,
+            empresa_nombre,
+            nombre,
+            name
+          `)
+          .in(
+            'id',
+            empresaIds
+          )
+      : Promise.resolve({
+          data: [],
+          error: null
+        }),
+
+    productoIds.length > 0
+      ? supabase
+          .from('productos')
+          .select(
+            'id,nombre'
+          )
+          .in(
+            'id',
+            productoIds
+          )
+      : Promise.resolve({
+          data: [],
+          error: null
+        }),
+
+    modeloIds.length > 0
+      ? supabase
+          .from('modelos')
+          .select(
+            'id,nombre'
+          )
+          .in(
+            'id',
+            modeloIds
+          )
+      : Promise.resolve({
+          data: [],
+          error: null
+        }),
+
+    loteIds.length > 0
+      ? supabase
+          .from('lotes')
+          .select(
+            'id,codigo'
+          )
+          .in(
+            'id',
+            loteIds
+          )
+      : Promise.resolve({
+          data: [],
+          error: null
+        }),
+
+    unidadIds.length > 0
+      ? supabase
+          .from(
+            'productos_individuales'
+          )
+          .select(`
+            id,
+            codigo_publico,
+            codigo_qr
+          `)
+          .in(
+            'id',
+            unidadIds
+          )
+      : Promise.resolve({
+          data: [],
+          error: null
+        }),
+
+    dppIds.length > 0
+      ? supabase
+          .from('dpps')
+          .select(
+            'id,codigo'
+          )
+          .in(
+            'id',
+            dppIds
+          )
+      : Promise.resolve({
+          data: [],
+          error: null
+        })
+  ])
+
+  // ==========================================================
+  // MAPAS
+  // ==========================================================
+
+  const empresasMap =
+    new Map<string, string>()
 
   for (
-    const certificado of certificados
+    const empresa of
+      empresasResponse.data || []
   ) {
-    let empresaNombre:
-      | string
-      | null = null
+    empresasMap.set(
+      empresa.id,
+      empresa.razon_social ||
+        empresa.empresa_nombre ||
+        empresa.nombre ||
+        empresa.name ||
+        empresa.id
+    )
+  }
 
-    let productoNombre:
-      | string
-      | null = null
+  const productosMap =
+    new Map<string, string>()
 
-    let modeloNombre:
-      | string
-      | null = null
+  for (
+    const producto of
+      productosResponse.data || []
+  ) {
+    productosMap.set(
+      producto.id,
+      producto.nombre ||
+        producto.id
+    )
+  }
 
-    let loteCodigo:
-      | string
-      | null = null
+  const modelosMap =
+    new Map<string, string>()
 
-    let unidadCodigo:
-      | string
-      | null = null
+  for (
+    const modelo of
+      modelosResponse.data || []
+  ) {
+    modelosMap.set(
+      modelo.id,
+      modelo.nombre ||
+        modelo.id
+    )
+  }
 
-    let dppCodigo:
-      | string
-      | null = null
+  const lotesMap =
+    new Map<string, string>()
 
-    // --------------------------------------------------------
-    // EMPRESA
-    // --------------------------------------------------------
+  for (
+    const lote of
+      lotesResponse.data || []
+  ) {
+    lotesMap.set(
+      lote.id,
+      lote.codigo ||
+        lote.id
+    )
+  }
 
-    const {
-      data: empresa
-    } = await supabase
-      .from('empresas')
-      .select(
-        `
-        razon_social,
-        nombre,
-        name,
-        empresa_nombre
-        `
-      )
-      .eq(
-        'id',
-        certificado.empresa_id
-      )
-      .maybeSingle()
+  const unidadesMap =
+    new Map<string, string>()
 
-    empresaNombre =
-      empresa?.razon_social ||
-      empresa?.empresa_nombre ||
-      empresa?.nombre ||
-      empresa?.name ||
-      null
+  for (
+    const unidad of
+      unidadesResponse.data || []
+  ) {
+    unidadesMap.set(
+      unidad.id,
+      unidad.codigo_publico ||
+        unidad.codigo_qr ||
+        unidad.id
+    )
+  }
 
-    // --------------------------------------------------------
-    // PRODUCTO
-    // --------------------------------------------------------
+  const dppsMap =
+    new Map<string, string>()
 
-    if (
-      certificado.producto_id
-    ) {
-      const {
-        data: producto
-      } = await supabase
-        .from('productos')
-        .select('nombre')
-        .eq(
-          'id',
-          certificado.producto_id
-        )
-        .maybeSingle()
+  for (
+    const dpp of
+      dppsResponse.data || []
+  ) {
+    dppsMap.set(
+      dpp.id,
+      dpp.codigo ||
+        dpp.id
+    )
+  }
 
-      productoNombre =
-        producto?.nombre || null
-    }
+  // ==========================================================
+  // RESULTADO
+  // ==========================================================
 
-    // --------------------------------------------------------
-    // MODELO
-    // --------------------------------------------------------
-
-    if (
-      certificado.modelo_id
-    ) {
-      const {
-        data: modelo
-      } = await supabase
-        .from('modelos')
-        .select('nombre')
-        .eq(
-          'id',
-          certificado.modelo_id
-        )
-        .maybeSingle()
-
-      modeloNombre =
-        modelo?.nombre || null
-    }
-
-    // --------------------------------------------------------
-    // LOTE
-    // --------------------------------------------------------
-
-    if (
-      certificado.lote_id
-    ) {
-      const {
-        data: lote
-      } = await supabase
-        .from('lotes')
-        .select('codigo')
-        .eq(
-          'id',
-          certificado.lote_id
-        )
-        .maybeSingle()
-
-      loteCodigo =
-        lote?.codigo || null
-    }
-
-    // --------------------------------------------------------
-    // UNIDAD
-    // --------------------------------------------------------
-
-    if (
-      certificado.unidad_id
-    ) {
-      const {
-        data: unidad
-      } = await supabase
-        .from(
-          'productos_individuales'
-        )
-        .select(
-          `
-          codigo_publico,
-          codigo_qr
-          `
-        )
-        .eq(
-          'id',
-          certificado.unidad_id
-        )
-        .maybeSingle()
-
-      unidadCodigo =
-        unidad?.codigo_publico ||
-        unidad?.codigo_qr ||
-        certificado.unidad_id
-    }
-
-    // --------------------------------------------------------
-    // DPP
-    // --------------------------------------------------------
-
-    if (
-      certificado.dpp_id
-    ) {
-      const {
-        data: dpp
-      } = await supabase
-        .from('dpps')
-        .select('codigo')
-        .eq(
-          'id',
-          certificado.dpp_id
-        )
-        .maybeSingle()
-
-      dppCodigo =
-        dpp?.codigo || null
-    }
-
-    resultado.push({
+  return certificados.map(
+    (certificado) => ({
       ...certificado,
 
       empresa_nombre:
-        empresaNombre,
+        empresasMap.get(
+          certificado.empresa_id
+        ) || null,
 
       producto_nombre:
-        productoNombre,
+        certificado.producto_id
+          ? productosMap.get(
+              certificado.producto_id
+            ) || null
+          : null,
 
       modelo_nombre:
-        modeloNombre,
+        certificado.modelo_id
+          ? modelosMap.get(
+              certificado.modelo_id
+            ) || null
+          : null,
 
       lote_codigo:
-        loteCodigo,
+        certificado.lote_id
+          ? lotesMap.get(
+              certificado.lote_id
+            ) || null
+          : null,
 
       unidad_codigo:
-        unidadCodigo,
+        certificado.unidad_id
+          ? unidadesMap.get(
+              certificado.unidad_id
+            ) || null
+          : null,
 
       dpp_codigo:
-        dppCodigo
+        certificado.dpp_id
+          ? dppsMap.get(
+              certificado.dpp_id
+            ) || null
+          : null
     })
-  }
-
-  return resultado
+  )
 }
 
 // ============================================================
@@ -993,7 +1355,6 @@ export async function crearCertificado({
     )
   }
 
-  // Segunda barrera además de RLS.
   if (
     rol === 'adminempresa' &&
     unidad.empresa_id !==
@@ -1004,9 +1365,9 @@ export async function crearCertificado({
     )
   }
 
-  // ----------------------------------------------------------
-  // EVITAR CERTIFICADO DE AUTENTICIDAD DUPLICADO
-  // ----------------------------------------------------------
+  // ==========================================================
+  // EVITAR AUTENTICIDAD DUPLICADA
+  // ==========================================================
 
   if (
     tipo === 'autenticidad'
@@ -1017,11 +1378,7 @@ export async function crearCertificado({
     } = await supabase
       .from('certificados')
       .select(
-        `
-        id,
-        codigo,
-        estado
-        `
+        'id,codigo,estado'
       )
       .eq(
         'unidad_id',
@@ -1058,9 +1415,9 @@ export async function crearCertificado({
     }
   }
 
-  // ----------------------------------------------------------
-  // SNAPSHOT DE INFORMACIÓN
-  // ----------------------------------------------------------
+  // ==========================================================
+  // SNAPSHOT
+  // ==========================================================
 
   const datos = {
     unidad: {
@@ -1128,13 +1485,6 @@ export async function crearCertificado({
         unidad.qr_url
     }
   }
-
-  // ----------------------------------------------------------
-  // INSERT
-  //
-  // codigo = ''
-  // El trigger SQL genera VIN-CERT-AAAA-XXXXXX
-  // ----------------------------------------------------------
 
   const {
     data,
@@ -1227,10 +1577,7 @@ export async function cambiarEstadoCertificado(
   } = await supabase
     .from('certificados')
     .select(
-      `
-      id,
-      empresa_id
-      `
+      'id,empresa_id'
     )
     .eq(
       'id',
@@ -1302,11 +1649,7 @@ export async function revocarCertificado(
   } = await supabase
     .from('certificados')
     .select(
-      `
-      id,
-      empresa_id,
-      datos
-      `
+      'id,empresa_id,datos'
     )
     .eq(
       'id',

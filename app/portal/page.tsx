@@ -316,9 +316,11 @@ export default function PortalPage() {
 
             <ModuleCard
               title="Lotes"
-              description="Lotes de fabricación e información productiva."
+              description={`Gestionar lotes, unidades y QR de ${nombreEmpresa}.`}
               icon="▦"
-              status="Próxima etapa"
+              status="Activo"
+              active
+              onClick={() => router.push('/lotes')}
             />
 
             <ModuleCard

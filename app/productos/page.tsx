@@ -480,7 +480,11 @@ export default function ProductosPage() {
           <button
             type="button"
             onClick={() =>
-              router.push('/dashboard')
+              router.push(
+                esSuperadmin
+                  ? '/admin'
+                  : '/portal'
+              )
             }
             style={{
               background: '#18181b',

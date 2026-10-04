@@ -298,9 +298,11 @@ export default function PortalPage() {
           <div style={styles.modulesGrid}>
             <ModuleCard
               title="Productos"
-              description="Productos registrados por tu organización."
+              description={`Gestionar productos registrados por ${nombreEmpresa}.`}
               icon="📦"
-              status="Próxima etapa"
+              status="Activo"
+              active
+              onClick={() => router.push('/productos')}
             />
 
             <ModuleCard
@@ -421,19 +423,37 @@ function ModuleCard({
   description,
   icon,
   status,
-  highlight = false
+  highlight = false,
+  active = false,
+  onClick
 }: {
   title: string
   description: string
   icon: string
   status: string
   highlight?: boolean
+  active?: boolean
+  onClick?: () => void
 }) {
   return (
     <div
+      onClick={active ? onClick : undefined}
+      role={active ? 'button' : undefined}
+      tabIndex={active ? 0 : undefined}
+      onKeyDown={(event) => {
+        if (
+          active &&
+          onClick &&
+          (event.key === 'Enter' || event.key === ' ')
+        ) {
+          event.preventDefault()
+          onClick()
+        }
+      }}
       style={{
         ...styles.moduleCard,
-        ...(highlight ? styles.moduleHighlight : {})
+        ...(highlight ? styles.moduleHighlight : {}),
+        ...(active ? styles.moduleActive : {})
       }}
     >
       <div style={styles.moduleIcon}>
@@ -455,7 +475,7 @@ function ModuleCard({
       </div>
 
       <div style={styles.moduleLock}>
-        🔒
+        {active ? '→' : '🔒'}
       </div>
     </div>
   )
@@ -772,6 +792,12 @@ const styles: Record<string, React.CSSProperties> = {
   moduleHighlight: {
     border: '1px solid rgba(255,106,0,.65)',
     background: 'linear-gradient(145deg,#18181b,#23160d)'
+  },
+
+  moduleActive: {
+    border: '1px solid rgba(255,106,0,.75)',
+    background: 'linear-gradient(145deg,#18181b,#23160d)',
+    cursor: 'pointer'
   },
 
   moduleIcon: {

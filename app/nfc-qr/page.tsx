@@ -15,6 +15,35 @@ import {
   type UnidadNfcQr
 } from './queries'
 
+function normalizarUidNfc(value: string) {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/[^0-9A-F]/g, '')
+}
+
+function mensajeErrorNfc(error: any, fallback: string) {
+  const raw = [
+    error?.message,
+    error?.details,
+    error?.hint,
+    error?.code
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+
+  if (
+    raw.includes('nfc_qr_uid_nfc_normalizado_unique_idx') ||
+    raw.includes('duplicate key') ||
+    raw.includes('23505')
+  ) {
+    return 'Este UID NFC ya está vinculado a otro carrier. Vinculab bloqueó la operación para proteger la identidad física del producto.'
+  }
+
+  return error?.message || fallback
+}
+
 export default function NfcQrPage() {
   const router = useRouter()
 
@@ -204,7 +233,7 @@ export default function NfcQrPage() {
         codigo_unidad:
           unidadSeleccionada.codigo,
         uid_nfc:
-          uidNfc.trim() || null,
+          normalizarUidNfc(uidNfc) || null,
         tipo: 'NFC_QR'
       })
 
@@ -215,8 +244,10 @@ export default function NfcQrPage() {
       await cargar()
     } catch (e: any) {
       setError(
-        e?.message ||
+        mensajeErrorNfc(
+          e,
           'No fue posible asignar el identificador.'
+        )
       )
     } finally {
       setGuardando(false)
@@ -241,7 +272,7 @@ export default function NfcQrPage() {
 
       await actualizarUidNfc(
         unidadSeleccionada.carrier.id_carrier,
-        uidNfc.trim() || null
+        normalizarUidNfc(uidNfc) || null
       )
 
       setMensaje(
@@ -251,8 +282,10 @@ export default function NfcQrPage() {
       await cargar()
     } catch (e: any) {
       setError(
-        e?.message ||
+        mensajeErrorNfc(
+          e,
           'No fue posible actualizar el UID NFC.'
+        )
       )
     } finally {
       setGuardando(false)
@@ -911,14 +944,46 @@ function UnidadDetalle({
               NFC asociado a esta unidad.
             </div>
 
+            <div
+              style={
+                carrier.uid_nfc
+                  ? styles.nfcLinkedCard
+                  : styles.nfcPendingCard
+              }
+            >
+              <div style={styles.nfcStatusTop}>
+                <span
+                  style={
+                    carrier.uid_nfc
+                      ? styles.nfcStatusDotLinked
+                      : styles.nfcStatusDotPending
+                  }
+                />
+
+                <strong>
+                  {carrier.uid_nfc
+                    ? 'NFC VINCULADO ✓'
+                    : 'NFC PENDIENTE'}
+                </strong>
+              </div>
+
+              <div style={styles.nfcStatusValue}>
+                {carrier.uid_nfc
+                  ? `UID ${normalizarUidNfc(
+                      carrier.uid_nfc
+                    )}`
+                  : 'Sin UID físico vinculado'}
+              </div>
+            </div>
+
             <input
               style={styles.input}
               value={uidNfc}
               onChange={e =>
                 setUidNfc(
-                  e.target.value
-                    .trimStart()
-                    .toUpperCase()
+                  normalizarUidNfc(
+                    e.target.value
+                  )
                 )
               }
               placeholder="Ej: 04A1B2C3D4E5"
@@ -949,6 +1014,17 @@ function UnidadDetalle({
               value={
                 carrier.vinculab_id ||
                 unidad.codigo
+              }
+            />
+
+            <InfoRow
+              label="UID NFC"
+              value={
+                carrier.uid_nfc
+                  ? normalizarUidNfc(
+                      carrier.uid_nfc
+                    )
+                  : 'Pendiente'
               }
             />
 
@@ -1046,9 +1122,9 @@ function UnidadDetalle({
               value={uidNfc}
               onChange={e =>
                 setUidNfc(
-                  e.target.value
-                    .trimStart()
-                    .toUpperCase()
+                  normalizarUidNfc(
+                    e.target.value
+                  )
                 )
               }
               placeholder="Puedes registrarlo ahora o después"
@@ -1735,6 +1811,54 @@ const styles: Record<
     cursor: 'pointer',
     fontWeight: 700,
     fontSize: 11
+  },
+
+  nfcLinkedCard: {
+    margin: '0 0 13px',
+    border: '1px solid #1e5137',
+    background: '#0d1f17',
+    borderRadius: 13,
+    padding: 13
+  },
+
+  nfcPendingCard: {
+    margin: '0 0 13px',
+    border: '1px solid #5a4616',
+    background: '#211a0c',
+    borderRadius: 13,
+    padding: 13
+  },
+
+  nfcStatusTop: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 11,
+    letterSpacing: '0.08em'
+  },
+
+  nfcStatusDotLinked: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    background: '#86efac',
+    boxShadow: '0 0 0 4px rgba(134, 239, 172, 0.08)'
+  },
+
+  nfcStatusDotPending: {
+    width: 8,
+    height: 8,
+    borderRadius: '50%',
+    background: '#fbbf24',
+    boxShadow: '0 0 0 4px rgba(251, 191, 36, 0.08)'
+  },
+
+  nfcStatusValue: {
+    marginTop: 8,
+    color: '#d4d4d8',
+    fontFamily: 'monospace',
+    fontSize: 12,
+    overflowWrap: 'anywhere'
   },
 
   nfcSection: {

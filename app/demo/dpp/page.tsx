@@ -930,7 +930,7 @@ export default function DemoDPP() {
 
           <button
             className="primary"
-            onClick={() => router.push('/demo?step=8')}
+            onClick={() => router.push('/demo/trazabilidad')}
           >
             Ver trazabilidad completa →
           </button>

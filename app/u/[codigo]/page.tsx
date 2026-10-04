@@ -162,44 +162,18 @@ export default function UnidadPublicaPage() {
         )
 
         /* =====================================================
-           CERTIFICADOS PÚBLICOS DE LA UNIDAD
+           CERTIFICADOS PÚBLICOS
+           Ya vienen dentro de get_identidad_publica.
+           No consultamos directamente la tabla certificados.
         ===================================================== */
 
-        const unidadId =
-          identidad.unidad?.id
-
-        if (unidadId) {
-          const {
-            data: certificadosData,
-            error: certificadosError
-          } = await supabase
-            .from('certificados')
-            .select(
-              'id,codigo,tipo,titulo,descripcion,estado,fecha_emision,fecha_vencimiento,referencia_verificacion'
-            )
-            .eq('unidad_id', unidadId)
-            .order(
-              'fecha_emision',
-              { ascending: false }
-            )
-
-          if (certificadosError) {
-            console.error(
-              'Error certificados públicos:',
-              certificadosError
-            )
-
-            setCertificados([])
-          } else {
-            setCertificados(
-              Array.isArray(certificadosData)
-                ? certificadosData
-                : []
-            )
-          }
-        } else {
-          setCertificados([])
-        }
+        setCertificados(
+          Array.isArray(
+            identidad.certificados
+          )
+            ? identidad.certificados
+            : []
+        )
 
       } catch (err) {
 
@@ -1195,7 +1169,7 @@ export default function UnidadPublicaPage() {
 
                     return (
                       <div
-                        key={certificado.id}
+                        key={certificado.codigo}
                         style={{
                           background: '#09090b',
                           color: 'white',

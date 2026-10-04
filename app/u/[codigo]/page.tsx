@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { useParams } from 'next/navigation'
 
@@ -57,6 +57,9 @@ export default function UnidadPublicaPage() {
 
   const [error, setError] =
     useState('')
+
+  const verificacionRegistradaRef =
+    useRef<string | null>(null)
 
   /* =========================================================
      CARGAR IDENTIDAD DIGITAL
@@ -123,6 +126,85 @@ export default function UnidadPublicaPage() {
           )
 
           return
+        }
+
+        /* =====================================================
+           REGISTRAR VERIFICACIÓN PÚBLICA
+
+           Solo se ejecuta después de confirmar que la identidad
+           existe. El ref evita duplicados por re-render o por
+           React Strict Mode durante la misma carga de página.
+
+           El origen puede venir en la URL:
+           /u/CODIGO?origen=qr
+           /u/CODIGO?origen=nfc
+
+           Si no viene informado, se registra como web.
+        ===================================================== */
+
+        if (verificacionRegistradaRef.current !== codigo) {
+
+          verificacionRegistradaRef.current = codigo
+
+          try {
+
+            const parametros =
+              new URLSearchParams(window.location.search)
+
+            const origenUrl =
+              String(
+                parametros.get('origen') || 'web'
+              )
+                .trim()
+                .toLowerCase()
+
+            const origenPermitido =
+              [
+                'qr',
+                'nfc',
+                'web',
+                'certificado',
+                'otro'
+              ].includes(origenUrl)
+                ? origenUrl
+                : 'web'
+
+            const anchoPantalla =
+              window.innerWidth || 0
+
+            const dispositivo =
+              anchoPantalla <= 767
+                ? 'movil'
+                : anchoPantalla <= 1100
+                  ? 'tablet'
+                  : 'escritorio'
+
+            const { error: verificacionError } =
+              await supabase.rpc(
+                'registrar_verificacion_publica',
+                {
+                  p_codigo: codigo,
+                  p_origen: origenPermitido,
+                  p_dispositivo: dispositivo,
+                  p_user_agent:
+                    navigator.userAgent || null
+                }
+              )
+
+            if (verificacionError) {
+              console.error(
+                'Error registrando verificación:',
+                verificacionError
+              )
+            }
+
+          } catch (verificacionError) {
+
+            console.error(
+              'Error registrando verificación:',
+              verificacionError
+            )
+          }
         }
 
         setUnidad(

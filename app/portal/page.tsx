@@ -399,9 +399,13 @@ export default function PortalPage() {
 
             <ModuleCard
               title="Verificaciones"
-              description="Consultas y verificaciones realizadas sobre tus productos."
+              description={`Consultas y verificaciones realizadas sobre los productos de ${nombreEmpresa}.`}
               icon="⌕"
-              status="Próxima etapa"
+              status="Activo"
+              active
+              onClick={() =>
+                router.push('/verificaciones')
+              }
             />
           </div>
         </section>

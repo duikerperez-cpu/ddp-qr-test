@@ -111,17 +111,17 @@ export default function PublicDPP() {
         }
 
         // ============================================================
-        // 5. SI NO ES LOTE, BUSCAMOS EN LOS DPP ANTIGUOS
+        // 5. SI NO ES LOTE, BUSCAMOS EL DPP MEDIANTE RPC PÚBLICA
         // ============================================================
 
         const { data: dpp, error: dppError } = await supabase
-          .from('dpps')
-          .select('*')
-          .eq('codigo', codigo)
-          .maybeSingle()
+          .rpc('get_dpp_publico', {
+            p_codigo: codigo
+          })
 
         if (dppError) {
-          console.error('Error buscando DPP:', dppError)
+          console.error('Error buscando DPP público:', dppError)
+          throw dppError
         }
 
         if (dpp) {

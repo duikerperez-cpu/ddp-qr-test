@@ -419,7 +419,7 @@ export default function DemoPage() {
                       </div>
 
                       <button className="phoneAction" onClick={() => router.push('/demo/dpp')}>Ver Pasaporte Digital →</button>
-                      <button className="phoneAction" style={{background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.08)'}} onClick={() => { closePhone(); setStep(8) }}>Ver trazabilidad →</button>
+                      <button className="phoneAction" style={{background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.08)'}} onClick={() => router.push('/demo/trazabilidad')}>Ver trazabilidad →</button>
                     </div>
                   )}
 

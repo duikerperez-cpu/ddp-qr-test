@@ -307,9 +307,11 @@ export default function PortalPage() {
 
             <ModuleCard
               title="Modelos"
-              description="Modelos y versiones asociados a tus productos."
+              description={`Gestionar modelos y especificaciones técnicas de ${nombreEmpresa}.`}
               icon="🏷️"
-              status="Próxima etapa"
+              status="Activo"
+              active
+              onClick={() => router.push('/modelos')}
             />
 
             <ModuleCard

@@ -1216,7 +1216,7 @@ export default function VerificacionesPage() {
                                 window.open(
                                   `/u/${encodeURIComponent(
                                     item.codigo_unidad
-                                  )}`,
+                                  )}?origen=interno`,
                                   '_blank',
                                   'noopener,noreferrer'
                                 )

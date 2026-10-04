@@ -335,9 +335,11 @@ export default function PortalPage() {
 
             <ModuleCard
               title="Pasaportes DPP"
-              description="Pasaportes Digitales de Producto de tu organización."
+              description={`Pasaportes Digitales de Producto de ${nombreEmpresa}.`}
               icon="▤"
-              status="Próxima etapa"
+              status="Activo"
+              active
+              onClick={() => router.push('/dpp')}
             />
 
             <ModuleCard

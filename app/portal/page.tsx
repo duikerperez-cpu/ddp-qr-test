@@ -325,10 +325,12 @@ export default function PortalPage() {
 
             <ModuleCard
               title="Unidades"
-              description="Identidades digitales de productos individuales."
+              description={`Identidades físicas individuales de ${nombreEmpresa}.`}
               icon="◈"
-              status="Próxima etapa"
+              status="Activo"
               highlight
+              active
+              onClick={() => router.push('/unidades')}
             />
 
             <ModuleCard

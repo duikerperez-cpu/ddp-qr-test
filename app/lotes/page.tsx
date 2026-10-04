@@ -738,7 +738,9 @@ export default function LotesPage() {
             type="button"
             onClick={() =>
               router.push(
-                '/dashboard'
+                esSuperadmin
+                  ? '/admin'
+                  : '/portal'
               )
             }
             style={{

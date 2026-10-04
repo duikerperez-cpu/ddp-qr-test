@@ -158,44 +158,99 @@ export default function UnidadPublicaPage() {
                 .trim()
                 .toLowerCase()
 
-            const origenPermitido =
-              [
-                'qr',
-                'nfc',
-                'web',
-                'certificado',
-                'otro'
-              ].includes(origenUrl)
-                ? origenUrl
-                : 'web'
+            /* ===================================================
+               ACCESO INTERNO
 
-            const anchoPantalla =
-              window.innerWidth || 0
+               Cuando el panel Vinculab abre una identidad usando:
+               ?origen=interno
 
-            const dispositivo =
-              anchoPantalla <= 767
-                ? 'movil'
-                : anchoPantalla <= 1100
-                  ? 'tablet'
-                  : 'escritorio'
+               mostramos la identidad normalmente, pero NO
+               registramos una verificación pública.
+            =================================================== */
 
-            const { error: verificacionError } =
-              await supabase.rpc(
-                'registrar_verificacion_publica',
-                {
-                  p_codigo: codigo,
-                  p_origen: origenPermitido,
-                  p_dispositivo: dispositivo,
-                  p_user_agent:
-                    navigator.userAgent || null
+            const accesoInterno =
+              origenUrl === 'interno'
+
+            if (!accesoInterno) {
+
+              const origenPermitido =
+                [
+                  'qr',
+                  'nfc',
+                  'web',
+                  'certificado',
+                  'otro'
+                ].includes(origenUrl)
+                  ? origenUrl
+                  : 'web'
+
+              const anchoPantalla =
+                window.innerWidth || 0
+
+              const dispositivo =
+                anchoPantalla <= 767
+                  ? 'movil'
+                  : anchoPantalla <= 1100
+                    ? 'tablet'
+                    : 'escritorio'
+
+              /* =================================================
+                 PROTECCIÓN CONTRA DUPLICADOS ACCIDENTALES
+
+                 Evita que una recarga inmediata o un doble montaje
+                 genere varias verificaciones de la misma interacción.
+
+                 Un nuevo escaneo posterior vuelve a registrarse.
+              ================================================= */
+
+              const claveVerificacion =
+                `vinculab-verificacion:${codigo}:${origenPermitido}:${dispositivo}`
+
+              const ahora = Date.now()
+
+              const ultimaVerificacion =
+                Number(
+                  window.sessionStorage.getItem(
+                    claveVerificacion
+                  ) || '0'
+                )
+
+              const ventanaAntiDuplicadoMs = 10000
+
+              const esDuplicadoReciente =
+                ultimaVerificacion > 0 &&
+                ahora - ultimaVerificacion <
+                  ventanaAntiDuplicadoMs
+
+              if (!esDuplicadoReciente) {
+
+                const { error: verificacionError } =
+                  await supabase.rpc(
+                    'registrar_verificacion_publica',
+                    {
+                      p_codigo: codigo,
+                      p_origen: origenPermitido,
+                      p_dispositivo: dispositivo,
+                      p_user_agent:
+                        navigator.userAgent || null
+                    }
+                  )
+
+                if (verificacionError) {
+
+                  console.error(
+                    'Error registrando verificación:',
+                    verificacionError
+                  )
+
+                } else {
+
+                  window.sessionStorage.setItem(
+                    claveVerificacion,
+                    String(ahora)
+                  )
                 }
-              )
-
-            if (verificacionError) {
-              console.error(
-                'Error registrando verificación:',
-                verificacionError
-              )
+              }
             }
 
           } catch (verificacionError) {

@@ -60,7 +60,7 @@ export default function LoginPage() {
     */
 
     if (rol === 'superadmin') {
-      return '/dashboard'
+      return '/admin'
     }
 
     /*
@@ -77,7 +77,7 @@ export default function LoginPage() {
     */
 
     if (perfil.empresa_id) {
-      return '/dashboard'
+      return '/portal'
     }
 
     return null

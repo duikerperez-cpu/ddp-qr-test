@@ -109,7 +109,9 @@ export default function PortalPage() {
 
       const { data: empresaData, error: empresaError } = await supabase
         .from('empresas')
-        .select('id, razon_social, empresa_nombre, nombre, name, rut, pais, sector, estado')
+        .select(
+          'id, razon_social, empresa_nombre, nombre, name, rut, pais, sector, estado'
+        )
         .eq('id', perfilData.empresa_id)
         .maybeSingle()
 
@@ -129,7 +131,6 @@ export default function PortalPage() {
       }
 
       setEmpresa(empresaData as Empresa)
-
     } catch (error) {
       console.error('Error cargando portal:', error)
       setErrorPortal(
@@ -164,7 +165,11 @@ export default function PortalPage() {
       <main style={styles.loading}>
         <div style={styles.loadingBox}>
           <div style={styles.brand}>VINCULAB</div>
-          <div style={styles.loadingTitle}>Cargando Portal Cliente...</div>
+
+          <div style={styles.loadingTitle}>
+            Cargando Portal Cliente...
+          </div>
+
           <div style={styles.loadingText}>
             Verificando sesión y organización
           </div>
@@ -177,7 +182,10 @@ export default function PortalPage() {
     <main style={styles.page}>
       <header style={styles.header}>
         <div>
-          <div style={styles.brand}>VINCULAB</div>
+          <div style={styles.brand}>
+            VINCULAB
+          </div>
+
           <div style={styles.brandSubtitle}>
             Portal Cliente · Identidad y trazabilidad
           </div>
@@ -188,6 +196,7 @@ export default function PortalPage() {
             <div style={styles.userName}>
               {perfil?.nombre || 'Usuario'}
             </div>
+
             <div style={styles.userRole}>
               PORTAL CLIENTE
             </div>
@@ -198,7 +207,9 @@ export default function PortalPage() {
             disabled={cerrando}
             style={styles.logoutButton}
           >
-            {cerrando ? 'Cerrando...' : 'Cerrar sesión'}
+            {cerrando
+              ? 'Cerrando...'
+              : 'Cerrar sesión'}
           </button>
         </div>
       </header>
@@ -235,7 +246,9 @@ export default function PortalPage() {
 
         {empresa && (
           <section style={styles.companyBanner}>
-            <div style={styles.companyIcon}>🏢</div>
+            <div style={styles.companyIcon}>
+              🏢
+            </div>
 
             <div style={{ flex: 1 }}>
               <div style={styles.companyLabel}>
@@ -275,11 +288,15 @@ export default function PortalPage() {
         )}
 
         <section style={styles.securityNotice}>
-          <div style={styles.securityIcon}>◈</div>
+          <div style={styles.securityIcon}>
+            ◈
+          </div>
+
           <div>
             <div style={styles.securityTitle}>
               Portal Cliente Vinculab
             </div>
+
             <div style={styles.securityText}>
               La cuenta y la empresa ya están separadas del entorno
               Super Admin. Los módulos de datos se habilitarán de forma
@@ -290,7 +307,10 @@ export default function PortalPage() {
         </section>
 
         <section style={{ marginTop: 38 }}>
-          <div style={styles.sectionLabel}>MÓDULOS</div>
+          <div style={styles.sectionLabel}>
+            MÓDULOS
+          </div>
+
           <h2 style={styles.sectionTitle}>
             Gestión de {nombreEmpresa}
           </h2>
@@ -302,7 +322,9 @@ export default function PortalPage() {
               icon="📦"
               status="Activo"
               active
-              onClick={() => router.push('/productos')}
+              onClick={() =>
+                router.push('/productos')
+              }
             />
 
             <ModuleCard
@@ -311,7 +333,9 @@ export default function PortalPage() {
               icon="🏷️"
               status="Activo"
               active
-              onClick={() => router.push('/modelos')}
+              onClick={() =>
+                router.push('/modelos')
+              }
             />
 
             <ModuleCard
@@ -320,7 +344,9 @@ export default function PortalPage() {
               icon="▦"
               status="Activo"
               active
-              onClick={() => router.push('/lotes')}
+              onClick={() =>
+                router.push('/lotes')
+              }
             />
 
             <ModuleCard
@@ -330,7 +356,9 @@ export default function PortalPage() {
               status="Activo"
               highlight
               active
-              onClick={() => router.push('/unidades')}
+              onClick={() =>
+                router.push('/unidades')
+              }
             />
 
             <ModuleCard
@@ -339,14 +367,20 @@ export default function PortalPage() {
               icon="▤"
               status="Activo"
               active
-              onClick={() => router.push('/dpp')}
+              onClick={() =>
+                router.push('/dpp')
+              }
             />
 
             <ModuleCard
               title="NFC / QR"
-              description="Identificadores físicos vinculados a cada unidad."
+              description={`Identificadores físicos NFC y QR vinculados a las unidades de ${nombreEmpresa}.`}
               icon="⌁"
-              status="Próxima etapa"
+              status="Activo"
+              active
+              onClick={() =>
+                router.push('/nfc-qr')
+              }
             />
 
             <ModuleCard
@@ -374,7 +408,10 @@ export default function PortalPage() {
 
         <section style={styles.accountSection}>
           <div>
-            <div style={styles.sectionLabel}>SESIÓN ACTUAL</div>
+            <div style={styles.sectionLabel}>
+              SESIÓN ACTUAL
+            </div>
+
             <h2 style={styles.sectionTitle}>
               Cuenta de empresa
             </h2>
@@ -383,22 +420,30 @@ export default function PortalPage() {
           <div style={styles.accountGrid}>
             <Info
               label="Usuario"
-              value={perfil?.nombre || 'Usuario'}
+              value={
+                perfil?.nombre || 'Usuario'
+              }
             />
 
             <Info
               label="Correo"
-              value={emailUsuario || '-'}
+              value={
+                emailUsuario || '-'
+              }
             />
 
             <Info
               label="Cargo"
-              value={perfil?.cargo || '-'}
+              value={
+                perfil?.cargo || '-'
+              }
             />
 
             <Info
               label="Rol"
-              value={perfil?.rol || '-'}
+              value={
+                perfil?.rol || '-'
+              }
             />
 
             <Info
@@ -408,16 +453,23 @@ export default function PortalPage() {
 
             <Info
               label="ID Empresa"
-              value={perfil?.empresa_id || '-'}
+              value={
+                perfil?.empresa_id || '-'
+              }
             />
           </div>
         </section>
       </div>
 
       <footer style={styles.footer}>
-        <strong style={{ color: '#ff6a00' }}>
+        <strong
+          style={{
+            color: '#ff6a00'
+          }}
+        >
           VINCULAB
         </strong>
+
         <span>
           Portal Cliente · Identidad digital · Trazabilidad · DPP
         </span>
@@ -445,14 +497,29 @@ function ModuleCard({
 }) {
   return (
     <div
-      onClick={active ? onClick : undefined}
-      role={active ? 'button' : undefined}
-      tabIndex={active ? 0 : undefined}
+      onClick={
+        active
+          ? onClick
+          : undefined
+      }
+      role={
+        active
+          ? 'button'
+          : undefined
+      }
+      tabIndex={
+        active
+          ? 0
+          : undefined
+      }
       onKeyDown={(event) => {
         if (
           active &&
           onClick &&
-          (event.key === 'Enter' || event.key === ' ')
+          (
+            event.key === 'Enter' ||
+            event.key === ' '
+          )
         ) {
           event.preventDefault()
           onClick()
@@ -460,8 +527,12 @@ function ModuleCard({
       }}
       style={{
         ...styles.moduleCard,
-        ...(highlight ? styles.moduleHighlight : {}),
-        ...(active ? styles.moduleActive : {})
+        ...(highlight
+          ? styles.moduleHighlight
+          : {}),
+        ...(active
+          ? styles.moduleActive
+          : {})
       }}
     >
       <div style={styles.moduleIcon}>
@@ -483,7 +554,9 @@ function ModuleCard({
       </div>
 
       <div style={styles.moduleLock}>
-        {active ? '→' : '🔒'}
+        {active
+          ? '→'
+          : '🔒'}
       </div>
     </div>
   )
@@ -501,6 +574,7 @@ function Info({
       <div style={styles.infoLabel}>
         {label}
       </div>
+
       <div style={styles.infoValue}>
         {value}
       </div>
@@ -508,12 +582,16 @@ function Info({
   )
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<
+  string,
+  React.CSSProperties
+> = {
   page: {
     minHeight: '100vh',
     background: '#09090b',
     color: '#ffffff',
-    fontFamily: 'Arial, Helvetica, sans-serif'
+    fontFamily:
+      'Arial, Helvetica, sans-serif'
   },
 
   loading: {
@@ -543,9 +621,11 @@ const styles: Record<string, React.CSSProperties> = {
 
   header: {
     minHeight: 82,
-    borderBottom: '1px solid #27272a',
+    borderBottom:
+      '1px solid #27272a',
     display: 'flex',
-    justifyContent: 'space-between',
+    justifyContent:
+      'space-between',
     alignItems: 'center',
     padding: '14px 32px',
     background: '#0c0c0f',
@@ -592,7 +672,8 @@ const styles: Record<string, React.CSSProperties> = {
 
   logoutButton: {
     background: '#27272a',
-    border: '1px solid #3f3f46',
+    border:
+      '1px solid #3f3f46',
     color: 'white',
     borderRadius: 8,
     padding: '10px 14px',
@@ -603,13 +684,15 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
     maxWidth: 1450,
     margin: '0 auto',
-    padding: '42px 30px 70px',
+    padding:
+      '42px 30px 70px',
     boxSizing: 'border-box'
   },
 
   welcome: {
     display: 'flex',
-    justifyContent: 'space-between',
+    justifyContent:
+      'space-between',
     alignItems: 'flex-end',
     gap: 20,
     marginBottom: 30,
@@ -637,7 +720,8 @@ const styles: Record<string, React.CSSProperties> = {
 
   accessBadge: {
     background: '#052e16',
-    border: '1px solid #166534',
+    border:
+      '1px solid #166534',
     color: '#86efac',
     borderRadius: 100,
     padding: '9px 14px',
@@ -657,7 +741,8 @@ const styles: Record<string, React.CSSProperties> = {
 
   errorBox: {
     background: '#450a0a',
-    border: '1px solid #7f1d1d',
+    border:
+      '1px solid #7f1d1d',
     color: '#fecaca',
     borderRadius: 10,
     padding: 14,
@@ -669,8 +754,10 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: 16,
-    background: 'linear-gradient(145deg,#18181b,#20150d)',
-    border: '1px solid rgba(255,106,0,.45)',
+    background:
+      'linear-gradient(145deg,#18181b,#20150d)',
+    border:
+      '1px solid rgba(255,106,0,.45)',
     borderRadius: 14,
     padding: 20,
     marginBottom: 18,
@@ -718,7 +805,8 @@ const styles: Record<string, React.CSSProperties> = {
 
   metaBadge: {
     background: '#27272a',
-    border: '1px solid #3f3f46',
+    border:
+      '1px solid #3f3f46',
     color: '#d4d4d8',
     borderRadius: 100,
     padding: '7px 10px',
@@ -728,7 +816,8 @@ const styles: Record<string, React.CSSProperties> = {
 
   statusBadge: {
     background: '#052e16',
-    border: '1px solid #166534',
+    border:
+      '1px solid #166534',
     color: '#86efac',
     borderRadius: 100,
     padding: '7px 10px',
@@ -740,7 +829,8 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     gap: 15,
     background: '#111827',
-    border: '1px solid #1f2937',
+    border:
+      '1px solid #1f2937',
     borderRadius: 14,
     padding: 18,
     alignItems: 'flex-start'
@@ -779,14 +869,16 @@ const styles: Record<string, React.CSSProperties> = {
 
   modulesGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gridTemplateColumns:
+      'repeat(auto-fit, minmax(280px, 1fr))',
     gap: 14
   },
 
   moduleCard: {
     width: '100%',
     background: '#18181b',
-    border: '1px solid #27272a',
+    border:
+      '1px solid #27272a',
     borderRadius: 14,
     padding: 20,
     color: 'white',
@@ -798,13 +890,17 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   moduleHighlight: {
-    border: '1px solid rgba(255,106,0,.65)',
-    background: 'linear-gradient(145deg,#18181b,#23160d)'
+    border:
+      '1px solid rgba(255,106,0,.65)',
+    background:
+      'linear-gradient(145deg,#18181b,#23160d)'
   },
 
   moduleActive: {
-    border: '1px solid rgba(255,106,0,.75)',
-    background: 'linear-gradient(145deg,#18181b,#23160d)',
+    border:
+      '1px solid rgba(255,106,0,.75)',
+    background:
+      'linear-gradient(145deg,#18181b,#23160d)',
     cursor: 'pointer'
   },
 
@@ -840,7 +936,8 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#ff6a00',
     fontSize: 10,
     fontWeight: 900,
-    textTransform: 'uppercase',
+    textTransform:
+      'uppercase',
     letterSpacing: 1,
     marginTop: 10
   },
@@ -853,18 +950,21 @@ const styles: Record<string, React.CSSProperties> = {
   accountSection: {
     marginTop: 42,
     paddingTop: 30,
-    borderTop: '1px solid #27272a'
+    borderTop:
+      '1px solid #27272a'
   },
 
   accountGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gridTemplateColumns:
+      'repeat(auto-fit, minmax(180px, 1fr))',
     gap: 12
   },
 
   infoBox: {
     background: '#18181b',
-    border: '1px solid #27272a',
+    border:
+      '1px solid #27272a',
     borderRadius: 10,
     padding: 16
   },
@@ -873,7 +973,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 10,
     color: '#71717a',
     fontWeight: 900,
-    textTransform: 'uppercase',
+    textTransform:
+      'uppercase',
     letterSpacing: 1
   },
 
@@ -885,7 +986,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   footer: {
-    borderTop: '1px solid #27272a',
+    borderTop:
+      '1px solid #27272a',
     minHeight: 70,
     padding: '0 30px',
     display: 'flex',

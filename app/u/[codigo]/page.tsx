@@ -46,6 +46,9 @@ export default function UnidadPublicaPage() {
   const [eventos, setEventos] =
     useState<any[]>([])
 
+  const [dpp, setDpp] =
+    useState<any>(null)
+
   const [loading, setLoading] =
     useState(true)
 
@@ -149,6 +152,10 @@ export default function UnidadPublicaPage() {
           Array.isArray(identidad.eventos)
             ? identidad.eventos
             : []
+        )
+
+        setDpp(
+          identidad.dpp || null
         )
 
       } catch (err) {
@@ -906,6 +913,154 @@ export default function UnidadPublicaPage() {
             </div>
 
           </div>
+
+          {/* =====================================================
+              PASAPORTE DIGITAL DEL PRODUCTO
+          ===================================================== */}
+
+          {dpp && (
+            <div
+              style={{
+                marginTop: 32,
+                paddingTop: 24,
+                borderTop: '1px solid #e4e4e7'
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  color: '#71717a',
+                  fontWeight: 900,
+                  letterSpacing: 1.5
+                }}
+              >
+                PASAPORTE DIGITAL DEL PRODUCTO
+              </div>
+
+              <h2
+                style={{
+                  color: '#09090b',
+                  fontSize: 21,
+                  margin: '6px 0 6px',
+                  fontWeight: 900
+                }}
+              >
+                DPP Vinculab
+              </h2>
+
+              <p
+                style={{
+                  margin: '0 0 18px',
+                  color: '#71717a',
+                  fontSize: 12,
+                  lineHeight: 1.6
+                }}
+              >
+                Esta unidad física posee un Pasaporte Digital de Producto
+                asociado a su identidad Vinculab.
+              </p>
+
+              <div
+                style={{
+                  background: '#09090b',
+                  color: 'white',
+                  borderRadius: 16,
+                  padding: 18
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    gap: 14,
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 9,
+                        color: '#a1a1aa',
+                        fontWeight: 900,
+                        letterSpacing: 1.2
+                      }}
+                    >
+                      PASAPORTE DIGITAL ACTIVO
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 7,
+                        fontFamily: 'monospace',
+                        fontSize: 14,
+                        fontWeight: 900,
+                        color: '#ffffff',
+                        wordBreak: 'break-all'
+                      }}
+                    >
+                      {dpp.codigo}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      background: '#14532d',
+                      color: '#bbf7d0',
+                      padding: '6px 10px',
+                      borderRadius: 30,
+                      fontSize: 9,
+                      fontWeight: 900,
+                      letterSpacing: 0.7,
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    ✓ {dpp.estado || 'activo'}
+                  </div>
+                </div>
+
+                {dpp.descripcion && (
+                  <div
+                    style={{
+                      marginTop: 15,
+                      color: '#d4d4d8',
+                      fontSize: 12,
+                      lineHeight: 1.6
+                    }}
+                  >
+                    {dpp.descripcion}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    window.open(
+                      `/p/${encodeURIComponent(dpp.codigo)}`,
+                      '_blank',
+                      'noopener,noreferrer'
+                    )
+                  }
+                  style={{
+                    width: '100%',
+                    minHeight: 46,
+                    marginTop: 18,
+                    border: 0,
+                    borderRadius: 11,
+                    background: '#ff6a00',
+                    color: '#ffffff',
+                    fontSize: 12,
+                    fontWeight: 900,
+                    cursor: 'pointer'
+                  }}
+                >
+                  VER PASAPORTE DIGITAL →
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* =====================================================
               ESPECIFICACIONES TÉCNICAS

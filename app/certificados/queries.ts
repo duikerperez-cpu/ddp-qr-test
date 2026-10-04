@@ -126,9 +126,7 @@ export async function getPerfilCertificados(): Promise<PerfilCertificados> {
   } = await supabase.auth.getUser()
 
   if (userError || !user) {
-    throw new Error(
-      'Sesión no válida.'
-    )
+    throw new Error('Sesión no válida.')
   }
 
   const {
@@ -316,21 +314,28 @@ export async function getEmpresasCertificados(): Promise<
 // ============================================================
 // UNIDADES PARA CERTIFICACIÓN
 //
-// VERSIÓN OPTIMIZADA:
+// IMPORTANTE:
+// La fuente productiva oficial es "unidades".
 //
-// Antes:
-// varias consultas por cada unidad.
+// Cadena:
 //
-// Ahora:
-// 1 consulta unidades
-// 1 productos
-// 1 modelos
-// 1 lotes
-// 1 DPP
-// 1 NFC/QR
+// empresa
+//   ↓
+// producto
+//   ↓
+// modelo
+//   ↓
+// lote
+//   ↓
+// unidades
+//   ↓
+// dpps
+//   ↓
+// nfc_qr
+//   ↓
+// certificados
 //
-// Total aproximado:
-// 6 consultas independientemente del número de unidades.
+// No utilizamos productos_individuales en este módulo.
 // ============================================================
 
 export async function getUnidadesCertificados(): Promise<
@@ -342,18 +347,21 @@ export async function getUnidadesCertificados(): Promise<
   const rol =
     normalizarRol(perfil.rol)
 
+  // ==========================================================
+  // 1. UNIDADES
+  // ==========================================================
+
   let query = supabase
-    .from('productos_individuales')
+    .from('unidades')
     .select(`
       id,
-      codigo_publico,
-      codigo_qr,
-      numero_unidad,
-      estado,
+      codigo,
+      lote_id,
       empresa_id,
       producto_id,
       modelo_id,
-      lote_id,
+      numero_unidad,
+      estado,
       created_at
     `)
     .order(
@@ -454,7 +462,7 @@ export async function getUnidadesCertificados(): Promise<
     )
 
   // ==========================================================
-  // CONSULTAS EN PARALELO
+  // 2. CARGA PARALELA DE RELACIONES
   // ==========================================================
 
   const [
@@ -512,7 +520,7 @@ export async function getUnidadesCertificados(): Promise<
     supabase
       .from('dpps')
       .select(
-        'id,codigo,unidad_id,created_at'
+        'id,codigo,unidad_id,estado,created_at'
       )
       .in(
         'unidad_id',
@@ -527,15 +535,15 @@ export async function getUnidadesCertificados(): Promise<
 
     supabase
       .from('nfc_qr')
-      .select(
-        `
+      .select(`
         id_carrier,
+        vinculab_id,
         unidad_id,
         uid_nfc,
         qr_url,
+        estado,
         fecha_asignacion
-        `
-      )
+      `)
       .in(
         'unidad_id',
         unidadIds
@@ -588,13 +596,13 @@ export async function getUnidadesCertificados(): Promise<
     carriersResponse.error
   ) {
     console.error(
-      'Error cargando carriers:',
+      'Error cargando NFC/QR:',
       carriersResponse.error
     )
   }
 
   // ==========================================================
-  // MAPAS
+  // 3. MAPA PRODUCTOS
   // ==========================================================
 
   const productosMap =
@@ -624,6 +632,10 @@ export async function getUnidadesCertificados(): Promise<
     )
   }
 
+  // ==========================================================
+  // 4. MAPA MODELOS
+  // ==========================================================
+
   const modelosMap =
     new Map<
       string,
@@ -651,6 +663,10 @@ export async function getUnidadesCertificados(): Promise<
     )
   }
 
+  // ==========================================================
+  // 5. MAPA LOTES
+  // ==========================================================
+
   const lotesMap =
     new Map<
       string,
@@ -674,7 +690,7 @@ export async function getUnidadesCertificados(): Promise<
   }
 
   // ==========================================================
-  // DPP MÁS RECIENTE POR UNIDAD
+  // 6. DPP MÁS RECIENTE POR UNIDAD
   // ==========================================================
 
   const dppsMap =
@@ -716,7 +732,7 @@ export async function getUnidadesCertificados(): Promise<
   }
 
   // ==========================================================
-  // CARRIER MÁS RECIENTE POR UNIDAD
+  // 7. CARRIER MÁS RECIENTE POR UNIDAD
   // ==========================================================
 
   const carriersMap =
@@ -763,7 +779,7 @@ export async function getUnidadesCertificados(): Promise<
   }
 
   // ==========================================================
-  // CONSTRUIR RESULTADO
+  // 8. RESULTADO FINAL
   // ==========================================================
 
   return unidades.map(
@@ -803,12 +819,13 @@ export async function getUnidadesCertificados(): Promise<
         id:
           unidad.id,
 
+        // Conservamos estos nombres para no romper page.tsx.
         codigo_publico:
-          unidad.codigo_publico ||
+          unidad.codigo ||
           null,
 
         codigo_qr:
-          unidad.codigo_qr ||
+          unidad.codigo ||
           null,
 
         numero_unidad:
@@ -881,8 +898,6 @@ export async function getUnidadesCertificados(): Promise<
 
 // ============================================================
 // CERTIFICADOS
-//
-// TAMBIÉN OPTIMIZADO POR LOTES.
 // ============================================================
 
 export async function getCertificados(): Promise<
@@ -939,7 +954,7 @@ export async function getCertificados(): Promise<
   }
 
   // ==========================================================
-  // IDS
+  // IDS ÚNICOS
   // ==========================================================
 
   const empresaIds = Array.from(
@@ -1034,7 +1049,7 @@ export async function getCertificados(): Promise<
   )
 
   // ==========================================================
-  // CONSULTAS PARALELAS
+  // RELACIONES EN PARALELO
   // ==========================================================
 
   const [
@@ -1111,13 +1126,10 @@ export async function getCertificados(): Promise<
 
     unidadIds.length > 0
       ? supabase
-          .from(
-            'productos_individuales'
-          )
+          .from('unidades')
           .select(`
             id,
-            codigo_publico,
-            codigo_qr
+            codigo
           `)
           .in(
             'id',
@@ -1216,8 +1228,7 @@ export async function getCertificados(): Promise<
   ) {
     unidadesMap.set(
       unidad.id,
-      unidad.codigo_publico ||
-        unidad.codigo_qr ||
+      unidad.codigo ||
         unidad.id
     )
   }
@@ -1366,7 +1377,50 @@ export async function crearCertificado({
   }
 
   // ==========================================================
-  // EVITAR AUTENTICIDAD DUPLICADA
+  // VALIDAR QUE LA UNIDAD EXISTA EN LA FUENTE PRODUCTIVA
+  // ==========================================================
+
+  const {
+    data: unidadReal,
+    error: unidadRealError
+  } = await supabase
+    .from('unidades')
+    .select(`
+      id,
+      codigo,
+      empresa_id,
+      producto_id,
+      modelo_id,
+      lote_id,
+      numero_unidad,
+      estado
+    `)
+    .eq(
+      'id',
+      unidad.id
+    )
+    .maybeSingle()
+
+  if (
+    unidadRealError ||
+    !unidadReal
+  ) {
+    throw new Error(
+      'La unidad seleccionada ya no existe en el registro productivo.'
+    )
+  }
+
+  if (
+    unidadReal.empresa_id !==
+    unidad.empresa_id
+  ) {
+    throw new Error(
+      'La empresa de la unidad no coincide con la identidad seleccionada.'
+    )
+  }
+
+  // ==========================================================
+  // EVITAR CERTIFICADO DE AUTENTICIDAD DUPLICADO
   // ==========================================================
 
   if (
@@ -1416,7 +1470,7 @@ export async function crearCertificado({
   }
 
   // ==========================================================
-  // SNAPSHOT
+  // SNAPSHOT INMUTABLE DE LA IDENTIDAD AL MOMENTO DE EMISIÓN
   // ==========================================================
 
   const datos = {
@@ -1485,6 +1539,14 @@ export async function crearCertificado({
         unidad.qr_url
     }
   }
+
+  // ==========================================================
+  // INSERT
+  //
+  // El código definitivo, fecha de emisión, referencia,
+  // hash y timestamps pueden ser completados por la lógica
+  // SQL que ya configuramos en certificados.
+  // ==========================================================
 
   const {
     data,

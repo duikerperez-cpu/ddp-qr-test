@@ -697,7 +697,9 @@ export default function ModelosPage() {
 
             onClick={() =>
               router.push(
-                '/dashboard'
+                esSuperadmin
+                  ? '/admin'
+                  : '/portal'
               )
             }
 

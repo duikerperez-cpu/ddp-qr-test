@@ -11,8 +11,8 @@ const supabase = createClient(
 
 type Perfil = {
   id: string
-  email?: string | null
   nombre: string | null
+  apellido: string | null
   cargo: string | null
   rol: string | null
   activo: boolean | null
@@ -23,6 +23,9 @@ type Empresa = {
   id: string
   razon_social?: string | null
   empresa_nombre?: string | null
+  nombre?: string | null
+  name?: string | null
+  rut?: string | null
   pais?: string | null
   sector?: string | null
   estado?: string | null
@@ -70,7 +73,7 @@ export default function PortalPage() {
 
       const { data: perfilData, error: perfilError } = await supabase
         .from('perfiles')
-        .select('id, email, nombre, cargo, rol, activo, empresa_id')
+        .select('id, nombre, apellido, cargo, rol, activo, empresa_id')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -106,7 +109,7 @@ export default function PortalPage() {
 
       const { data: empresaData, error: empresaError } = await supabase
         .from('empresas')
-        .select('id, razon_social, empresa_nombre, pais, sector, estado')
+        .select('id, razon_social, empresa_nombre, nombre, name, rut, pais, sector, estado')
         .eq('id', perfilData.empresa_id)
         .maybeSingle()
 
@@ -152,6 +155,8 @@ export default function PortalPage() {
   const nombreEmpresa =
     empresa?.razon_social ||
     empresa?.empresa_nombre ||
+    empresa?.nombre ||
+    empresa?.name ||
     'Mi empresa'
 
   if (loading) {
@@ -373,7 +378,7 @@ export default function PortalPage() {
 
             <Info
               label="Correo"
-              value={emailUsuario || perfil?.email || '-'}
+              value={emailUsuario || '-'}
             />
 
             <Info
@@ -859,4 +864,3 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: 'center'
   }
 }
-

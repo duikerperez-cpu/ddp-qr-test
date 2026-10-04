@@ -49,6 +49,9 @@ export default function UnidadPublicaPage() {
   const [dpp, setDpp] =
     useState<any>(null)
 
+  const [certificados, setCertificados] =
+    useState<any[]>([])
+
   const [loading, setLoading] =
     useState(true)
 
@@ -157,6 +160,46 @@ export default function UnidadPublicaPage() {
         setDpp(
           identidad.dpp || null
         )
+
+        /* =====================================================
+           CERTIFICADOS PÚBLICOS DE LA UNIDAD
+        ===================================================== */
+
+        const unidadId =
+          identidad.unidad?.id
+
+        if (unidadId) {
+          const {
+            data: certificadosData,
+            error: certificadosError
+          } = await supabase
+            .from('certificados')
+            .select(
+              'id,codigo,tipo,titulo,descripcion,estado,fecha_emision,fecha_vencimiento,referencia_verificacion'
+            )
+            .eq('unidad_id', unidadId)
+            .order(
+              'fecha_emision',
+              { ascending: false }
+            )
+
+          if (certificadosError) {
+            console.error(
+              'Error certificados públicos:',
+              certificadosError
+            )
+
+            setCertificados([])
+          } else {
+            setCertificados(
+              Array.isArray(certificadosData)
+                ? certificadosData
+                : []
+            )
+          }
+        } else {
+          setCertificados([])
+        }
 
       } catch (err) {
 
@@ -1058,6 +1101,316 @@ export default function UnidadPublicaPage() {
                 >
                   VER PASAPORTE DIGITAL →
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* =====================================================
+              CERTIFICADOS DIGITALES
+          ===================================================== */}
+
+          {certificados.length > 0 && (
+            <div
+              style={{
+                marginTop: 32,
+                paddingTop: 24,
+                borderTop: '1px solid #e4e4e7'
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10,
+                  color: '#71717a',
+                  fontWeight: 900,
+                  letterSpacing: 1.5
+                }}
+              >
+                CERTIFICADOS DIGITALES
+              </div>
+
+              <h2
+                style={{
+                  color: '#09090b',
+                  fontSize: 21,
+                  margin: '6px 0 6px',
+                  fontWeight: 900
+                }}
+              >
+                Documentos verificables
+              </h2>
+
+              <p
+                style={{
+                  margin: '0 0 18px',
+                  color: '#71717a',
+                  fontSize: 12,
+                  lineHeight: 1.6
+                }}
+              >
+                Esta unidad posee certificados digitales
+                asociados a su identidad Vinculab.
+              </p>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gap: 12
+                }}
+              >
+                {certificados.map(
+                  (certificado) => {
+
+                    const estado =
+                      String(
+                        certificado.estado || ''
+                      ).toLowerCase()
+
+                    const valido =
+                      estado === 'valido' ||
+                      estado === 'válido'
+
+                    const suspendido =
+                      estado === 'suspendido'
+
+                    const revocado =
+                      estado === 'revocado'
+
+                    const colorEstado =
+                      valido
+                        ? '#166534'
+                        : suspendido
+                          ? '#92400e'
+                          : revocado
+                            ? '#991b1b'
+                            : '#52525b'
+
+                    const fondoEstado =
+                      valido
+                        ? '#dcfce7'
+                        : suspendido
+                          ? '#fef3c7'
+                          : revocado
+                            ? '#fee2e2'
+                            : '#f4f4f5'
+
+                    return (
+                      <div
+                        key={certificado.id}
+                        style={{
+                          background: '#09090b',
+                          color: 'white',
+                          borderRadius: 16,
+                          padding: 18,
+                          border:
+                            '1px solid #27272a'
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent:
+                              'space-between',
+                            alignItems:
+                              'flex-start',
+                            gap: 14,
+                            flexWrap: 'wrap'
+                          }}
+                        >
+                          <div
+                            style={{
+                              minWidth: 0,
+                              flex: 1
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 9,
+                                color: '#ff6a00',
+                                fontWeight: 900,
+                                letterSpacing: 1.2
+                              }}
+                            >
+                              CERTIFICADO DIGITAL
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop: 7,
+                                fontSize: 17,
+                                fontWeight: 900,
+                                color: '#ffffff'
+                              }}
+                            >
+                              {certificado.titulo ||
+                                'Certificado digital'}
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop: 7,
+                                fontFamily:
+                                  'monospace',
+                                fontSize: 12,
+                                fontWeight: 900,
+                                color: '#d4d4d8',
+                                wordBreak:
+                                  'break-all'
+                              }}
+                            >
+                              {certificado.codigo}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              display:
+                                'inline-flex',
+                              alignItems:
+                                'center',
+                              gap: 5,
+                              background:
+                                fondoEstado,
+                              color:
+                                colorEstado,
+                              padding:
+                                '6px 10px',
+                              borderRadius: 30,
+                              fontSize: 9,
+                              fontWeight: 900,
+                              letterSpacing: 0.7,
+                              textTransform:
+                                'uppercase'
+                            }}
+                          >
+                            {valido ? '✓ ' : ''}
+                            {certificado.estado ||
+                              'registrado'}
+                          </div>
+                        </div>
+
+                        {certificado.descripcion && (
+                          <div
+                            style={{
+                              marginTop: 14,
+                              color: '#a1a1aa',
+                              fontSize: 12,
+                              lineHeight: 1.6
+                            }}
+                          >
+                            {certificado.descripcion}
+                          </div>
+                        )}
+
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns:
+                              'repeat(2, minmax(0, 1fr))',
+                            gap: 8,
+                            marginTop: 15
+                          }}
+                        >
+                          <div
+                            style={{
+                              background:
+                                '#18181b',
+                              borderRadius: 9,
+                              padding: 10
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 8,
+                                color: '#71717a',
+                                fontWeight: 900,
+                                letterSpacing: 1
+                              }}
+                            >
+                              EMISIÓN
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop: 5,
+                                fontSize: 11,
+                                fontWeight: 800
+                              }}
+                            >
+                              {certificado.fecha_emision
+                                ? new Date(
+                                    certificado.fecha_emision
+                                  ).toLocaleDateString(
+                                    'es-CL'
+                                  )
+                                : '-'}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              background:
+                                '#18181b',
+                              borderRadius: 9,
+                              padding: 10
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 8,
+                                color: '#71717a',
+                                fontWeight: 900,
+                                letterSpacing: 1
+                              }}
+                            >
+                              REFERENCIA
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop: 5,
+                                fontSize: 11,
+                                fontWeight: 800,
+                                wordBreak:
+                                  'break-all'
+                              }}
+                            >
+                              {certificado.referencia_verificacion ||
+                                '-'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            window.open(
+                              `/c/${encodeURIComponent(
+                                certificado.codigo
+                              )}`,
+                              '_blank',
+                              'noopener,noreferrer'
+                            )
+                          }
+                          style={{
+                            width: '100%',
+                            minHeight: 46,
+                            marginTop: 16,
+                            border: 0,
+                            borderRadius: 11,
+                            background:
+                              '#ff6a00',
+                            color: '#ffffff',
+                            fontSize: 12,
+                            fontWeight: 900,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          VER CERTIFICADO VERIFICABLE →
+                        </button>
+                      </div>
+                    )
+                  }
+                )}
               </div>
             </div>
           )}

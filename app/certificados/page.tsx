@@ -1134,6 +1134,13 @@ export default function CertificadosPage() {
                         certificado
                       )
                     }
+                    onPublicOpen={() =>
+                      router.push(
+                        `/c/${encodeURIComponent(
+                          certificado.codigo
+                        )}`
+                      )
+                    }
                   />
                 )
               )}
@@ -1756,15 +1763,28 @@ function StatCard({
 
 function CertificadoCard({
   certificado,
-  onOpen
+  onOpen,
+  onPublicOpen
 }: {
   certificado: Certificado
   onOpen: () => void
+  onPublicOpen: () => void
 }) {
   return (
-    <button
+    <div
       style={styles.certificateCard}
       onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (
+          event.key === 'Enter' ||
+          event.key === ' '
+        ) {
+          event.preventDefault()
+          onOpen()
+        }
+      }}
     >
       <div style={styles.cardTop}>
         <div style={styles.cardSeal}>
@@ -1836,11 +1856,31 @@ function CertificadoCard({
           )}
         </span>
 
-        <span style={styles.openText}>
-          Ver certificado →
-        </span>
+        <div style={styles.cardActions}>
+          <button
+            type="button"
+            style={styles.cardManageButton}
+            onClick={(event) => {
+              event.stopPropagation()
+              onOpen()
+            }}
+          >
+            Administrar
+          </button>
+
+          <button
+            type="button"
+            style={styles.cardPublicButton}
+            onClick={(event) => {
+              event.stopPropagation()
+              onPublicOpen()
+            }}
+          >
+            Ver certificado →
+          </button>
+        </div>
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -2555,6 +2595,39 @@ const styles: Record<
   openText: {
     color: '#ff6a00',
     fontWeight: 900
+  },
+
+  cardActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end'
+  },
+
+  cardManageButton: {
+    border:
+      '1px solid #3f3f46',
+    borderRadius: 7,
+    background: '#18181b',
+    color: '#d4d4d8',
+    padding: '7px 9px',
+    fontSize: 9,
+    fontWeight: 900,
+    cursor: 'pointer'
+  },
+
+  cardPublicButton: {
+    border:
+      '1px solid rgba(255,106,0,.55)',
+    borderRadius: 7,
+    background:
+      'rgba(255,106,0,.10)',
+    color: '#ff6a00',
+    padding: '7px 9px',
+    fontSize: 9,
+    fontWeight: 900,
+    cursor: 'pointer'
   },
 
   overlay: {

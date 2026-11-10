@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 
 const servicios = [
@@ -17,9 +17,46 @@ const productos = [
   { number: '04', name: 'Vinculab Seguridad', category: 'Operaciones', description: 'Checklists, registros y seguimiento de controles operacionales.', status: 'En desarrollo' },
 ]
 
+type ChatMessage = { role: 'bot' | 'user'; text: string }
+const greeting = '¡Hola! Soy el asistente comercial de Vinculab. Puedo orientarte sobre nuestros servicios y ayudarte a preparar una cotización. ¿Qué necesitas?'
+const choices = ['Software a medida', 'Producción y calidad', 'QR, NFC y trazabilidad', 'Automatización e IA', 'Solicitar cotización']
+function answerFor(message: string): string {
+  const t = message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  if (/precio|costo|valor|cotiza|presupuesto|cuanto|contratar/.test(t)) return 'Cada proyecto se cotiza según sus funciones, usuarios e integraciones. Cuéntame qué problema necesitas resolver y podemos preparar un correo con tus requerimientos para el equipo de Vinculab.'
+  if (/produccion|maestranza|calidad|inventario|bodega|horas hombre/.test(t)) return 'Podemos desarrollar sistemas para órdenes de trabajo, avance de procesos, inspecciones de calidad, horas hombre, materiales e indicadores. ¿Qué proceso te gustaría digitalizar primero?'
+  if (/qr|nfc|trazabilidad|identidad|pasaporte/.test(t)) return 'Vinculab trabaja con fichas digitales, códigos QR, etiquetas NFC, verificación e historial de trazabilidad. ¿Quieres identificar productos, equipos o personas?'
+  if (/ia|inteligencia|automatiza|asistente|chatbot/.test(t)) return 'Podemos evaluar automatizaciones, asistentes virtuales e integración de IA con tus procesos. ¿Qué tarea repetitiva o consulta quieres automatizar?'
+  if (/web|pagina|app|software|sistema|plataforma|desarrollo/.test(t)) return 'Desarrollamos plataformas web y software a medida para empresas. Para orientarte, cuéntame qué usuarios lo utilizarán y cuál es la función principal que necesitas.'
+  if (/hola|buenas|ayuda/.test(t)) return greeting
+  return 'Gracias por contarme. Para preparar una propuesta, sería útil saber qué hace tu empresa, qué problema deseas resolver y qué funciones esperas del sistema. Puedes seguir escribiendo o seleccionar “Preparar correo de cotización”.'
+}
+
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatInput, setChatInput] = useState('')
+  const [messages, setMessages] = useState<ChatMessage[]>([{ role: 'bot', text: greeting }])
+  const [leadName, setLeadName] = useState('')
+  const [leadCompany, setLeadCompany] = useState('')
+  const [leadEmail, setLeadEmail] = useState('')
+  const [leadDetails, setLeadDetails] = useState('')
+  const [showLead, setShowLead] = useState(false)
+  const chatEnd = useRef<HTMLDivElement>(null)
+  useEffect(() => { if (chatOpen) chatEnd.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }, [messages, chatOpen, showLead])
+  const sendMessage = (value: string) => {
+    const clean = value.trim().slice(0, 1000)
+    if (!clean) return
+    setMessages(prev => [...prev, { role: 'user', text: clean }, { role: 'bot', text: answerFor(clean) }])
+    setChatInput('')
+    if (/cotiza|presupuesto|precio/i.test(clean)) setShowLead(true)
+  }
+  const prepareEmail = () => {
+    const summary = messages.filter(m => m.role === 'user').map(m => `- ${m.text}`).join('\n')
+    const body = `Nombre: ${leadName.trim()}\nEmpresa: ${leadCompany.trim()}\nCorreo: ${leadEmail.trim()}\n\nRequerimiento:\n${leadDetails.trim()}\n\nResumen de la conversación:\n${summary || 'Sin mensajes adicionales'}`
+    const url = `mailto:contacto@vinculab.cl?subject=${encodeURIComponent('Solicitud de cotización - Vinculab')}&body=${encodeURIComponent(body)}`
+    window.location.href = url
+  }
 
   return (
     <main className="site">
@@ -78,6 +115,34 @@ export default function Home() {
 
       <footer className="footer"><div className="container footerInner"><span><strong>VINCULAB</strong> · Tecnología que conecta ideas y soluciones</span><span>© {new Date().getFullYear()} Vinculab SpA · Chile</span></div></footer>
 
+      {/* Asistente comercial gratuito: reglas locales, sin API ni almacenamiento de datos */}
+      <div className="chatLayer">
+        {chatOpen && <section className="chatPanel" role="dialog" aria-label="Asistente comercial Vinculab">
+          <div className="chatHead"><span className="chatAvatar">V</span><div><strong>Vinculab · Asistente comercial</strong><small>Respuestas orientativas · Sin IA generativa</small></div><button type="button" className="chatClose" aria-label="Cerrar asistente" onClick={() => setChatOpen(false)}>✕</button></div>
+          <div className="chatHistory" aria-live="polite">
+            {messages.map((m, i) => <div key={i} className={`chatBubble ${m.role === 'user' ? 'fromUser' : 'fromBot'}`}>{m.text}</div>)}
+            <div ref={chatEnd} />
+          </div>
+          {!showLead ? <>
+            <div className="chatChoices">{choices.map(choice => <button key={choice} type="button" onClick={() => { if (choice === 'Solicitar cotización') { setShowLead(true); setMessages(prev => [...prev, {role:'user',text:choice},{role:'bot',text:'Completa los datos que quieras compartir y podrás enviar tu solicitud desde tu aplicación de correo.'}]) } else sendMessage(choice) }}>{choice}</button>)}</div>
+            <form className="chatForm" onSubmit={e => { e.preventDefault(); sendMessage(chatInput) }}><input aria-label="Tu consulta" maxLength={1000} value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Escribe tu consulta..." /><button type="submit" disabled={!chatInput.trim()} aria-label="Enviar mensaje">➤</button></form>
+          </> : <form className="leadForm" onSubmit={e => { e.preventDefault(); prepareEmail() }}>
+            <strong>Preparar solicitud de cotización</strong>
+            <input aria-label="Nombre" placeholder="Tu nombre *" value={leadName} maxLength={100} onChange={e => setLeadName(e.target.value)} required />
+            <input aria-label="Empresa" placeholder="Empresa (opcional)" value={leadCompany} maxLength={120} onChange={e => setLeadCompany(e.target.value)} />
+            <input aria-label="Correo electrónico" type="email" placeholder="Tu correo *" value={leadEmail} maxLength={150} onChange={e => setLeadEmail(e.target.value)} required />
+            <textarea aria-label="Requerimiento" placeholder="¿Qué necesitas desarrollar? *" rows={3} maxLength={2000} value={leadDetails} onChange={e => setLeadDetails(e.target.value)} required />
+            <p>Al pulsar enviar se abrirá tu correo con la solicitud preparada. No se enviará automáticamente ni se guardará en esta web.</p>
+            <div className="leadActions"><button type="button" onClick={() => setShowLead(false)}>Volver</button><button type="submit">Abrir correo ↗</button></div>
+          </form>}
+        </section>}
+        <button className="chatLauncher" type="button" onClick={() => setChatOpen(v => !v)} aria-label={chatOpen ? 'Cerrar asistente comercial' : 'Abrir asistente comercial'} aria-expanded={chatOpen}><span>{chatOpen ? '✕' : '✦'}</span><span className="launcherText">¿Hablamos?</span></button>
+      </div>
+
+      <style jsx>{`
+        .chatLayer{position:fixed;bottom:22px;right:22px;z-index:100;display:flex;flex-direction:column;align-items:flex-end;gap:12px}.chatLauncher{border:1px solid #4b95f9;border-radius:999px;background:linear-gradient(135deg,#126bff,#00bfa9);color:white;box-shadow:0 12px 35px #0009;cursor:pointer;padding:13px 18px;display:flex;align-items:center;gap:9px;font-weight:800}.chatLauncher>span:first-child{font-size:21px}.chatPanel{width:min(390px,calc(100vw - 24px));height:min(600px,calc(100dvh - 105px));display:flex;flex-direction:column;background:#101a2a;border:1px solid #355071;border-radius:18px;overflow:hidden;box-shadow:0 25px 70px #000b;color:#f5f8ff}.chatHead{display:flex;align-items:center;gap:10px;padding:15px;background:#17263b;border-bottom:1px solid #33455d}.chatAvatar{display:grid;place-items:center;background:linear-gradient(135deg,#137aff,#00c4ae);width:38px;height:38px;border-radius:11px;font-weight:900}.chatHead div{flex:1;min-width:0}.chatHead strong{display:block;font-size:13px}.chatHead small{display:block;color:#a6b8cc;font-size:10px;margin-top:4px}.chatClose{background:transparent;border:0;color:#c7d7e8;cursor:pointer;padding:8px}.chatHistory{padding:15px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;overscroll-behavior:contain}.chatBubble{max-width:92%;font-size:13px;line-height:1.55;padding:11px 13px;border-radius:14px;white-space:pre-wrap;overflow-wrap:anywhere}.fromBot{align-self:flex-start;background:#20314a;border-bottom-left-radius:4px}.fromUser{align-self:flex-end;background:#126bdf;border-bottom-right-radius:4px}.chatChoices{padding:10px 12px 4px;display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid #2d3d52}.chatChoices button{border:1px solid #3c628a;background:#15283f;color:#c5e5ff;border-radius:16px;font-size:11px;padding:7px 10px;cursor:pointer}.chatChoices button:hover{background:#21456a}.chatForm{display:flex;gap:8px;padding:10px 12px 13px}.chatForm input,.leadForm input,.leadForm textarea{background:#0c1523;border:1px solid #3c4f69;border-radius:9px;color:#fff;padding:11px;font:inherit;font-size:13px;min-width:0;outline-offset:2px}.chatForm input{flex:1}.chatForm button{background:#147bff;color:white;border:0;border-radius:9px;padding:0 15px;cursor:pointer}.chatForm button:disabled{opacity:.45;cursor:not-allowed}.leadForm{display:flex;flex-direction:column;gap:9px;padding:14px;overflow-y:auto;border-top:1px solid #33455d}.leadForm>strong{font-size:13px}.leadForm textarea{resize:vertical}.leadForm p{color:#a9bad0;font-size:11px;line-height:1.45;margin:2px 0}.leadActions{display:flex;gap:8px}.leadActions button{flex:1;border:1px solid #3c628a;background:#1b2e46;color:white;border-radius:9px;padding:11px;cursor:pointer;font-size:12px}.leadActions button:last-child{background:#126bff;border-color:#126bff;font-weight:700}
+        @media(max-width:700px){.chatLayer{right:12px;bottom:12px}.chatPanel{height:min(600px,calc(100dvh - 88px))}.launcherText{font-size:12px}}
+      `}</style>
       <style jsx global>{`
         *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#070b13;color:#f5f8ff;font-family:Arial,Helvetica,sans-serif}a{color:inherit;text-decoration:none}button{font:inherit}::selection{background:#127dff;color:white}
       `}</style>
